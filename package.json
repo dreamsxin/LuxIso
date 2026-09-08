@@ -15,13 +15,13 @@
   ],
   "author": "dreamsxin",
   "license": "MIT",
-  "homepage": "https://github.com/dreamsxin/FluxIso#readme",
+  "homepage": "https://github.com/dreamsxin/LuxIso#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/dreamsxin/FluxIso.git"
+    "url": "git+https://github.com/dreamsxin/LuxIso.git"
   },
   "bugs": {
-    "url": "https://github.com/dreamsxin/FluxIso/issues"
+    "url": "https://github.com/dreamsxin/LuxIso/issues"
   },
   "publishConfig": {
     "access": "public"

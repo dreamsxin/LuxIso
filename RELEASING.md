@@ -43,7 +43,7 @@ and add a GitHub Actions trusted publisher with these exact values:
 | Field | Value |
 |---|---|
 | Organization or user | `dreamsxin` |
-| Repository | `FluxIso` |
+| Repository | `LuxIso` |
 | Workflow filename | `publish.yml` |
 | Environment | `npm` |
 | Allowed action | `npm publish` |
