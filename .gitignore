@@ -6,3 +6,9 @@ dist/
 node-compile-cache/
 playwright-report/
 test-results/
+
+# Windows reserved device names accidentally created by shell redirects
+# (e.g. `... 2>nul` run from PowerShell). A file literally named `nul` also
+# breaks ripgrep and other tools that walk the tree.
+nul
+
