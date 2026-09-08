@@ -36,6 +36,11 @@ jobs:
       - run: npm ci
       - run: npx playwright install --with-deps chromium
       - run: npm test
+      # Type-checks and bundles the demos/editors. NOTE: this artifact is not
+      # what the browser tests below exercise — playwright.webgl.config.ts starts
+      # the Vite dev server, because lifecycle.pw.ts dynamically imports
+      # WebGL2Renderer's .ts source, which only resolves under dev. Treat this
+      # step as build verification, not as the subject of the e2e run.
       - run: npm run build
       - run: npm run test:webgl
       - name: Upload golden candidates

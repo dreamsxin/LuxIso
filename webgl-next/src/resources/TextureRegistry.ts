@@ -6,11 +6,23 @@ interface TextureRecord {
   failed: boolean;
 }
 
-/** Lazy URL-to-texture registry. CPU image loading survives normal render frames. */
+/**
+ * Lazy URL-to-texture registry. CPU image loading survives normal render frames.
+ *
+ * GPU handles are owned by `GLResourceRegistry`, not by this class: `dispose()`
+ * only drops JS references, because the renderer either deletes the whole
+ * registry (`GLResourceRegistry.dispose`) or abandons already-invalidated
+ * handles after context loss (`GLResourceRegistry.abandon`).
+ *
+ * Records are never evicted within a renderer lifetime, so a URL that stops
+ * being referenced stays resident. Tracked as a roadmap item; fixing it needs
+ * per-frame reference counting.
+ */
 export class TextureRegistry {
   readonly white: WebGLTexture;
   private readonly _records = new Map<string, TextureRecord>();
   private readonly _loadingImages = new Set<HTMLImageElement>();
+  private readonly _reportedFailures = new Set<string>();
   private _disposed = false;
 
   constructor(
@@ -42,8 +54,30 @@ export class TextureRegistry {
       this._records.set(url, record);
       this._load(url, record);
     }
+    if (record.failed) {
+      // `failed` used to be set and never read, so the caller's
+      // `if (!resolved) continue` silently dropped every segment using this URL:
+      // a 404 or CORS error made those objects permanently invisible with no
+      // diagnostic. Fall back to the 1x1 white texture so geometry still draws
+      // (untextured) and report the URL once.
+      if (!this._reportedFailures.has(url)) {
+        this._reportedFailures.add(url);
+        console.warn(`TextureRegistry: failed to load "${url}"; drawing untextured.`);
+      }
+      return this.white;
+    }
     return record.texture;
   }
+
+  /** URLs whose image load failed. Useful for surfacing asset problems in the UI. */
+  get failedUrls(): readonly string[] {
+    const failed: string[] = [];
+    for (const [url, record] of this._records) {
+      if (record.failed) failed.push(url);
+    }
+    return failed;
+  }
+
 
   get size(): number {
     let count = 0;
@@ -62,6 +96,7 @@ export class TextureRegistry {
     }
     this._loadingImages.clear();
     this._records.clear();
+    this._reportedFailures.clear();
   }
 
   private _load(url: string, record: TextureRecord): void {

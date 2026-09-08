@@ -244,7 +244,7 @@ Engine                     — canvas setup, RAF loop, JSON loader, pre/postFram
 
 ```
 src/
-├── index.ts                     # Public API barrel — 80+ exports
+├── index.ts                     # Public API barrel — 66 runtime exports (134 incl. types)
 ├── main.ts                      # Interactive demo
 ├── core/
 │   ├── AssetLoader.ts           # Promise image cache; loadImage / loadAll / get

@@ -9,6 +9,8 @@ export class EditorRenderer {
   readonly engine: Engine;
   private _state: EditorState;
 
+  private _pendingRebuild: number | null = null;
+
   hoverWorld: { x: number; y: number } | null = null;
 
   constructor(canvas: HTMLCanvasElement, state: EditorState) {
@@ -16,10 +18,40 @@ export class EditorRenderer {
     this._state = state;
     this._updateOrigin();
     this._rebuild();
-    state.onChange(() => {
+    state.onChange(() => this._scheduleRebuild());
+  }
+
+  /**
+   * Coalesce rebuilds to at most one per frame.
+   *
+   * `EditorState.emit()` fires on every pointermove while dragging an object and
+   * on every painted walkable tile, and a rebuild allocates a whole new scene
+   * graph. Rebuilding synchronously meant hundreds of scene graphs per second,
+   * and — because the WebGL preview's ShadowProjectionCache is keyed on object
+   * identity via a WeakMap — every rebuild also invalidated 100% of the shadow
+   * projections. Only the last state within a frame is observable, so batching is
+   * free.
+   */
+  private _scheduleRebuild(): void {
+    if (this._pendingRebuild !== null) return;
+    const run = (): void => {
+      this._pendingRebuild = null;
       this._updateOrigin();
       this._rebuild();
-    });
+    };
+    this._pendingRebuild = typeof requestAnimationFrame === 'function'
+      ? requestAnimationFrame(run)
+      : (setTimeout(run, 0) as unknown as number);
+  }
+
+  /** Apply any pending rebuild immediately. Useful before reading engine state. */
+  flushRebuild(): void {
+    if (this._pendingRebuild === null) return;
+    if (typeof cancelAnimationFrame === 'function') cancelAnimationFrame(this._pendingRebuild);
+    else clearTimeout(this._pendingRebuild as unknown as ReturnType<typeof setTimeout>);
+    this._pendingRebuild = null;
+    this._updateOrigin();
+    this._rebuild();
   }
 
   private _updateOrigin(): void {

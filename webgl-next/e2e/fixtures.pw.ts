@@ -24,6 +24,11 @@ test.describe('WebGL deterministic fixture matrix', () => {
 
       const canvas = page.locator('#webgl-canvas');
       await expect(canvas).toBeVisible();
+      // The sprite atlas is decoded from a data URL through `new Image()`, so the
+      // texture lands one or more frames after load. Without this gate the upload
+      // can happen BETWEEN the two screenshots below and the stability assertion
+      // fails spuriously. The lifecycle spec already waits on the same counter.
+      await expect(page.locator('#textures')).toHaveText('1');
       const firstFrame = await canvas.screenshot({ animations: 'disabled' });
       const pixels = analyzePng(firstFrame);
       expect(pixels.width).toBeGreaterThan(900);
