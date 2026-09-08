@@ -166,13 +166,15 @@ export class Wall extends IsoObject {
     ctx.lineTo(x1, y1 - h);
     ctx.lineTo(x0, y0 - h);
     ctx.closePath();
-
-    if (this.openings.length > 0) {
-      this.clipOpenings(ctx, x0, y0, x1, y1, h);
-    }
-
     ctx.fillStyle = `rgb(${r},${g},${b})`;
     ctx.fill();
+
+    // Openings are painted on top of the filled wall. They must come after the
+    // wall fill: drawOpenings starts its own paths, so calling it earlier would
+    // discard the wall path and leave the body unpainted.
+    if (this.openings.length > 0) {
+      this.drawOpenings(ctx, x0, y0, x1, y1, h);
+    }
 
     // Top highlight edge
     ctx.beginPath();
@@ -193,7 +195,7 @@ export class Wall extends IsoObject {
     ctx.restore();
   }
 
-  private clipOpenings(
+  private drawOpenings(
     ctx: CanvasRenderingContext2D,
     x0: number, y0: number,
     x1: number, y1: number,

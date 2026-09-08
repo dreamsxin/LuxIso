@@ -241,12 +241,12 @@ export class Floor extends IsoObject {
           // texture darkens in low light - matching solid-color tile behavior
           // (baseColor * illum). Previously this used a *40 screen blend which
           // could only brighten and left tiles full-bright in darkness.
-          const avgIllum = (rIllum + gIllum + bIllum) / 3;
-          if (avgIllum > 0.01) {
-            cache[row * this.cols + col] = `rgb(${Math.round(Math.min(255, rIllum * 255))},${Math.round(Math.min(255, gIllum * 255))},${Math.round(Math.min(255, bIllum * 255))})`;
-          } else {
-            cache[row * this.cols + col] = '';  // near-zero illum -> black via no overlay
-          }
+          //
+          // The tint is stored unconditionally: an earlier version wrote '' for
+          // near-zero illumination, which made draw() skip the multiply overlay
+          // and render unlit textures at FULL brightness - the exact opposite of
+          // the intent. rIllum=0 already yields rgb(0,0,0), i.e. fully dark.
+          cache[row * this.cols + col] = `rgb(${Math.round(Math.min(255, rIllum * 255))},${Math.round(Math.min(255, gIllum * 255))},${Math.round(Math.min(255, bIllum * 255))})`;
         } else {
           // For solid-color tiles: store final lit color
           const [tr, tg, tb] = isEven || !this.altColor

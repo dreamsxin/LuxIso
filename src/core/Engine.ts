@@ -166,6 +166,7 @@ export class Engine {
 
   private _scene: Scene | null = null;
   private _rafId: number | null = null;
+  private _running = false;
   private _onFrame: ((ts: number) => void) | null = null;
   private _lastTs = 0;
   private _accumulator = 0;
@@ -355,14 +356,19 @@ export class Engine {
     if (this._rafId !== null) return;
     this._onFrame = onFrame ?? null;
     this._preFrame = preFrame ?? null;
+    this._running = true;
     const loop = (ts: number): void => {
       this._tick(ts);
+      // A frame callback may have called stop(); without this guard the loop
+      // would immediately reschedule itself and become unstoppable.
+      if (!this._running) return;
       this._rafId = requestAnimationFrame(loop);
     };
     this._rafId = requestAnimationFrame(loop);
   }
 
   stop(): void {
+    this._running = false;
     if (this._rafId !== null) {
       cancelAnimationFrame(this._rafId);
       this._rafId = null;

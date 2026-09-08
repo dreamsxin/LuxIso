@@ -22,8 +22,27 @@ export class Camera {
   x: number;
   y: number;
   zoom: number;
-  /** Lerp smoothing factor (0–1). Set < 1 for smooth follow. */
-  lerpFactor: number;
+
+  private _lerpFactor = 1;
+
+  /**
+   * Lerp smoothing factor. Set < 1 for smooth follow.
+   *
+   * Clamped to [0, 1] on assignment: `update()` evaluates
+   * `Math.pow(1 - lerpFactor, dt * 60)`, which returns NaN for a negative base
+   * with a fractional exponent. Since scene JSON can set this field directly,
+   * an out-of-range value would otherwise poison the camera position and every
+   * transform derived from it.
+   */
+  get lerpFactor(): number {
+    return this._lerpFactor;
+  }
+
+  set lerpFactor(value: number) {
+    this._lerpFactor = Number.isFinite(value)
+      ? Math.max(0, Math.min(1, value))
+      : 1;
+  }
 
   private _target: IsoObject | null = null;
   private _bounds: CameraBounds | null = null;
@@ -69,7 +88,7 @@ export class Camera {
       const tx = this._target.position.x;
       const ty = this._target.position.y;
       // Frame-rate-independent lerp: same convergence speed at any FPS
-      const t = this.lerpFactor >= 1 ? 1 : 1 - Math.pow(1 - this.lerpFactor, dt * 60);
+      const t = this._lerpFactor >= 1 ? 1 : 1 - Math.pow(1 - this._lerpFactor, dt * 60);
       this.x += (tx - this.x) * t;
       this.y += (ty - this.y) * t;
       this._clamp();
@@ -131,7 +150,13 @@ export class Camera {
 
   /**
    * Convert a world position to canvas pixel coordinates, accounting for
-   * the current camera transform (zoom + pan).
+   * the current camera transform (zoom + pan + view).
+   *
+   * The composition order must match `applyTransform`. There, the canvas CTM
+   * ends up as `T(origin) · S(zoom) · S_elev · R · T(offset)`, so a point is
+   * rotated FIRST and elevation-scaled SECOND. `S_elev` is non-uniform, so the
+   * two do not commute: swapping them desynchronises picking from rendering
+   * whenever `rotation !== 0` and `elevation !== 0.5`.
    */
   worldToScreen(
     wx: number, wy: number, wz: number,
@@ -147,9 +172,7 @@ export class Camera {
     let sy = isoY + camOffY;
 
     if (view) {
-      // Apply elevation scale
-      if (view.elevation !== 0.5) sy *= view.elevation / 0.5;
-      // Apply rotation matrix
+      // Apply rotation matrix first (matches applyTransform)
       if (view.rotation !== 0) {
         const rad = (view.rotation * Math.PI) / 180;
         const c = Math.cos(rad), s = Math.sin(rad);
@@ -158,11 +181,17 @@ export class Camera {
         const ny = (-s / aspect) * sx + c * sy;
         sx = nx; sy = ny;
       }
+      // Then the elevation scale
+      if (view.elevation !== 0.5) sy *= view.elevation / 0.5;
     }
 
     return { sx: originX + sx * this.zoom, sy: originY + sy * this.zoom };
   }
 
+  /**
+   * Inverse of `worldToScreen` (at z=0). Undoes the transform in reverse
+   * order: zoom, elevation, rotation, then the camera pan offset.
+   */
   screenToWorld(
     cx: number, cy: number,
     _canvasW: number, _canvasH: number,
@@ -174,6 +203,8 @@ export class Camera {
     let sy = (cy - originY) / this.zoom;
 
     if (view) {
+      // Undo elevation scale first (forward order was rotate -> elevate)
+      if (view.elevation !== 0.5) sy /= view.elevation / 0.5;
       // Undo rotation (inverse matrix)
       if (view.rotation !== 0) {
         const rad = (view.rotation * Math.PI) / 180;
@@ -183,8 +214,6 @@ export class Camera {
         const ny = (s / aspect) * sx + c * sy;
         sx = nx; sy = ny;
       }
-      // Undo elevation scale
-      if (view.elevation !== 0.5) sy /= view.elevation / 0.5;
     }
 
     const camOffX = -(this.x - this.y) * (tileW / 2);

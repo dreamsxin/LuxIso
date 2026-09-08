@@ -122,7 +122,11 @@ export class AudioManager {
     if (!ctx) return null;
     const buffer = this._bufferCache.get(url);
     if (!buffer) {
-      this._loadBuffer(url).then(buf => this._playBuffer(buf, this._sfxGain, opts));
+      // Fire-and-forget: report the failure instead of raising an unhandled
+      // rejection on a missing or unreachable sound file.
+      this._loadBuffer(url)
+        .then(buf => this._playBuffer(buf, this._sfxGain, opts))
+        .catch(err => console.warn(`AudioManager: playSfx("${url}") failed`, err));
       return null;
     }
     return this._playBuffer(buffer, this._sfxGain, opts);
@@ -193,15 +197,21 @@ export class AudioManager {
     const inFlight = this._pending.get(url);
     if (inFlight) return inFlight;
     const promise = (async () => {
-      if (!this._ctx) await waitForContext(() => this._ctx);
-      const ctx = this._ctx!;
-      const res = await fetch(url);
-      if (!res.ok) throw new Error(`AudioManager: failed to fetch "${url}" (${res.status})`);
-      const arrayBuffer = await res.arrayBuffer();
-      const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
-      this._bufferCache.set(url, audioBuffer);
-      this._pending.delete(url);
-      return audioBuffer;
+      try {
+        if (!this._ctx) await waitForContext(() => this._ctx);
+        const ctx = this._ctx!;
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`AudioManager: failed to fetch "${url}" (${res.status})`);
+        const arrayBuffer = await res.arrayBuffer();
+        const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
+        this._bufferCache.set(url, audioBuffer);
+        return audioBuffer;
+      } finally {
+        // Must run on failure too. Leaving a rejected promise in _pending would
+        // make every later preload/playSfx for this URL return that same
+        // rejection, so a transient network error could never be retried.
+        this._pending.delete(url);
+      }
     })();
     this._pending.set(url, promise);
     return promise;

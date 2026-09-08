@@ -379,11 +379,28 @@ function updatePropPanel(): void {
   });
 }
 
+/**
+ * Escape a value for interpolation into an HTML template.
+ *
+ * Object ids, colors and other fields come straight from imported scene JSON,
+ * so they are untrusted: without escaping, an id like
+ * `x" onfocus=alert(1) autofocus data-z="` breaks out of the attribute and
+ * executes script in the editor's origin.
+ */
+function escHtml(v: unknown): string {
+  return String(v)
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
 function buildPropForm(obj: ReturnType<EditorState['getById']>): string {
   if (!obj) return '';
   // Show kind as a read-only badge
   const kindBadge = 'kind' in obj
-    ? `<div class="obj-kind-badge">${(obj as { kind: string }).kind}</div>`
+    ? `<div class="obj-kind-badge">${escHtml((obj as { kind: string }).kind)}</div>`
     : '';
 
   const fields = Object.entries(obj)
@@ -395,13 +412,13 @@ function buildPropForm(obj: ReturnType<EditorState['getById']>): string {
       const step = isNum && !Number.isInteger(v) ? '0.01' : '1';
       return `
         <div class="field-row">
-          <label>${k}</label>
-          <input type="${inputType}" data-field="${k}" value="${v}"
+          <label>${escHtml(k)}</label>
+          <input type="${inputType}" data-field="${escHtml(k)}" value="${escHtml(v)}"
             ${isNum ? `step="${step}"` : ''} />
         </div>`;
     }).join('');
 
-  return `<div class="obj-id">${obj.id}</div>${kindBadge}${fields}`;
+  return `<div class="obj-id">${escHtml(obj.id)}</div>${kindBadge}${fields}`;
 }
 
 state.onChange(() => {
@@ -429,9 +446,9 @@ function updateObjectList(): void {
     return '?';
   };
   objectList.innerHTML = objs.map(o => `
-    <div class="obj-list-item${o.id === state.selectedId ? ' active' : ''}" data-id="${o.id}">
-      <span class="obj-kind">${kindLabel(o)}</span>
-      <span class="obj-name">${o.id}</span>
+    <div class="obj-list-item${o.id === state.selectedId ? ' active' : ''}" data-id="${escHtml(o.id)}">
+      <span class="obj-kind">${escHtml(kindLabel(o))}</span>
+      <span class="obj-name">${escHtml(o.id)}</span>
     </div>`).join('');
   objectList.querySelectorAll<HTMLElement>('[data-id]').forEach(el => {
     el.addEventListener('click', () => {

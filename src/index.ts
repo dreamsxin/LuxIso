@@ -67,7 +67,7 @@ export type { EmitterConfig, EmitterShape, ParticleBlend } from './animation/Par
 
 // Physics
 export { TileCollider } from './physics/TileCollider';
-export { Pathfinder } from './physics/Pathfinder';
+export { Pathfinder, PathCache } from './physics/Pathfinder';
 export type { IsoVec2 } from './physics/Pathfinder';
 
 // Audio

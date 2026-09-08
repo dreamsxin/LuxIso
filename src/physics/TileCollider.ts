@@ -38,11 +38,15 @@ export class TileCollider {
    * any blocked tile. Returns true if the area is fully walkable.
    */
   canOccupy(minX: number, minY: number, maxX: number, maxY: number): boolean {
-    // Convert to tile indices (floor for min, ceil-1 for max)
+    // A footprint spanning [min, max) overlaps tile i for i in
+    // [floor(min), ceil(max) - 1]. The `max(c0, ...)` guard matters for
+    // degenerate footprints: with r = 0 at an integer coordinate, min === max,
+    // so `ceil(max) - 1 < floor(min)` and the loops would be skipped entirely,
+    // reporting a blocked tile as free.
     const c0 = Math.floor(minX);
     const r0 = Math.floor(minY);
-    const c1 = Math.floor(maxX - 0.001); // exclusive end
-    const r1 = Math.floor(maxY - 0.001);
+    const c1 = Math.max(c0, Math.ceil(maxX) - 1);
+    const r1 = Math.max(r0, Math.ceil(maxY) - 1);
 
     for (let r = r0; r <= r1; r++) {
       for (let c = c0; c <= c1; c++) {
@@ -94,8 +98,13 @@ export class TileCollider {
 
   /**
    * Continuous collision detection for fast-moving objects.
-   * Sweeps the AABB along the movement vector and returns the safe fraction
-   * of the move (0 = fully blocked, 1 = fully free).
+   * Sweeps the AABB along the movement vector and returns the safe portion
+   * of the move.
+   *
+   * The path is sampled at least once per half-footprint before any refinement.
+   * A bare binary search is unsound here because "clear at t" is not monotonic
+   * in t: a clear destination says nothing about the tiles in between, so a fast
+   * object could tunnel straight through a one-tile-thick wall.
    *
    * Use when `speed * dt` could exceed a tile width in a single frame.
    */
@@ -105,12 +114,23 @@ export class TileCollider {
     r = 0.4,
     steps = 4,
   ): { dx: number; dy: number } {
-    // Fast path: if destination is clear, skip binary search
-    if (this.canOccupy(x + dx - r, y + dy - r, x + dx + r, y + dy + r)) {
-      return { dx, dy };
+    const dist = Math.max(Math.abs(dx), Math.abs(dy));
+    const sampleSpan = Math.max(0.05, Math.min(0.5, r));
+    const samples = Math.max(1, Math.ceil(dist / sampleSpan));
+
+    // Walk forward to the last clear sample.
+    let lo = 0;
+    for (let i = 1; i <= samples; i++) {
+      const t = i / samples;
+      const tx = x + dx * t;
+      const ty = y + dy * t;
+      if (!this.canOccupy(tx - r, ty - r, tx + r, ty + r)) break;
+      lo = t;
     }
-    // Binary-search the largest safe fraction
-    let lo = 0, hi = 1;
+    if (lo === 1) return { dx, dy };
+
+    // Refine between the last clear sample and the first blocked one.
+    let hi = Math.min(1, lo + 1 / samples);
     for (let i = 0; i < steps; i++) {
       const mid = (lo + hi) / 2;
       const tx = x + dx * mid;

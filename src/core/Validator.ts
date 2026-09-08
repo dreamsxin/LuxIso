@@ -48,7 +48,10 @@ export function validateSceneJson(
   const errors: string[]   = [];
   const warnings: string[] = [];
   const lightTypes = new Set(['omni', 'directional']);
-  const propTypes = new Set(['crystal', 'boulder', 'chest']);
+  // Must mirror the built-in keys seeded into Engine._propRegistry at the bottom
+  // of Engine.ts. `tree`, `flowers` and `lantern` were missing here, so scenes
+  // using those perfectly valid props were reported as invalid.
+  const propTypes = new Set(['crystal', 'boulder', 'chest', 'tree', 'flowers', 'lantern']);
   for (const type of options.lightTypes ?? []) lightTypes.add(type);
   for (const type of options.propTypes ?? []) propTypes.add(type);
 

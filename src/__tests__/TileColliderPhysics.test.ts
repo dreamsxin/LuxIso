@@ -58,4 +58,50 @@ describe('TileCollider — sweepMove', () => {
     // Already in blocked tile — safe fraction is 0
     expect(r.dx).toBe(0);
   });
+
+  it('does not tunnel through a one-tile-thick wall', () => {
+    const c = new TileCollider(12, 12);
+    for (let row = 0; row < 12; row++) c.setWalkable(7, row, false);
+    // A fast move that lands PAST the wall in clear space (col 9). A bare
+    // binary search on the destination would report the whole move as safe,
+    // teleporting the entity through the wall.
+    const r = c.sweepMove(5, 5, 4.5, 0, 0.4);
+    expect(r.dx).toBeLessThan(2); // must stop short of col 7
+    expect(5 + r.dx).toBeLessThan(7);
+  });
+
+  it('does not tunnel diagonally through a wall', () => {
+    const c = new TileCollider(12, 12);
+    for (let row = 0; row < 12; row++) c.setWalkable(6, row, false);
+    const r = c.sweepMove(3, 3, 5, 5, 0.3);
+    expect(3 + r.dx).toBeLessThan(6);
+  });
 });
+
+describe('TileCollider — canOccupy tile coverage', () => {
+  it('reports a blocked tile as blocked for a zero-radius footprint', () => {
+    const c = new TileCollider(5, 5);
+    c.setWalkable(3, 3, false);
+    // Degenerate footprint at an integer coordinate: min === max. The old
+    // `floor(max - 0.001)` end index fell below the start index, so both loops
+    // were skipped and the method returned true on a blocked tile.
+    expect(c.canOccupy(3, 3, 3, 3)).toBe(false);
+    expect(c.canOccupy(3, 3, 3.0005, 3.0005)).toBe(false);
+  });
+
+  it('still reports a clear tile as clear for a zero-radius footprint', () => {
+    const c = new TileCollider(5, 5);
+    expect(c.canOccupy(3, 3, 3, 3)).toBe(true);
+  });
+
+  it('covers exactly the tiles a normal footprint overlaps', () => {
+    const c = new TileCollider(5, 5);
+    c.setWalkable(3, 2, false);
+    // Footprint [2.0, 3.0) x [2.0, 3.0) fills tile (2,2) only and must not
+    // spill into the blocked tile (3,2).
+    expect(c.canOccupy(2, 2, 3, 3)).toBe(true);
+    // Footprint [2.6, 3.4) straddles cols 2 and 3 -> must see the block.
+    expect(c.canOccupy(2.6, 2.1, 3.4, 2.9)).toBe(false);
+  });
+});
+
