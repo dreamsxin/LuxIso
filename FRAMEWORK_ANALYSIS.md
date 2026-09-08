@@ -1,7 +1,7 @@
 # LuxIso 架构分析报告 v5
 
-> 更新日期：2026-07-25
-> 基线：Canvas 2D 默认 + WebGL2 预览，266 个 Vitest 测试 / 36 个测试文件，11 个 Playwright WebGL 测试
+> 更新日期：2026-09-09
+> 基线：Canvas 2D 默认 + WebGL2 预览，293 个 Vitest 测试 / 39 个测试文件，11 个 Playwright WebGL 测试
 
 ## 执行摘要
 
@@ -117,17 +117,44 @@ const bus = new EventBus<GameEvents>();
 
 | 优先级 | 问题 | 建议 |
 |---|---|---|
-| P0 | example-05 场景切换后 hero collider 可能仍指向旧场景 | 在场景 onEnter 更新 MovementComponent collider |
+| P1 | example-05 移动绕过 `MovementComponent` | `ClickMover` 直接改 `position`；且只有草原场景建了 `TileCollider`，湖水/深海的 hero 只受边界钳制，不做碰撞 |
 | P1 | example-05 天空绘制函数仍集中在 main.ts | 拆到 environment 模块 |
 | P1 | 自定义 prop 没有配套 serializer registry | 为注册表增加 serialize 回调或独立注册 API |
+| P1 | WebGL golden 基线尚未审批 | 目前 CI 只断言颜色直方图启发式，`ACCEPTANCE.md` 里的 1.5% diff 门槛尚未生效 |
+| P1 | Playwright 跑的是 Vite dev server 而非构建产物 | `playwright.webgl.config.ts` 启动 `npm run dev`，发布包从未被浏览器测试覆盖 |
+| P2 | 没有覆盖率报告 | 接入 `@vitest/coverage-v8` 与关键模块阈值；用例数不等于覆盖率 |
 | P2 | System 每次调度扫描所有 Entity × System | 达到千级实体后引入 query/archetype 缓存 |
 | P2 | 稠密深度桶仍可能 O(n²) | 基准验证后考虑 sweep-and-prune 或分层 chunk |
-| P1 | WebGL golden 基线尚未审批 | 审阅 CI 候选图后固化基线并启用 1.5% diff 门槛 |
 | P2 | WebGL context-loss 尚未覆盖完整浏览器矩阵 | Chromium/SwiftShader 自动化已完成；Phase 5 扩展到 Firefox、Safari 和真实 GPU |
-| P2 | Canvas2D ShadowCaster 会重复投影静态 caster | 按 caster/light/view 快照缓存投影轮廓；WebGL 路径已缓存 |
+| P2 | `EditorRenderer` 每次状态变更全量重建场景 | 按帧防抖，或对纯变换编辑原地改对象 |
+| P2 | `webgl-next` `TextureRegistry` 不淘汰 | 按帧引用计数或 LRU 淘汰；`dispose()` 应删除自己创建的 GL 纹理 |
 | P2 | 双 Z 单位仍是公开 API 认知成本 | 新主版本统一世界高度单位；旧 API 提供显式转换 |
-| P3 | 空间音频仍为手算距离衰减 | 使用 Web Audio PannerNode + HRTF |
+| P3 | `AudioManager.spatialVolume()` 仍是手算距离衰减 | `playSfx({ spatial })` 已走 `PannerNode` + HRTF，该静态方法是遗留路径 |
 | P3 | 地图未分块 | 大地图引入 tile chunks 与脏区重绘 |
+
+## v5.1 修复（审计驱动）
+
+一轮针对文档与代码的审计发现了若干单测未覆盖的缺陷，均已修复并配回归测试：
+
+- `Wall.drawFace` 的开洞逻辑会覆盖墙面路径，任何带 `openings` 的墙从未被填充。
+- `Camera.worldToScreen`/`screenToWorld` 与 `applyTransform` 的 rotation/elevation
+  合成顺序相反；`S_elev` 非均匀，两者不可交换，导致斜视+旋转下拾取与渲染错位。
+- `TileCollider.canOccupy` 的 epsilon 使窄 footprint 跳过全部检查返回 true；
+  `sweepMove` 对非单调谓词做二分且终点无碰撞即放行，快速物体可穿一格厚墙。
+- `Floor` 在近零光照时给贴图砖缓存空串，`draw` 跳过 multiply 叠加 → 暗处全亮。
+- `TileCollider` 新增 `version` 计数器，`PathCache` 据此自动失效，修复开关门后
+  仍返回旧路径。
+- A* string-pull 的 Bresenham LoS 会斜穿墙角，把合法路径拉直成非法路径。
+- `BaseLight` 新增稳定 `uid`/`cacheKey`；此前 `ShadowCaster` 在光源无 `id` 时按
+  坐标做键，移动光每帧新增缓存条目且永不释放。
+- `AudioManager` 补 `dispose()` 与播放结束节点回收；失败的 fetch 不再永久污染 URL。
+- `Engine` 构造校验 2D context，`loadScene` 全链路错误信息带 URL，场景尺寸非法时
+  立即抛错而非退化成全阻挡网格。
+- `Camera.lerpFactor` 钳制到 [0,1]；`Engine.stop()` 在帧回调内生效。
+- 编辑器属性面板与对象列表的 `innerHTML` 插值全部转义（导入 JSON 为不可信输入）。
+- `tsconfig.json` 的 `include` 扩展到 `examples`、`webgl-next/e2e` 与根配置文件，
+  此前 8 个 demo 只过 esbuild、完全没有类型检查。
+
 
 ## 当前评价
 
@@ -136,10 +163,10 @@ const bus = new EventBus<GameEvents>();
 | 模块分层 | 9/10 | Scene 渲染与序列化职责已拆分 |
 | ECS 设计 | 8/10 | 构造函数查询、System、生命周期完整；尚无 archetype |
 | 渲染管线 | 8/10 | Canvas 完整；WebGL 预览已覆盖核心 pass，尚待 golden 和浏览器矩阵 |
-| 类型安全 | 9/10 | ComponentCtor 与 EventMap 覆盖核心扩展面 |
+| 类型安全 | 9/10 | ComponentCtor 与 EventMap 覆盖核心扩展面；`tsc` 现已覆盖 examples 与 e2e |
 | 可扩展性 | 8/10 | 加载注册表与自定义事件良好；序列化注册表待补 |
 | 文档质量 | 8/10 | README 与本报告已同步当前实现 |
-| 测试覆盖 | 8/10 | 266 个单测 + 11 个浏览器测试；尚无覆盖率和 approved golden 门槛 |
+| 测试覆盖 | 8/10 | 293 个单测 + 11 个浏览器测试；已补 2.5D 变换/碰撞/寻路缓存回归，仍无覆盖率报告和 approved golden 门槛 |
 | 综合 | 8.3/10 | 架构短板已大幅收敛，下一阶段应由 profiling 驱动 |
 
 测试数量不等于覆盖率。后续应加入 coverage 报告与关键模块阈值，而不是只追求用例数量。

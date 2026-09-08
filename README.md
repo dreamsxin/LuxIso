@@ -586,7 +586,7 @@ Pathfinder.find(collider, start: IsoVec2, goal: IsoVec2, cache?: PathCache): Iso
 
 const cache = new PathCache(64);
 Pathfinder.find(scene.collider!, { x: 0, y: 0 }, { x: 9, y: 9 }, cache);
-cache.invalidate();              // after changing walkability (e.g. opening a door)
+cache.invalidate();              // rarely needed — see below
 cache.size; cache.capacity;
 
 Pathfinder.invalidateCache(collider?): void
@@ -594,8 +594,11 @@ Pathfinder.invalidateCache(collider?): void
 // PathCache and cache.invalidate().
 ```
 
-Note: `TileCollider.setWalkable()` mutates the grid in place and does **not**
-notify any cache, so you must invalidate manually after runtime changes.
+`TileCollider.setWalkable()` bumps `collider.version`, and `PathCache` checks
+that version on every lookup — so opening a door automatically drops stale
+paths. `invalidate()` is only needed if walkability changes through some other
+mechanism.
+
 
 
 ### `Floor`
@@ -642,8 +645,18 @@ audio.playBgm(url, fadeDuration?): Promise<void>
 audio.stopBgm(fadeDuration?)
 audio.preload(url): Promise<void>
 audio.preloadAll(urls): Promise<void>
+audio.suspend(): void
+audio.updateListener(x, y, z?): void
+audio.dispose(): void   // stop BGM, close the AudioContext, drop the buffer cache
 AudioManager.spatialVolume({ x, y, listenerX, listenerY, refDistance?, maxDistance? }): number
+// Legacy manual falloff helper. `playSfx(url, { spatial })` uses a real
+// Web Audio PannerNode with HRTF instead and should be preferred.
 ```
+
+Call `dispose()` when tearing down a game instance: browsers cap the number of
+live `AudioContext`s, and the decoded-buffer cache otherwise grows across scene
+reloads. `resume()` revives the manager afterwards.
+
 
 ### `DirectionalAnimator`
 
@@ -768,7 +781,7 @@ requireComponent<T>(entity: Entity, ctor: ComponentCtor<T>): T  // throws if mis
 | EventBus event maps | Event names and payload types are coupled; custom maps supported |
 | Scene.toJSON(): runtime state + built-in prop serialization | Environment, camera, view, light IDs/options, collider, built-ins |
 | Lib build: ESM + CJS dual output + .d.ts (npm run build:lib) | |
-| Unit tests: 285 tests across 38 files (Vitest 4, Node ≥ 22) | |
+| Unit tests: 293 tests across 39 files (Vitest 4, Node ≥ 22) | |
 | Examples: 9 progressive demos + tools gallery | |
 
 ## Known Limitations & Roadmap (Next)
@@ -777,15 +790,21 @@ See [FRAMEWORK_ANALYSIS.md](FRAMEWORK_ANALYSIS.md) for a detailed comparison wit
 
 | Priority | Item | Notes |
 |----------|------|-------|
-| P0 | `example-05` hero collider not updated on scene switch | `heroMv.setCollider()` in `onEnter` |
+| P1 | `example-05` movement bypasses `MovementComponent` | `ClickMover` mutates `position` directly; only the Plains scene has a `TileCollider` at all, so Lake/DeepSea heroes are bounds-clamped but not collision-aware |
 | P1 | `example-05` sky draw functions (400+ lines) inline in `main.ts` | Split to `environment/*.ts` |
+| P1 | WebGL golden captures are not compared against a baseline | CI only asserts colour-histogram heuristics; the 1.5% pixel-diff gate in [ACCEPTANCE.md](webgl-next/ACCEPTANCE.md) is not active |
+| P1 | Playwright suite runs the Vite **dev** server, not the build | `playwright.webgl.config.ts` starts `npm run dev`, so the production bundle is never exercised |
+| P2 | No coverage reporting | Add `@vitest/coverage-v8` plus per-module thresholds; test count is not coverage |
 | P2 | `SceneManager` does not auto-clear `AssetLoader` on scene exit | Add `assetLoader?` to `ManagedScene` |
-| P2 | `ShadowCaster` re-projects every frame | Cache per-caster projection, invalidate on move |
 | P2 | Custom prop serialization requires application code | Add serializer registry paired with `registerProp()` |
+| P2 | `EditorRenderer` rebuilds the whole scene on every state change | Debounce to one rebuild per frame, or mutate objects in place for transform-only edits |
+| P2 | `webgl-next` `TextureRegistry` never evicts | Reference-count or LRU-evict per frame; `dispose()` should delete its own GL textures |
 | P3 | System queries scan all Entity instances | Add archetype/query cache if profiling shows a bottleneck |
-| P3 | Spatial audio uses linear falloff calc, not `PannerNode` | Use Web Audio `PannerNode` + HRTF |
+| P3 | Spatial audio `spatialVolume()` helper is a manual falloff calc | `playSfx({ spatial })` already uses a `PannerNode` + HRTF; the static helper is the legacy path |
 | P3 | Editor: snap/grid toggle for fine-grained object placement | Sub-tile precision mode |
 | P3 | Sprite editor: multi-sheet support, frame-range trimming | Advanced animation authoring |
+| P3 | Dual Z-unit convention is a public API cost | Unify world height units in a new major; keep explicit converters for the old API |
+
 
 ## License
 
