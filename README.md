@@ -91,7 +91,7 @@ npm run test:webgl # run 9 deterministic captures + context/resource lifecycle t
 
 | Layer | Command | Scope |
 |---|---|---|
-| Unit | `npm test` | 306 tests across 40 files (Vitest 4) |
+| Unit | `npm test` | 356 tests across 43 files (Vitest 4) |
 | Coverage | `npm run test:coverage` | v8 provider + per-module ratchets |
 | Browser | `npm run test:webgl` | 9 fixture captures + 2 context-lifecycle tests (Chromium/SwiftShader) |
 
@@ -105,9 +105,10 @@ Correctness-critical modules carry their own floors:
 | `src/physics/**` | 90% | 85% |
 | `src/lighting/**` | 90% | 84% |
 | `src/ecs/**` | 82% | 78% |
-| `src/elements/**` | 57% | 53% |
 | `src/audio/**` | 67% | 55% |
-| Whole project | 55% | 48% |
+| `src/core/**` | 59% | 49% |
+| `src/elements/**` | 57% | 53% |
+| Whole project | 59% | 54% |
 
 Raise a floor when you add tests; never lower one to make a build pass. Test
 count is not coverage — every P0/P1 defect found in the last audit sat in a
@@ -813,7 +814,7 @@ requireComponent<T>(entity: Entity, ctor: ComponentCtor<T>): T  // throws if mis
 | EventBus event maps | Event names and payload types are coupled; custom maps supported |
 | Scene.toJSON(): runtime state + built-in prop serialization | Environment, camera, view, light IDs/options, collider, built-ins |
 | Lib build: ESM + CJS dual output + .d.ts (npm run build:lib) | |
-| Unit tests: 306 tests across 40 files (Vitest 4, Node ≥ 22) | |
+| Unit tests: 356 tests across 43 files (Vitest 4, Node ≥ 22) | |
 | Coverage ratchets per module (`npm run test:coverage`) | v8 provider; per-glob floors on math/physics/lighting/ecs/elements/audio |
 | Examples: 9 progressive demos + tools gallery | |
 
@@ -827,7 +828,7 @@ See [FRAMEWORK_ANALYSIS.md](FRAMEWORK_ANALYSIS.md) for a detailed comparison wit
 | P1 | `example-05` sky draw functions (400+ lines) inline in `main.ts` | Split to `environment/*.ts` |
 | P1 | WebGL golden captures are not compared against a baseline | CI only asserts colour-histogram heuristics; the 1.5% pixel-diff gate in [ACCEPTANCE.md](webgl-next/ACCEPTANCE.md) is not active |
 | P1 | Playwright suite runs the Vite **dev** server, not the build | `playwright.webgl.config.ts` starts `npm run dev`, so the production bundle is never exercised |
-| P2 | `src/core` (52%) and `src/animation` (36%) are thinly covered | Coverage ratchets are in place; these two are the largest remaining gaps |
+| P2 | `src/animation` (36%) is the largest remaining coverage gap | `DirectionalAnimator` is at 0% despite a documented public API |
 | P2 | `SceneManager` does not auto-clear `AssetLoader` on scene exit | Add `assetLoader?` to `ManagedScene` |
 | P2 | Custom prop serialization requires application code | Add serializer registry paired with `registerProp()` |
 | P2 | `EditorRenderer` rebuilds the whole scene on every state change | Debounce to one rebuild per frame, or mutate objects in place for transform-only edits |

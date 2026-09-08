@@ -1,7 +1,7 @@
 # LuxIso 架构分析报告 v5
 
 > 更新日期：2026-09-09
-> 基线：Canvas 2D 默认 + WebGL2 预览，306 个 Vitest 测试 / 40 个测试文件（含 v8 覆盖率阈值），11 个 Playwright WebGL 测试
+> 基线：Canvas 2D 默认 + WebGL2 预览，356 个 Vitest 测试 / 43 个测试文件（含 v8 覆盖率阈值），11 个 Playwright WebGL 测试
 
 ## 执行摘要
 
@@ -122,7 +122,7 @@ const bus = new EventBus<GameEvents>();
 | P1 | 自定义 prop 没有配套 serializer registry | 为注册表增加 serialize 回调或独立注册 API |
 | P1 | WebGL golden 基线尚未审批 | 目前 CI 只断言颜色直方图启发式，`ACCEPTANCE.md` 里的 1.5% diff 门槛尚未生效 |
 | P1 | Playwright 跑的是 Vite dev server 而非构建产物 | `playwright.webgl.config.ts` 启动 `npm run dev`，发布包从未被浏览器测试覆盖 |
-| P2 | `src/core` 52%、`src/animation` 36% 覆盖率偏低 | 阈值机制已就位，这两处是最大剩余缺口 |
+| P2 | `src/animation` 36% 覆盖率偏低 | `DirectionalAnimator` 为 0%，而它有完整的公开 API 文档 |
 | P2 | System 每次调度扫描所有 Entity × System | 达到千级实体后引入 query/archetype 缓存 |
 | P2 | 稠密深度桶仍可能 O(n²) | 基准验证后考虑 sweep-and-prune 或分层 chunk |
 | P2 | WebGL context-loss 尚未覆盖完整浏览器矩阵 | Chromium/SwiftShader 自动化已完成；Phase 5 扩展到 Firefox、Safari 和真实 GPU |
@@ -159,6 +159,11 @@ const bus = new EventBus<GameEvents>();
   用例（其中 7 个在修复前的版本上失败）。
 - `EditorRenderer` 场景重建按帧合并；`TextureRegistry` 加载失败时回退白纹理并上报，
   此前 `record.failed` 被写入却从不读取，404/CORS 会让整段几何永久不绘制且无提示。
+- 补测 `ObjectPool` / `InputMap` / `AssetLoader`（此前分别为 0% / 0% / 20%），过程中
+  发现三个缺陷：`InputMap.define()` 覆盖动作时不解绑旧键，旧键仍能触发该动作；
+  `InputMap.remove()` 只清了一个从未被读取的簿记 map，InputManager 侧的回调仍然存活；
+  `AssetLoader.unload()` 的行为与自身文档相反，飞行中的加载完成后仍会把已释放的资源
+  写回缓存。`ObjectPool.prewarm()` 也不再能越过 `maxSize` 分配永远取不出来的对象。
 
 
 ## 当前评价
@@ -171,9 +176,9 @@ const bus = new EventBus<GameEvents>();
 | 类型安全 | 9/10 | ComponentCtor 与 EventMap 覆盖核心扩展面；`tsc` 现已覆盖 examples 与 e2e |
 | 可扩展性 | 8/10 | 加载注册表与自定义事件良好；序列化注册表待补 |
 | 文档质量 | 8/10 | README 与本报告已同步当前实现 |
-| 测试覆盖 | 8/10 | 306 个单测 + 11 个浏览器测试；已接入 v8 覆盖率与分模块阈值（整体 57.8% 语句 / 52.3% 分支），仍无 approved golden 门槛 |
+| 测试覆盖 | 8/10 | 356 个单测 + 11 个浏览器测试；已接入 v8 覆盖率与分模块阈值（整体 59.9% 语句 / 54.1% 分支），仍无 approved golden 门槛 |
 | 综合 | 8.3/10 | 架构短板已大幅收敛，下一阶段应由 profiling 驱动 |
 
 测试数量不等于覆盖率。`vitest.config.ts` 现已按模块设定阈值（math/physics/lighting
-90% 语句、ecs 82%、elements 57%、audio 67%，整体 55%），并在 CI 中作为门禁。阈值一律
-设在当前值略下方，只能随新测试上调，不允许为了让构建通过而下调。
+90% 语句、ecs 82%、audio 67%、core 59%、elements 57%，整体 59%），并在 CI 中作为门禁。
+阈值一律设在当前值略下方，只能随新测试上调，不允许为了让构建通过而下调。

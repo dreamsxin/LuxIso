@@ -35,8 +35,8 @@ export class InputMap {
   private _input: InputManager;
   /** action → set of key strings */
   private _bindings = new Map<string, Set<string>>();
-  /** action → set of callbacks (fired on press) */
-  private _callbacks = new Map<string, Set<ActionCallback>>();
+  /** action → InputManager unsubscribe functions, so remove() can detach them */
+  private _unsubscribes = new Map<string, Set<() => void>>();
 
   constructor(input: InputManager) {
     this._input = input;
@@ -48,10 +48,18 @@ export class InputMap {
    * Define (or overwrite) an action with a list of key bindings.
    * Keys can be `KeyboardEvent.key` values ('ArrowUp', 'w', ' ')
    * or `KeyboardEvent.code` values ('KeyW', 'Space').
+   *
+   * Re-defining an action detaches its previous keys from the underlying
+   * InputManager. Without that, an overwritten binding stayed live there: the
+   * local map reported the new keys while the old ones still triggered the
+   * action.
    */
   define(action: string, keys: string[]): this {
-    const set = new Set(keys);
-    this._bindings.set(action, set);
+    const previous = this._bindings.get(action);
+    if (previous) {
+      for (const k of previous) this._input.unbindKey(k, action);
+    }
+    this._bindings.set(action, new Set(keys));
     // Mirror into InputManager's action system for callback support
     for (const k of keys) this._input.bindKey(k, action);
     return this;
@@ -72,22 +80,22 @@ export class InputMap {
 
   /**
    * Replace all bindings for an action (useful for settings screens).
+   * Alias of `define`, which already performs the detach.
    */
   rebind(action: string, keys: string[]): this {
-    // Remove old bindings from InputManager
-    const old = this._bindings.get(action);
-    if (old) {
-      for (const k of old) this._input.unbindKey(k, action);
-    }
     return this.define(action, keys);
   }
 
-  /** Remove an action entirely. */
+  /** Remove an action entirely, including any subscribed callbacks. */
   remove(action: string): void {
     const keys = this._bindings.get(action);
     if (keys) for (const k of keys) this._input.unbindKey(k, action);
     this._bindings.delete(action);
-    this._callbacks.delete(action);
+    const unsubscribes = this._unsubscribes.get(action);
+    if (unsubscribes) {
+      for (const off of unsubscribes) off();
+      this._unsubscribes.delete(action);
+    }
   }
 
   /** Returns the current key bindings for an action. */
@@ -141,13 +149,21 @@ export class InputMap {
 
   /**
    * Subscribe to an action press event.
-   * Returns an unsubscribe function.
+   * Returns an unsubscribe function, which is idempotent.
    */
   on(action: string, cb: ActionCallback): () => void {
-    if (!this._callbacks.has(action)) this._callbacks.set(action, new Set());
-    this._callbacks.get(action)!.add(cb);
-    // Delegate to InputManager's callback system
-    return this._input.onAction(action, cb);
+    const off = this._input.onAction(action, cb);
+    if (!this._unsubscribes.has(action)) this._unsubscribes.set(action, new Set());
+    const set = this._unsubscribes.get(action)!;
+    // Track the detach function rather than the callback itself: the previous
+    // version kept a set of callbacks that nothing ever read, so `remove()`
+    // dropped that bookkeeping while leaving the listener live in InputManager.
+    const wrapped = (): void => {
+      if (!set.delete(wrapped)) return;
+      off();
+    };
+    set.add(wrapped);
+    return wrapped;
   }
 
   // ── Serialization ──────────────────────────────────────────────────────────

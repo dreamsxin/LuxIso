@@ -23,6 +23,12 @@ export class AssetLoader {
   // ── Instance state ────────────────────────────────────────────────────────
   private _cache   = new Map<string, HTMLImageElement>();
   private _pending = new Map<string, Promise<HTMLImageElement>>();
+  /**
+   * Bumped whenever a URL is unloaded or the whole cache is cleared. An
+   * in-flight load captures the value at start and refuses to write into the
+   * cache if it changed, which is what makes `unload()` behave as documented.
+   */
+  private _epoch = new Map<string, number>();
 
   // ── Instance API ──────────────────────────────────────────────────────────
 
@@ -34,15 +40,23 @@ export class AssetLoader {
     const inFlight = this._pending.get(url);
     if (inFlight) return inFlight;
 
+    const startedAt = this._epoch.get(url) ?? 0;
+    const isCurrent = (): boolean => (this._epoch.get(url) ?? 0) === startedAt;
+
     const promise = new Promise<HTMLImageElement>((resolve, reject) => {
       const img = new Image();
       img.onload = () => {
-        this._cache.set(url, img);
-        this._pending.delete(url);
+        // Skip both writes when the URL was unloaded mid-flight: caching here
+        // would resurrect an asset the caller explicitly released, and deleting
+        // the pending entry could clobber a newer load for the same URL.
+        if (isCurrent()) {
+          this._cache.set(url, img);
+          this._pending.delete(url);
+        }
         resolve(img);
       };
       img.onerror = () => {
-        this._pending.delete(url);
+        if (isCurrent()) this._pending.delete(url);
         reject(new Error(`AssetLoader: failed to load image "${url}"`));
       };
       img.src = url;
@@ -64,18 +78,21 @@ export class AssetLoader {
 
   /**
    * Remove a single URL from the cache.
-   * Any in-flight load for this URL is left to complete (its promise is
-   * preserved) but the result will no longer be stored after completion.
-   * Useful for releasing a specific asset without clearing the entire cache.
+   * Any in-flight load for this URL is left to complete (its promise still
+   * resolves for existing awaiters) but the result is not stored, and the next
+   * `loadImage(url)` starts a fresh load.
    */
   unload(url: string): void {
     this._cache.delete(url);
-    // Note: we intentionally leave _pending intact so concurrent awaits
-    // on the same URL still resolve; the result just won't be cached.
+    this._pending.delete(url);
+    this._epoch.set(url, (this._epoch.get(url) ?? 0) + 1);
   }
 
   /** Clear the entire cache and cancel tracking of in-flight loads. */
   clear(): void {
+    for (const url of this._pending.keys()) {
+      this._epoch.set(url, (this._epoch.get(url) ?? 0) + 1);
+    }
     this._cache.clear();
     this._pending.clear();
   }

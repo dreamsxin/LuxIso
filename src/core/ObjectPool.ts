@@ -44,7 +44,11 @@ export class ObjectPool<T> {
    * @param factory  Creates a new object when the pool is empty.
    * @param reset    Resets an object's state before it's reused.
    * @param initialSize  Pre-allocate this many objects upfront.
-   * @param maxSize  Cap total pool size (0 = unlimited).
+   * @param maxSize  Cap on how many objects may be *active at once*
+   *                 (0 = unlimited). `acquire()` returns null at the cap.
+   *                 Note this bounds concurrent use, not total allocation:
+   *                 released objects stay in the free list, so `totalCount`
+   *                 can sit at `maxSize` while `activeCount` is 0.
    */
   constructor(
     factory: () => T,
@@ -113,9 +117,12 @@ export class ObjectPool<T> {
 
   /**
    * Pre-warm the pool by allocating additional objects up to `count` total.
+   * Clamped to `maxSize` when one is set, so pre-warming can never push the
+   * pool past the cap that `acquire()` enforces.
    */
   prewarm(count: number): void {
-    const needed = count - this.totalCount;
+    const target = this._maxSize > 0 ? Math.min(count, this._maxSize) : count;
+    const needed = target - this.totalCount;
     for (let i = 0; i < needed; i++) {
       this._free.push(this._factory());
     }
