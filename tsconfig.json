@@ -16,6 +16,7 @@
     "webgl-next/e2e",
     "examples",
     "vite.config.ts",
+    "vitest.config.ts",
     "playwright.webgl.config.ts"
   ]
 }

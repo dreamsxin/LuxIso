@@ -3,11 +3,16 @@ import { basename, dirname, extname, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+// Generated output only. Adding `coverage` matters: the v8 HTML reporter emits
+// a couple hundred files, and without this the check would walk all of them on
+// every `npm run build`.
 const SKIP_DIRECTORIES = new Set([
   '.git',
   '.zcode',
+  'coverage',
   'dist',
   'node_modules',
+  'playwright-report',
   'test-results',
 ]);
 const TEXT_EXTENSIONS = new Set([

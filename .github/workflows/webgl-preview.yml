@@ -35,7 +35,9 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx playwright install --with-deps chromium
-      - run: npm test
+      # Unit suite with the coverage ratchets in vitest.config.ts. Fails the job
+      # if a correctness-critical module loses coverage.
+      - run: npm run test:coverage
       # Type-checks and bundles the demos/editors. NOTE: this artifact is not
       # what the browser tests below exercise — playwright.webgl.config.ts starts
       # the Vite dev server, because lifecycle.pw.ts dynamically imports
@@ -43,6 +45,16 @@ jobs:
       # step as build verification, not as the subject of the e2e run.
       - run: npm run build
       - run: npm run test:webgl
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-${{ github.sha }}
+          path: |
+            coverage/lcov.info
+            coverage/index.html
+          if-no-files-found: warn
+          retention-days: 14
       - name: Upload golden candidates
         if: always()
         uses: actions/upload-artifact@v4
