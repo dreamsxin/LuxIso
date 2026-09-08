@@ -214,10 +214,10 @@ export class CubeHero extends Entity {
 
   private _drawShadowBlob(
     ctx: CanvasRenderingContext2D,
-    cx: number, cy: number,
+    _cx: number, cy: number,
     gx: number, gy: number,
     dirLights: DirectionalLight[],
-    tileW: number, tileH: number,
+    _tileW: number, _tileH: number,
   ): void {
     const m = ctx.getTransform();
     const zoom = m.a || 1;

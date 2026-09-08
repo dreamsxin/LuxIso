@@ -299,8 +299,8 @@ export class SlopeTerrain extends IsoObject {
       const hE_BR = this.cornerAt(col + 2, row + 1);
       // East face top and bottom average heights
       const faceTopH = (hTR + hBR) * 0.5;
-      const faceBotH = (hE_TL + hE_BL) * 0.5;      // same as faceTopH — shared!
-      // Actually the "bottom" of our face goes to the east-neighbour's
+      // The face "bottom" is not (hE_TL + hE_BL) * 0.5 — that equals faceTopH
+      // because those corners are shared. It goes to the east-neighbour's
       // own surface — meaning: project TR/BR at the east-tile's surface
       // height.  Since the east tile's top edge = our right edge (shared),
       // the face collapses to zero.  What we actually want: for each

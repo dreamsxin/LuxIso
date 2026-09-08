@@ -9,5 +9,13 @@
     "noFallthroughCasesInSwitch": true,
     "outDir": "dist"
   },
-  "include": ["src", "webgl-next/src", "webgl-next/main.ts"]
+  "include": [
+    "src",
+    "webgl-next/src",
+    "webgl-next/main.ts",
+    "webgl-next/e2e",
+    "examples",
+    "vite.config.ts",
+    "playwright.webgl.config.ts"
+  ]
 }

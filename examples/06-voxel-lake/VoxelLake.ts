@@ -122,8 +122,8 @@ export class VoxelLake extends IsoObject {
     halfS: number, cubeH: number,
     wave: number,
   ): void {
-    const s = this.voxelSize;
     const op = this.opacity;
+
 
     // 立方体 8 个顶点的世界坐标 → 屏幕坐标
     // 底面 z = wz - cubeH，顶面 z = wz

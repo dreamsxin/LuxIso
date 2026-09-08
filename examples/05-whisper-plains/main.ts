@@ -8,8 +8,8 @@
 import {
   Engine, InputManager, InputMap,
   SceneManager, SceneTransition, HudLayer,
-  ParticleSystem, MovementComponent, ClickMover,
-  OmniLight, DirectionalLight, Scene,
+  ParticleSystem, ClickMover,
+  DirectionalLight, Scene,
 } from '../../src/index';
 import { CubeHero } from './entities/CubeHero';
 import { buildPlainsScene, PLAINS_COLS, PLAINS_ROWS, PORTAL_X, PORTAL_Y } from './scenes/PlainsScene';
@@ -17,7 +17,7 @@ import { buildLakeScene, LAKE_PORTAL_X, LAKE_PORTAL_Y } from './scenes/LakeScene
 import { buildDeepSeaScene, DEEP_COLS, DEEP_ROWS, DEEP_PORTAL_X, DEEP_PORTAL_Y } from './scenes/DeepSeaScene';
 import { DayNightCycle } from './environment/DayNightCycle';
 import { Portal } from './entities/Portal';
-import { WaveLake } from './scenes/LakeScene';
+
 
 // ── 引擎 & 输入 ───────────────────────────────────────────────────────────
 
@@ -59,7 +59,6 @@ dayNight.setPhase(0.25);
 const { scene: plainsScene, portal, collider: plainsCollider } = buildPlainsScene();
 { const sa = dayNight.getSceneAmbient(); plainsScene.ambientColor = sa.color; plainsScene.ambientIntensity = sa.intensity; }
 const hero    = new CubeHero('hero', 3.5, 3.5);
-const heroMv  = hero.addComponent(new MovementComponent({ speed: 5.5, radius: 0.32, collider: plainsCollider }));
 plainsScene.addObject(hero);
 plainsScene.camera.follow(hero);
 plainsScene.camera.lerpFactor = 0.06;
@@ -70,7 +69,6 @@ const plainsMover = new ClickMover({ cols: PLAINS_COLS, rows: PLAINS_ROWS, speed
 const LAKE_COLS = 13, LAKE_ROWS = 13;
 const { scene: lakeScene, lake: waveLake, portal: lakePortal } = buildLakeScene(LAKE_COLS, LAKE_ROWS);
 const lakeHero  = new CubeHero('hero-lake', LAKE_COLS / 2, LAKE_ROWS / 2);
-lakeHero.addComponent(new MovementComponent({ speed: 4.5, radius: 0.3 }));
 lakeScene.addObject(lakeHero);
 lakeScene.camera.follow(lakeHero);
 lakeScene.camera.lerpFactor = 0.05;
@@ -79,7 +77,6 @@ const lakeMover = new ClickMover({ cols: LAKE_COLS, rows: LAKE_ROWS, speed: 0.08
 // 深海
 const { scene: deepScene, portal: deepPortal } = buildDeepSeaScene();
 const deepHero  = new CubeHero('hero-deep', DEEP_COLS / 2, DEEP_ROWS / 2);
-deepHero.addComponent(new MovementComponent({ speed: 3.5, radius: 0.35 }));
 deepScene.addObject(deepHero);
 deepScene.camera.follow(deepHero);
 deepScene.camera.lerpFactor = 0.05;
@@ -188,7 +185,7 @@ mgr.register('plains', () => ({
     if (n < 0.5) { _dreamTimer += dt; if (_dreamTimer > 0.5) { _dreamTimer = 0; _spawnDream(plainsScene, PLAINS_COLS, PLAINS_ROWS); } }
   },
   onDrawBackground: (ctx, w, h, ts) => _drawPlainsSky(ctx, w, h, ts, dayNight),
-  onDrawOverlay: (ctx, w, h, ts) => plainsMover.drawMarker(ctx, plainsScene.camera, plainsScene.tileW, plainsScene.tileH, engine.originX, engine.originY, ts),
+  onDrawOverlay: (ctx, _w, _h, ts) => plainsMover.drawMarker(ctx, plainsScene.camera, plainsScene.tileW, plainsScene.tileH, engine.originX, engine.originY, ts),
 }));
 
 mgr.register('lake', () => ({
@@ -221,7 +218,7 @@ mgr.register('lake', () => ({
     }
   },
   onDrawBackground: _drawLakeSky,
-  onDrawOverlay: (ctx, w, h, ts) => lakeMover.drawMarker(ctx, lakeScene.camera, lakeScene.tileW, lakeScene.tileH, engine.originX, engine.originY, ts),
+  onDrawOverlay: (ctx, _w, _h, ts) => lakeMover.drawMarker(ctx, lakeScene.camera, lakeScene.tileW, lakeScene.tileH, engine.originX, engine.originY, ts),
 }));
 
 mgr.register('deep', () => ({
@@ -254,7 +251,7 @@ mgr.register('deep', () => ({
     }
   },
   onDrawBackground: _drawDeepSky,
-  onDrawOverlay: (ctx, w, h, ts) => deepMover.drawMarker(ctx, deepScene.camera, deepScene.tileW, deepScene.tileH, engine.originX, engine.originY, ts),
+  onDrawOverlay: (ctx, _w, _h, ts) => deepMover.drawMarker(ctx, deepScene.camera, deepScene.tileW, deepScene.tileH, engine.originX, engine.originY, ts),
 }));
 
 

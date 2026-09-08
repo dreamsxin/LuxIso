@@ -62,9 +62,8 @@ export class LavaRiver extends IsoObject {
       const wave       = Math.sin(t * this.waveSpeed + v.phase);
       const brightness = 0.6 + wave * 0.4;
       const wz         = 0.3 + (wave * 0.5 + 0.5) * this.amplitude;
-      const cubeH      = wz;
       const s          = 0.9;
-      const half       = s / 2;
+
 
       // 颜色：#ff4400 ~ #ff8800
       const rr = 255;
