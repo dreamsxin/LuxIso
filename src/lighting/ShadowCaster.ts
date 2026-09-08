@@ -64,9 +64,11 @@ export class ShadowCaster {
     ctx.save();
     ctx.globalCompositeOperation = 'multiply';
 
-    // Stable per-light cache key: prefer explicit id; fall back to position so
-    // two unnamed lights at different positions don't collide on 'default'.
-    const cacheKey = light.id ?? `omni:${lx},${ly},${light.position.z}`;
+    // Stable per-light cache key. Never derive this from the light's position:
+    // a moving light would then mint a new key every frame and the per-object
+    // cache below would grow without bound. `cacheKey` is the explicit id when
+    // present and an instance-scoped uid otherwise.
+    const cacheKey = light.cacheKey;
 
     for (const obj of casters) {
       if (obj.castsShadow === false) continue;
@@ -215,7 +217,7 @@ export class ShadowCaster {
     ctx.fillStyle = `rgba(0,0,0,${alpha.toFixed(3)})`;
 
     // Stable per-light cache key (see draw() above).
-    const cacheKey = light.id ?? `dir:${angle},${elev}`;
+    const cacheKey = light.cacheKey;
 
     for (const obj of casters) {
       if (obj.castsShadow === false) continue;

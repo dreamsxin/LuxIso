@@ -107,6 +107,7 @@ interface CacheEntry {
 export class PathCache {
   private _collider: TileCollider | null = null;
   private _version  = 0;
+  private _gridVersion = -1;
   private _lruClock = 0;
   private _map      = new Map<string, CacheEntry>();
   readonly capacity: number;
@@ -115,8 +116,22 @@ export class PathCache {
     this.capacity = capacity;
   }
 
+  /**
+   * Drop everything if the collider identity changed or its grid was mutated
+   * since the last access. `TileCollider.setWalkable` mutates in place and
+   * notifies nobody, so without the grid-version check a cache would keep
+   * serving pre-change paths indefinitely.
+   */
+  private _syncTo(collider: TileCollider): void {
+    if (collider === this._collider && collider.version === this._gridVersion) return;
+    this._map.clear();
+    this._collider = collider;
+    this._gridVersion = collider.version;
+    this._version++;
+  }
+
   get(collider: TileCollider, key: string): IsoVec2[] | null | undefined {
-    if (collider !== this._collider) return undefined; // miss — different collider
+    this._syncTo(collider);
     const entry = this._map.get(key);
     if (!entry || entry.version !== this._version) return undefined;
     entry.lruOrder = ++this._lruClock;
@@ -124,12 +139,7 @@ export class PathCache {
   }
 
   set(collider: TileCollider, key: string, result: IsoVec2[] | null): void {
-    if (collider !== this._collider) {
-      // New collider — flush everything for this cache instance only
-      this._map.clear();
-      this._collider = collider;
-      this._version++;
-    }
+    this._syncTo(collider);
     if (this._map.size >= this.capacity) {
       // Evict LRU entry
       let oldest = Infinity, oldestKey = '';
@@ -142,7 +152,9 @@ export class PathCache {
   }
 
   /**
-   * Invalidate all cached paths (e.g. after a door opens or a tile changes).
+   * Invalidate all cached paths. Grid mutations are picked up automatically via
+   * `TileCollider.version`; this remains useful when walkability is changed
+   * through some other mechanism.
    * Optionally pass the collider to only invalidate if it matches.
    */
   invalidate(collider?: TileCollider): void {
@@ -167,14 +179,14 @@ const _defaultCache = new PathCache(64);
  * containing `start` to the tile containing `goal`, or null if no path exists.
  *
  * - Supports 8-directional movement (diagonal cost = √2).
- * - Diagonal moves are blocked when both adjacent cardinal tiles are blocked
- *   (corner-cutting prevention).
+ * - Diagonal moves are blocked when either adjacent cardinal tile is blocked
+ *   (corner-cutting prevention). String-pulling applies the same rule.
  * - Open list uses a binary min-heap for O(log n) push/pop.
  * - Path is post-processed with Bresenham LoS string-pulling to straighten
  *   zigzag routes across open areas.
- * - Results are cached per (collider, start-tile, goal-tile). Pass an explicit
+ * - Results are cached per (collider, start-tile, goal-tile) and are dropped
+ *   automatically when `TileCollider.version` changes. Pass an explicit
  *   `PathCache` instance per scene to avoid cross-scene cache pollution.
- *   Call `cache.invalidate()` after modifying walkability at runtime.
  *
  * @example
  *   // Simple (backwards-compatible) — uses module-level cache:
@@ -376,6 +388,12 @@ export class Pathfinder {
   /**
    * Bresenham line walk to check grid LoS between two tile-centre points.
    * Returns true if every tile along the line is walkable.
+   *
+   * When the Bresenham step is diagonal it must apply the same corner-cutting
+   * rule as `_neighbors`, i.e. both shared cardinal tiles have to be walkable.
+   * Without that check string-pulling could straighten a legal staircase path
+   * into one that clips the corner between two blocked tiles, and the agent
+   * then wedges itself against the wall in `resolveMove`.
    */
   private static _hasLoS(a: IsoVec2, b: IsoVec2, collider: TileCollider): boolean {
     let c0 = Math.floor(a.x);
@@ -393,8 +411,14 @@ export class Pathfinder {
       if (!collider.isWalkable(c0, r0)) return false;
       if (c0 === c1 && r0 === r1) break;
       const e2 = err << 1;
-      if (e2 > -dr) { err -= dr; c0 += sc; }
-      if (e2 <  dc) { err += dc; r0 += sr; }
+      const stepC = e2 > -dr;
+      const stepR = e2 <  dc;
+      if (stepC && stepR) {
+        // Diagonal step — reject if either shared cardinal is blocked.
+        if (!collider.isWalkable(c0 + sc, r0) || !collider.isWalkable(c0, r0 + sr)) return false;
+      }
+      if (stepC) { err -= dr; c0 += sc; }
+      if (stepR) { err += dc; r0 += sr; }
     }
     return true;
   }

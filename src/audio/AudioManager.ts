@@ -222,6 +222,10 @@ export class AudioManager {
     const src = ctx.createBufferSource();
     src.buffer = buffer; src.loop = opts.loop ?? false; src.playbackRate.value = opts.rate ?? 1;
     let chain: AudioNode = src;
+    // Track every intermediate node so the whole chain can be torn down when
+    // playback ends. Without this each fire-and-forget SFX leaves its panner
+    // and gain nodes wired to the bus for the lifetime of the context.
+    const nodes: AudioNode[] = [src];
     if (opts.spatial) {
       const p = ctx.createPanner();
       p.panningModel = 'HRTF'; p.distanceModel = 'inverse';
@@ -230,14 +234,46 @@ export class AudioManager {
       p.rolloffFactor = opts.spatial.rolloffFactor ?? 1;
       p.positionX.value = opts.spatial.x; p.positionY.value = opts.spatial.z ?? 0; p.positionZ.value = opts.spatial.y;
       chain.connect(p); chain = p;
+      nodes.push(p);
     }
     if (opts.volume !== undefined && opts.volume !== 1) {
       const vol = ctx.createGain(); vol.gain.value = clamp01(opts.volume);
       chain.connect(vol); chain = vol;
+      nodes.push(vol);
     }
     chain.connect(bus);
+    // Looping sources never fire onended until explicitly stopped, which is
+    // the caller's responsibility since they hold the returned node.
+    src.onended = () => {
+      for (const node of nodes) {
+        try { node.disconnect(); } catch { /* already detached */ }
+      }
+    };
     src.start();
     return src;
+  }
+
+  /**
+   * Release every audio resource: stops BGM, closes the AudioContext and drops
+   * the decoded-buffer cache.
+   *
+   * Call this when tearing down a game instance. Without it the context stays
+   * open (browsers cap the number of live AudioContexts) and `_bufferCache`
+   * grows monotonically across scene reloads. The manager can be revived
+   * afterwards by calling `resume()` again.
+   */
+  dispose(): void {
+    if (this._bgmSource) {
+      try { this._bgmSource.stop(); } catch { /* already stopped */ }
+      try { this._bgmSource.disconnect(); } catch { /* already detached */ }
+      this._bgmSource = null;
+    }
+    this._bgmUrl = '';
+    this._bufferCache.clear();
+    this._pending.clear();
+    const ctx = this._ctx;
+    this._ctx = null;
+    if (ctx) void ctx.close().catch(() => { /* already closed */ });
   }
 }
 

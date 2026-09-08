@@ -186,18 +186,46 @@ export class Engine {
 
   constructor(opts: EngineOptions) {
     this.canvas = opts.canvas;
-    this.ctx = this.canvas.getContext('2d')!;
+    const ctx = this.canvas.getContext('2d');
+    if (!ctx) {
+      throw new Error(
+        'Engine: canvas.getContext("2d") returned null. The element is either ' +
+        'not a <canvas> or already holds a context of a different type.',
+      );
+    }
+    this.ctx = ctx;
     this.originX = this.canvas.width / 2;
     this.originY = this.canvas.height / 2;
   }
 
   // ── Scene loading ──────────────────────────────────────────────────────────
 
+  /**
+   * Fetch and build a scene from a JSON URL.
+   *
+   * Rejects with a message naming the URL for every failure mode (network,
+   * HTTP status, malformed JSON, invalid schema) rather than surfacing a bare
+   * `SyntaxError` or `TypeError` from deep inside the parse.
+   */
   async loadScene(url: string): Promise<Scene> {
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`Failed to load scene: ${url} (${res.status})`);
-    const json: SceneJson = await res.json();
-    return this._buildScene(json);
+    let res: Response;
+    try {
+      res = await fetch(url);
+    } catch (err) {
+      throw new Error(`Engine.loadScene: network request for "${url}" failed — ${String(err)}`);
+    }
+    if (!res.ok) throw new Error(`Engine.loadScene: "${url}" returned HTTP ${res.status}`);
+
+    let json: unknown;
+    try {
+      json = await res.json();
+    } catch (err) {
+      throw new Error(`Engine.loadScene: "${url}" is not valid JSON — ${String(err)}`);
+    }
+    if (typeof json !== 'object' || json === null) {
+      throw new Error(`Engine.loadScene: "${url}" must contain a JSON object`);
+    }
+    return this._buildScene(json as SceneJson);
   }
 
   /** Build a scene directly from a JSON object (no fetch required) */
@@ -205,13 +233,35 @@ export class Engine {
     return this._buildScene(json as SceneJson);
   }
 
+  /**
+   * Coerce a scene dimension, rejecting values that would silently poison the
+   * scene. A non-numeric `cols` used to flow into `new TileCollider(NaN, NaN)`,
+   * which produces an empty grid — making every tile blocked with no error.
+   */
+  private static _dimension(value: unknown, fallback: number, field: string): number {
+    if (value === undefined || value === null) return fallback;
+    const n = Number(value);
+    if (!Number.isFinite(n) || n <= 0) {
+      throw new Error(`Engine: scene "${field}" must be a positive number, got ${JSON.stringify(value)}`);
+    }
+    return n;
+  }
+
+
   private _buildScene(json: SceneJson): Scene {
+    // Validate the dimensions up front so a bad value fails loudly here rather
+    // than degrading into an all-blocked collider further down.
+    const cols  = Engine._dimension(json.cols  ?? json.floor?.cols, 10, 'cols');
+    const rows  = Engine._dimension(json.rows  ?? json.floor?.rows, 10, 'rows');
+    const tileW = json.tileW === undefined ? undefined : Engine._dimension(json.tileW, 64, 'tileW');
+    const tileH = json.tileH === undefined ? undefined : Engine._dimension(json.tileH, 32, 'tileH');
+
     const scene = new Scene({
       name: json.name,
-      tileW: json.tileW,
-      tileH: json.tileH,
-      cols: json.cols ?? json.floor?.cols,
-      rows: json.rows ?? json.floor?.rows,
+      tileW,
+      tileH,
+      cols,
+      rows,
     });
     if (json.ambientColor !== undefined) scene.ambientColor = json.ambientColor;
     if (json.ambientIntensity !== undefined) scene.ambientIntensity = json.ambientIntensity;
@@ -295,9 +345,7 @@ export class Engine {
       scene.addObject(prop);
     }
 
-    // Build collision layer
-    const cols = json.cols ?? json.floor?.cols ?? 10;
-    const rows = json.rows ?? json.floor?.rows ?? 10;
+    // Build collision layer (cols/rows validated at the top of this method)
     if (json.floor?.walkable) {
       scene.collider = TileCollider.fromArray(cols, rows, json.floor.walkable);
     } else {

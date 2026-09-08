@@ -9,6 +9,20 @@ export class TileCollider {
   readonly cols: number;
   readonly rows: number;
 
+  private _version = 0;
+
+  /**
+   * Monotonic revision counter, bumped whenever the walkable grid changes.
+   *
+   * Consumers that cache derived data (notably `PathCache`) include this in
+   * their validity check, so a runtime change such as opening a door
+   * invalidates stale results automatically instead of requiring every caller
+   * to remember an explicit invalidation.
+   */
+  get version(): number {
+    return this._version;
+  }
+
   constructor(cols: number, rows: number, walkable?: boolean[][]) {
     this.cols = cols;
     this.rows = rows;
@@ -19,7 +33,10 @@ export class TileCollider {
   // ── Grid mutation ─────────────────────────────────────────────────────────
 
   setWalkable(col: number, row: number, walkable: boolean): void {
-    if (this.inBounds(col, row)) this.grid[row][col] = walkable;
+    if (!this.inBounds(col, row)) return;
+    if (this.grid[row][col] === walkable) return;  // no-op: keep version stable
+    this.grid[row][col] = walkable;
+    this._version++;
   }
 
   isWalkable(col: number, row: number): boolean {
