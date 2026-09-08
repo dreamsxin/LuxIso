@@ -38,7 +38,7 @@ Application code should continue using the Canvas2D `Engine` API until the
 - **ClickMover** — click-to-move + keyboard movement helper; animated marker; collision-aware
 - **Sprite animation** — `SpriteSheet` + `AnimationController` (idle/walk state machine, 8-direction)
 - **Directional animator** — `DirectionalAnimator`; clip naming `action_DIR`; fallback chain; `playOnce()`
-- **Particle system** — `ParticleSystem`; procedural circle/square + sprite mode; blend modes; presets: sparkBurst, emberTrail, dustPuff, crystalShatter, coinSpill, spriteExplosion, ambientDrift, smokePlume, lavaSparks
+- **Particle system** — `ParticleSystem`; procedural circle/square + sprite mode; blend modes; preset factories: sparkBurst, dustPuff, crystalShatter, coinSpill, ambientDrift, plus the `FIRE` / `SMOKE` emitter configs
 - **Tile collision** — `TileCollider` walkable grid; AABB slide-and-clamp; `sweepMove()` binary search with fast-path; `MovementComponent.nudge(dx,dy)` collision-resolved directional move
 - **A\* Pathfinder** — 8-directional, corner-cut prevention, Bresenham LoS string-pull, min-heap O(log n); instance-level `PathCache` (per-scene, zero cross-scene pollution); `cache.invalidate()`
 - **ECS** — constructor-keyed components plus priority-ordered `System` queries with variable and fixed-rate updates
@@ -60,7 +60,7 @@ Application code should continue using the Canvas2D `Engine` API until the
 |---|---|
 | Language | TypeScript 5 (strict) |
 | Renderer | Canvas 2D default; opt-in WebGL2 preview |
-| Build | Vite 5 |
+| Build | Vite 8 |
 | Library runtime | ES2020 |
 | Tests | Vitest 4 + Playwright 1.62 (Node ≥ 22) |
 
@@ -80,6 +80,8 @@ npm run dev        # http://localhost:5173 — interactive demo
 npm run build      # production build → dist/
 npm run build:lib  # library bundle → dist/luxiso.mjs + luxiso.cjs + types
 npm test           # run the Vitest suite (requires Node ≥ 22)
+npm run encoding:check  # verify source file encodings (runs before both builds)
+npm run encoding:fix    # rewrite offending files in place
 npx playwright install chromium  # one-time browser install
 npm run test:webgl # run 9 deterministic captures + context/resource lifecycle tests
 ```
@@ -222,14 +224,17 @@ Engine                     — canvas setup, RAF loop, JSON loader, pre/postFram
     ├── Floor              — tile grid; tileImage; per-tile color cache; OmniLight + DirectionalLight RGB mix
     ├── Wall               — parallelogram faces; door/window openings; face-normal lighting
     ├── ShadowCaster       — AABB silhouette → z=0 projection; radial gradient fill
-    ├── Character          — sphere/sprite entity; moveTo / pathTo; AnimationController
+    ├── Character          — sphere/sprite entity; AnimationController (movement via MovementComponent)
     ├── Entity (ECS)       — addComponent / getComponent; per-frame component.update()
     │   ├── Crystal        — low-poly hexagonal crystal; HealthComponent
     │   ├── Boulder        — low-poly 7-sided rock; crack lines; HealthComponent
     │   ├── Chest          — isometric box; animated lid; HealthComponent
-    │   ├── Cloud          — deterministic LCG low-poly puffs; drift + wrap; ground shadow
-    │   └── FloatingText   — floating damage/status text; auto-expires; depth-sorted
-    ├── ParticleSystem     — IsoObject; procedural + sprite particles; depth-sorted; 9 presets
+    │   ├── Cloud           — deterministic LCG low-poly puffs; drift + wrap; ground shadow
+    │   ├── Tree            — low-poly canvas tree
+    │   ├── FlowerPatch     — scattered flower cluster
+    │   ├── Lantern         — lantern body + attached OmniLight
+    │   └── FloatingText    — floating damage/status text; auto-expires; depth-sorted
+    ├── ParticleSystem     — IsoObject; procedural + sprite particles; depth-sorted; preset configs
     └── LightManager
         ├── OmniLight      — illuminateAt(); RGB channel accumulation
         └── DirectionalLight — angle/elevation; incidentDirection; face-normal dot
@@ -248,6 +253,7 @@ src/
 │   ├── DebugRenderer.ts         # Overlay: collision grid, AABB, light radii, triggers, FPS
 │   ├── Engine.ts                # RAF loop; JSON loader (floor/walls/lights/chars/props/clouds); pre/postFrame
 │   ├── HudLayer.ts              # Canvas-space UI: labels, bars, buttons, panels
+│   ├── InputManager.ts          # Raw keyboard/pointer state; per-frame flush
 │   ├── InputMap.ts              # Action-binding layer over InputManager; axis(); toJSON/fromJSON
 │   ├── LightmapCache.ts         # OffscreenCanvas floor cache; isDirty snapshot; blit()
 │   ├── Minimap.ts               # OffscreenCanvas HUD overlay; walkable grid + object dots
@@ -262,18 +268,21 @@ src/
 │   ├── IsoObject.ts             # Abstract base: id, position (IsoVec3), aabb, draw, update
 │   ├── Floor.ts                 # Tile grid + tileImage + per-tile color cache + multi-light RGB illumination
 │   ├── Wall.ts                  # Parallelogram faces; openings; face-normal dir lighting
-│   ├── Character.ts             # Sphere/sprite entity; moveTo / pathTo; AnimationController
+│   ├── Character.ts             # Sphere/sprite entity; AnimationController (movement via MovementComponent)
 │   └── props/
 │       ├── Crystal.ts           # Low-poly crystal; Entity + HealthComponent
 │       ├── Boulder.ts           # Low-poly rock; Entity + HealthComponent
 │       ├── Chest.ts             # Isometric chest; animated lid; Entity + HealthComponent
 │       ├── Cloud.ts             # Deterministic LCG low-poly cloud; drift + wrap; ground shadow
+│       ├── Tree.ts              # Low-poly tree; canvas-drawn; registered as prop 'tree'
+│       ├── FlowerPatch.ts       # Scattered flower cluster; registered as prop 'flowers'
+│       ├── Lantern.ts           # Lantern prop with attached OmniLight; prop 'lantern'
 │       └── FloatingText.ts      # Floating text; auto-expires; depth-sorted; Scene.spawnFloatingText()
 ├── animation/
 │   ├── SpriteSheet.ts           # AnimationClip (frames, fps, loop); AssetLoader preload
 │   ├── AnimationController.ts   # State machine; 8-direction; idle↔walk; dt-based
 │   ├── DirectionalAnimator.ts   # action_DIR clip naming; fallback chain; playOnce(); buildSheet()
-│   └── ParticleSystem.ts        # IsoObject; circle/square + sprite particles; blend modes; 9 presets
+│   └── ParticleSystem.ts        # IsoObject; circle/square + sprite particles; blend modes; presets
 ├── physics/
 │   ├── TileCollider.ts          # Walkable grid; canOccupy(); resolveMove(); sweepMove() fast-path
 │   └── Pathfinder.ts            # A* 8-dir; Bresenham LoS string-pull; min-heap; LRU result cache
@@ -284,7 +293,8 @@ src/
 │   ├── System.ts                # Batch component queries; priority + attach/detach lifecycle
 │   └── components/
 │       ├── HealthComponent.ts   # hp / maxHp / fraction / isDead; takeDamage / heal; callbacks
-│       ├── MovementComponent.ts # ECS moveTo / pathTo; TileCollider; EventBus arrival/move
+│       ├── MovementComponent.ts # ECS moveTo / pathTo / nudge; TileCollider; EventBus arrival/move
+│       ├── AnimationComponent.ts # Drives a SpriteSheet/DirectionalAnimator from ECS update
 │       ├── TimerComponent.ts    # delay / repeat / pause / restart
 │       ├── TweenComponent.ts    # 8 easings; yoyo; repeat; delay; onComplete
 │       ├── TweenSequence.ts     # Chain multiple TweenComponent steps; repeat; onComplete
@@ -311,6 +321,9 @@ webgl-next/
 ├── src/                         # Snapshot extraction, WebGL2 renderer, overlays, resources
 ├── e2e/                         # Deterministic Playwright fixture matrix
 ├── index.html                   # WebGL/Canvas comparison preview
+├── main.ts                      # Preview page entry point
+├── style.css
+├── README.md                    # Preview plan and status
 ├── ARCHITECTURE.md              # Current preview boundaries and render graph
 ├── ACCEPTANCE.md                # Visual, browser, performance, and release gates
 └── ROADMAP.md                   # Incremental preview and cutover phases
@@ -332,7 +345,7 @@ examples/
 
 public/
 └── scenes/
-    └── level1.json              # 10×10 demo scene: floor + walkable map, 4 walls, OmniLight + DirectionalLight, player
+    └── level1.json              # 16×10 demo scene: floor + walkable map, 4 walls, OmniLight + DirectionalLight, player, 3 props
 ```
 
 ## API Reference
@@ -386,13 +399,18 @@ new Camera(opts?: CameraOptions)
 camera.follow(target: IsoObject): void
 camera.unfollow(): void
 camera.pan(dx: number, dy: number): void
-camera.zoom: number                            // 0.25–4, default 1
-camera.lerpFactor: number                      // 0–1; frame-rate-independent convergence
+camera.zoom: number                            // default 1; assigned directly, NOT clamped
+camera.setZoom(zoom: number): void             // clamps to 0.25–4
+camera.lerpFactor: number                      // clamped to 0–1; frame-rate-independent convergence
+camera.update(dt?: number): void               // lerps toward the follow target
 camera.setBounds(bounds: CameraBounds): void
-camera.applyTransform(ctx, canvasW, canvasH, tileW, tileH, originX, originY): void
+camera.applyTransform(ctx, canvasW, canvasH, tileW, tileH, originX, originY, view?): void
 camera.restoreTransform(ctx): void
-camera.worldToScreen(wx, wy, wz, tileW, tileH, originX, originY): { sx, sy }
-camera.screenToWorld(cx, cy, canvasW, canvasH, tileW, tileH, originX, originY): { x, y }
+camera.worldToScreen(wx, wy, wz, tileW, tileH, originX, originY, view?): { sx, sy }
+camera.screenToWorld(cx, cy, canvasW, canvasH, tileW, tileH, originX, originY, view?): { x, y }
+// Pass the same `view` you render with: worldToScreen / screenToWorld reproduce
+// applyTransform's composition exactly (rotation first, then the elevation
+// Y-scale). Omitting it assumes the default { rotation: 0, elevation: 0.5 }.
 ```
 
 ### `ClickMover`
@@ -409,15 +427,24 @@ mover.drawMarker(ctx, camera, tileW, tileH, originX, originY, ts): void  // anim
 
 ```ts
 new Character({ id, x, y, z?, radius?, color?, spriteSheet?, speed? })
-character.moveTo(x, y, z?): void               // direct smooth movement, no pathfinding
-character.pathTo(tx, ty, collider, tz?): boolean // A* — returns false if unreachable
-character.followPath(waypoints[], z?): void
-character.stopMoving(): void
-character.isMoving: boolean
-character.remainingWaypoints: readonly IsoVec2[]
+character.isMoving: boolean                    // delegates to MovementComponent
+character.anim: AnimationController | null
 character.setSpriteSheet(sheet, initialClip?): void
 character.playAnimation(name: string): void
 ```
+
+Movement is **not** on `Character` itself — it lives in `MovementComponent`, so a
+character can be moved with or without pathfinding by adding that component:
+
+```ts
+import { Character, MovementComponent } from 'luxiso';
+
+const hero = new Character({ id: 'hero', x: 5, y: 5, radius: 22 });
+const mv = hero.addComponent(new MovementComponent({ speed: 3, collider: scene.collider! }));
+mv.moveTo(8, 4);        // direct smooth movement
+mv.pathTo(2, 9);        // A* through the attached collider; false = unreachable
+```
+
 
 ### `Entity` (ECS base)
 
@@ -504,7 +531,8 @@ entity.addComponent(new TweenSequence([
 ```ts
 new TimerComponent({ duration, repeat?, onTick?, onComplete?, autoStart? })
 // duration: seconds; repeat: loop; onTick: fires each cycle; onComplete: fires when non-repeating timer finishes
-timer.pause(): void; timer.resume(): void; timer.restart(): void; timer.start(): void; timer.reset(): void
+timer.start(): void; timer.pause(): void; timer.restart(): void; timer.reset(): void
+// There is no resume(): call start() to un-pause (it keeps the elapsed time).
 timer.elapsed: number   // seconds elapsed in current cycle
 timer.fraction: number  // 0–1 progress through current cycle
 timer.isDone: boolean; timer.isRunning: boolean
@@ -526,34 +554,49 @@ trigger.setOnExit(cb: (id: string) => void): void
 ### `ParticleSystem`
 
 ```ts
-new ParticleSystem(id, x, y, z?)
-ps.addEmitter(config: EmitterConfig): this
-ps.burst(count?: number): this
-ps.autoRemove: boolean          // default true — removes self when all particles die
-ps.onExhausted: (() => void) | null
+new ParticleSystem(id, x, y, z)   // z is required
+ps.addEmitter(config: EmitterConfig): void
+ps.burst(count?: number, randomness?: number): void
+ps.spawn(opts: ParticleOptions): void
+ps.particleCount: number
+ps.onExhausted: (() => void) | null   // called when the last particle dies
 
-// Presets:
-ParticleSystem.presets.sparkBurst({ color?, count? })
-ParticleSystem.presets.emberTrail({ color? })
-ParticleSystem.presets.dustPuff({ color? })
-ParticleSystem.presets.crystalShatter({ color? })
-ParticleSystem.presets.coinSpill({ count? })
-ParticleSystem.presets.spriteExplosion(sheet, { clip?, count? })
+// Preset emitter configs. Pass the result to addEmitter():
+//   ps.addEmitter(ParticleSystem.presets.sparkBurst());
+ParticleSystem.presets.sparkBurst()
+ParticleSystem.presets.dustPuff()
+ParticleSystem.presets.crystalShatter()
+ParticleSystem.presets.coinSpill()
 ParticleSystem.presets.ambientDrift({ color?, count?, speed?, size?, alpha?, blend?, shape? })
-ParticleSystem.presets.smokePlume({ color?, count? })
-ParticleSystem.presets.lavaSparks({ color?, count? })
+ParticleSystem.presets.FIRE     // plain config object, not a function
+ParticleSystem.presets.SMOKE    // plain config object, not a function
 ```
 
-### `Pathfinder`
+Only `ambientDrift` reads its options argument; the other factories currently
+ignore any argument and return a fixed config. There is no `autoRemove` field —
+remove an exhausted system yourself, e.g. from `onExhausted`.
+
+
+### `Pathfinder` / `PathCache`
 
 ```ts
-Pathfinder.find(collider, start: IsoVec2, goal: IsoVec2): IsoVec2[] | null
-// Results are LRU-cached (capacity 64). Repeated calls with same inputs are O(1).
+Pathfinder.find(collider, start: IsoVec2, goal: IsoVec2, cache?: PathCache): IsoVec2[] | null
+// Omitting `cache` uses a module-level LRU shared by all callers (capacity 64).
+// Pass a per-scene PathCache instead to avoid cross-scene pollution:
+
+const cache = new PathCache(64);
+Pathfinder.find(scene.collider!, { x: 0, y: 0 }, { x: 9, y: 9 }, cache);
+cache.invalidate();              // after changing walkability (e.g. opening a door)
+cache.size; cache.capacity;
 
 Pathfinder.invalidateCache(collider?): void
-// Call after modifying walkability at runtime (e.g. opening a door).
-// Omit collider to flush all cached results.
+// @deprecated — only flushes the shared default cache. Prefer an explicit
+// PathCache and cache.invalidate().
 ```
+
+Note: `TileCollider.setWalkable()` mutates the grid in place and does **not**
+notify any cache, so you must invalidate manually after runtime changes.
+
 
 ### `Floor`
 
@@ -692,7 +735,7 @@ requireComponent<T>(entity: Entity, ctor: ComponentCtor<T>): T  // throws if mis
 | ClickMover: click-to-move + keyboard + animated marker | |
 | SpriteSheet + AnimationController (8-direction, idle/walk) | |
 | DirectionalAnimator: action_DIR clips + fallback + playOnce | |
-| ParticleSystem: procedural + sprite; 9 presets; depth-sorted | |
+| ParticleSystem: procedural + sprite; preset configs; depth-sorted | |
 | TileCollider: walkable grid + AABB slide-and-clamp + sweepMove | |
 | A* Pathfinder: 8-directional, corner-cut prevention, Bresenham LoS string-pull, min-heap O(log n) | |
 | Pathfinder: LRU result cache — instance-level `PathCache`; per-scene isolation | |
@@ -725,7 +768,7 @@ requireComponent<T>(entity: Entity, ctor: ComponentCtor<T>): T  // throws if mis
 | EventBus event maps | Event names and payload types are coupled; custom maps supported |
 | Scene.toJSON(): runtime state + built-in prop serialization | Environment, camera, view, light IDs/options, collider, built-ins |
 | Lib build: ESM + CJS dual output + .d.ts (npm run build:lib) | |
-| Unit tests: 266 tests across 36 files (Vitest 4, Node ≥ 22) | |
+| Unit tests: 285 tests across 38 files (Vitest 4, Node ≥ 22) | |
 | Examples: 9 progressive demos + tools gallery | |
 
 ## Known Limitations & Roadmap (Next)
