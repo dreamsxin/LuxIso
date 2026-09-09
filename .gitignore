@@ -13,3 +13,8 @@ coverage/
 # breaks ripgrep and other tools that walk the tree.
 nul
 
+# Commit messages are written to a temp file and passed to `git commit -F`,
+# because PowerShell has no heredoc and multi-line `-m` is unreliable there.
+.commitmsg.tmp
+
+
