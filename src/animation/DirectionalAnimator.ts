@@ -5,9 +5,14 @@
  *   e.g.  idle_S, walk_SE, attack_NW, die_N
  *
  * Direction fallback chain (when a specific direction clip is missing):
- *   NW → W → SW → S   (left-side fallback)
- *   NE → E → SE → S   (right-side fallback)
- *   N  → NE → E → SE  (back fallback)
+ *   S  → S
+ *   SE → S  → E
+ *   E  → SE → S
+ *   NE → E  → SE → S
+ *   N  → NE → NW → E → W → S
+ *   NW → W  → SW → S
+ *   W  → SW → S
+ *   SW → S  → W
  *
  * If no directional variant exists, falls back to the bare action name (e.g. 'idle').
  *
@@ -54,6 +59,13 @@ export class DirectionalAnimator {
   private _frame   = 0;
   private _done    = false;
   private _onComplete: (() => void) | null = null;
+  /**
+   * Set by `playOnce`, which must not loop even when the resolved clip is
+   * flagged `loop: true`. `buildSheet` defaults every clip to `loop: true`, so
+   * without this an attack built through it would cycle forever and the
+   * completion callback (and the return to the idle action) would never fire.
+   */
+  private _forceOnce = false;
 
   constructor(sheet: SpriteSheet, opts: DirectionalAnimatorOptions = {}) {
     this._sheet     = sheet;
@@ -81,6 +93,7 @@ export class DirectionalAnimator {
     const prev = this._clip?.name;
     this._action = action;
     this._onComplete = onComplete ?? null;
+    this._forceOnce = false;
     this._resolveClip();
     if (this._clip?.name !== prev) this._resetPlayback();
   }
@@ -106,6 +119,7 @@ export class DirectionalAnimator {
     this._action    = action;
     this._direction = dir;
     this._onComplete = onComplete ?? null;
+    this._forceOnce = false;
     this._resolveClip();
     if (this._clip?.name !== prev) this._resetPlayback();
   }
@@ -113,11 +127,16 @@ export class DirectionalAnimator {
   /**
    * Play a one-shot action (non-looping), then return to `returnTo`.
    * Useful for attack, hit, die animations.
+   *
+   * The clip's own `loop` flag is overridden for this playback — see
+   * `_forceOnce`. Changing direction mid-flight restarts the one-shot facing
+   * the new way; calling `setAction`/`set` cancels it.
    */
   playOnce(action: ActionName, returnTo: ActionName = 'idle', onComplete?: () => void): void {
     this._action = action;
     this._resolveClip();
     this._resetPlayback();
+    this._forceOnce = true;
     this._onComplete = () => {
       onComplete?.();
       this.setAction(returnTo);
@@ -135,7 +154,7 @@ export class DirectionalAnimator {
 
     const frameDur   = 1 / fps;
     const totalDur   = frameDur * totalFrames;
-    const shouldLoop = this._clip.loop ?? true;
+    const shouldLoop = this._forceOnce ? false : (this._clip.loop ?? true);
 
     if (shouldLoop) {
       this._frame = Math.floor((this._elapsed % totalDur) / frameDur);
