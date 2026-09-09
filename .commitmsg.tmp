@@ -1,0 +1,29 @@
+fix(ci): skip the pixel gate when no baseline is committed
+
+CI has been red on every push since 1195656 enabled the gate. I misread this
+as dormant in the previous commit's docs -- it was not.
+`toHaveScreenshot` treats a missing snapshot as a failure: it writes the
+actual and reports "A snapshot doesn't exist at ...". Turning the gate on
+before any baseline existed therefore failed `day-ne`, `low-angle` and
+`night-lanterns` on every run, rather than doing nothing.
+
+The spec now resolves the expected path with `testInfo.snapshotPath()` and
+asserts only when that file exists. Otherwise it records a
+`pixel-gate-skipped` annotation naming the missing file, so the gap stays
+visible in the report without failing the build. Committing the PNGs is all
+it takes to arm the comparison -- no further code change.
+
+`webgl-baselines` needs the opposite behaviour to bootstrap, so it sets
+`LUXISO_WRITE_BASELINES=1` to force the assertion and let update mode mint
+the snapshots.
+
+Verified by reproducing CI locally. With `CI=1` and no baselines: 3 failures
+before the change, 11/11 after. With `CI=1 LUXISO_WRITE_BASELINES=1` and
+`--update-snapshots`: the three PNGs are written and the run passes, which is
+also why the workflow step needs no `continue-on-error`. The locally
+generated PNGs were deleted rather than committed -- they are win32 captures
+and the gate expects Linux ones.
+
+README, ACCEPTANCE and FRAMEWORK_ANALYSIS updated to describe the skip
+mechanism, including a correction of the "wired but dormant" claim I made one
+commit ago.

@@ -882,7 +882,7 @@ See [FRAMEWORK_ANALYSIS.md](FRAMEWORK_ANALYSIS.md) for a detailed comparison wit
 | Priority | Item | Notes |
 |----------|------|-------|
 | P1 | `example-05` sky draw functions (400+ lines) inline in `main.ts` | Split to `environment/*.ts` |
-| P2 | The pixel-diff gate has no baselines committed yet | `day-ne` / `low-angle` / `night-lanterns` are wired to compare at 1.5%, but `webgl-next/e2e/__screenshots__/` is empty, so the comparison is dormant. Run the manual `webgl-baselines` workflow, review the PNGs, commit them |
+| P2 | The pixel-diff gate has no baselines committed yet | `day-ne` / `low-angle` / `night-lanterns` are wired to compare at 1.5%, but `webgl-next/e2e/__screenshots__/` is empty, so the spec skips the assertion with a `pixel-gate-skipped` annotation. Run the manual `webgl-baselines` workflow, review the PNGs, commit them — that alone arms the gate |
 | P2 | Six of nine WebGL fixtures are not baseline-gated | Extending the set means adding IDs to `PIXEL_GATED_FIXTURES` and regenerating |
 | P2 | `src/elements/**` (57% branches 53%) is the lowest-covered module | Mostly canvas draw code; the uncovered branches are painting paths, not logic. `Engine` / `Scene` also need a canvas harness to go much higher |
 | P2 | Custom prop serialization requires application code | Add serializer registry paired with `registerProp()` |

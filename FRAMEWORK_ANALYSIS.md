@@ -207,6 +207,14 @@ const bus = new EventBus<GameEvents>();
   时可用 `LUXISO_ALLOW_LOCAL_BASELINES=1` 绕过，但会打印警告。同时把 README 与
   ACCEPTANCE 里「已比对 committed 基线」改为实情：`__screenshots__/` 目前是空的，
   比对已接线但处于休眠状态，等人跑一次手动 workflow 并提交审核过的 PNG。
+- 上一条我判断错了一半：像素门禁并不是「休眠」，而是**每次 CI 都在红**。
+  `toHaveScreenshot` 把「基线文件不存在」当作失败（写出 actual 并报
+  "A snapshot doesn't exist at ..."），所以 1195656 在没有任何基线的情况下打开门禁，
+  等于让主 CI 从那时起就一直失败。现在 fixture spec 会先检查基线文件是否存在：不存在
+  就记一条 `pixel-gate-skipped` annotation 而不做断言，提交 PNG 即自动生效；
+  `webgl-baselines` workflow 用 `LUXISO_WRITE_BASELINES=1` 绕过这个跳过，才能把基线
+  first-run 生成出来。本地以 `CI=1` 复现验证：修复前 3 个 fixture 失败，修复后 11/11 通过。
+
 
 
 

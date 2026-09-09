@@ -53,9 +53,13 @@ Chromium/SwiftShader at 1280×720 and DPR 1. What it asserts:
 - **`day-ne`, `low-angle`, `night-lanterns`:** additionally compared against a
   committed baseline in `webgl-next/e2e/__screenshots__/` with
   `maxDiffPixelRatio: 0.015`, **once that directory is populated** — as of this
-  writing it is empty, so the comparison is wired but dormant. Those three cover
-  day lighting, a low sun with long projected shadows, and practical local lights
-  at low ambient.
+  writing it is empty. The spec checks for the baseline file and, when it is
+  absent, records a `pixel-gate-skipped` annotation instead of asserting:
+  `toHaveScreenshot` treats a missing snapshot as a failure, so without that
+  check enabling the gate ahead of the baselines turned every CI run red rather
+  than leaving the check inert. Committing the PNGs is all it takes to arm it.
+  Those three cover day lighting, a low sun with long projected shadows, and
+  practical local lights at low ambient.
 - The remaining six fixtures are **not** baseline-gated: a regression there that
   keeps the colour histogram plausible will still pass. Extending the set is a
   matter of adding IDs to `PIXEL_GATED_FIXTURES` and regenerating.
@@ -80,7 +84,10 @@ gh run download <run-id> -n webgl-baselines-<sha> -D webgl-next/e2e/__screenshot
 ```
 
 Review every PNG before committing. Until the three baselines exist in the repo,
-the pixel gate is inert: `toHaveScreenshot` has nothing to compare against.
+the pixel gate is inert — the spec skips it with an annotation naming the missing
+file. The `webgl-baselines` workflow sets `LUXISO_WRITE_BASELINES=1` to bypass
+that skip so it can mint the snapshots in the first place.
+
 
 
 The lifecycle layer additionally forces `WEBGL_lose_context`, requires recovery

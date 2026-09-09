@@ -32,8 +32,19 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx playwright install --with-deps chromium
-      # `--update-snapshots` rewrites the baselines instead of comparing.
+      # `--update-snapshots` rewrites the baselines instead of comparing, and
+      # LUXISO_WRITE_BASELINES forces the assertion to run even though no
+      # baseline exists yet — the fixture spec otherwise skips the gate rather
+      # than failing every normal CI run on a missing file.
+      #
+      # In update mode Playwright writes the missing snapshots and the run still
+      # passes, so this step is a genuine signal: if it goes red, something other
+      # than the absent baselines is wrong. Review the artifact regardless.
       - run: npm run test:webgl:update
+        env:
+          LUXISO_WRITE_BASELINES: '1'
+
+
       - name: Upload baseline candidates for review
         if: always()
         uses: actions/upload-artifact@v4
