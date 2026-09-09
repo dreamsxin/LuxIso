@@ -88,11 +88,17 @@ export class SceneManager {
 
   /**
    * Register a named scene factory.
-   * The factory is called lazily when the scene is first pushed.
+   *
+   * The factory runs lazily — nothing happens until the name is pushed — but it
+   * runs on *every* `push`/`replace` of that name, not just the first. Results
+   * are deliberately not cached: a factory that builds fresh state per entry is
+   * the common case. Return a scene captured outside the factory if you want
+   * one instance reused across entries.
    */
   register(name: string, factory: SceneFactory): void {
     this._registry.set(name, factory);
   }
+
 
   // ── Stack operations ──────────────────────────────────────────────────────
 
@@ -121,18 +127,37 @@ export class SceneManager {
   /**
    * Push a new scene onto the stack.
    * The current top scene receives `onPause`, the new scene receives `onEnter`.
+   *
+   * If the new scene fails to build or its `onEnter` throws, the push is rolled
+   * back: the previous scene is re-activated and resumed before the error
+   * propagates. `onPause` and `onResume` are strictly paired, and a scene left
+   * paused forever because the *next* scene failed is close to impossible to
+   * diagnose from the symptom.
    */
   async push(name: string): Promise<void> {
     if (this._loading) return;
     this._loading = true;
+    const previous = this._stack[this._stack.length - 1];
+    let paused = false;
+    let pushed = false;
     try {
-      const top = this._stack[this._stack.length - 1];
-      if (top?.managed.onPause) await top.managed.onPause();
+      if (previous?.managed.onPause) {
+        await previous.managed.onPause();
+        paused = true;
+      }
 
       const managed = await this._build(name);
       this._stack.push({ name, managed });
+      pushed = true;
       this._engine.setScene(managed.scene);
       if (managed.onEnter) await managed.onEnter();
+    } catch (err) {
+      if (pushed) this._stack.pop();
+      if (previous) {
+        this._engine.setScene(previous.managed.scene);
+        if (paused && previous.managed.onResume) await previous.managed.onResume();
+      }
+      throw err;
     } finally {
       this._loading = false;
     }
@@ -147,8 +172,13 @@ export class SceneManager {
     this._loading = true;
     try {
       const top = this._stack.pop()!;
-      if (top.managed.onExit) await top.managed.onExit();
-      top.managed.assetLoader?.clear();
+      try {
+        if (top.managed.onExit) await top.managed.onExit();
+      } finally {
+        // The scene is already off the stack, so this is the last chance to
+        // release its assets — a throwing onExit must not turn into a leak.
+        top.managed.assetLoader?.clear();
+      }
 
       const newTop = this._stack[this._stack.length - 1];
       if (newTop) {
@@ -164,18 +194,23 @@ export class SceneManager {
 
   /**
    * Replace the entire stack with a single new scene.
-   * All existing scenes receive `onExit` (bottom to top).
+   * All existing scenes receive `onExit`, unwound top to bottom.
    */
   async replace(name: string): Promise<void> {
     if (this._loading) return;
     this._loading = true;
     try {
-      // Exit all existing scenes
+      // Exit all existing scenes, top of the stack first.
       for (let i = this._stack.length - 1; i >= 0; i--) {
-        if (this._stack[i].managed.onExit) await this._stack[i].managed.onExit!();
-        this._stack[i].managed.assetLoader?.clear();
+        const managed = this._stack[i].managed;
+        try {
+          if (managed.onExit) await managed.onExit();
+        } finally {
+          managed.assetLoader?.clear();
+        }
       }
       this._stack = [];
+
 
       const managed = await this._build(name);
       this._stack.push({ name, managed });

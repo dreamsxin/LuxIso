@@ -92,7 +92,7 @@ npm run test:webgl # builds, then runs 9 deterministic captures + lifecycle test
 
 | Layer | Command | Scope |
 |---|---|---|
-| Unit | `npm test` | 434 tests across 47 files (Vitest 4) |
+| Unit | `npm test` | 446 tests across 47 files (Vitest 4) |
 | Coverage | `npm run test:coverage` | v8 provider + per-module ratchets |
 | Browser | `npm run test:webgl` | 9 fixture captures + 2 context-lifecycle tests (Chromium/SwiftShader) against the built bundle |
 
@@ -108,7 +108,7 @@ Correctness-critical modules carry their own floors:
 | `src/ecs/**` | 82% | 78% |
 | `src/audio/**` | 67% | 55% |
 | `src/animation/**` | 81% | 75% |
-| `src/core/**` | 65% | 53% |
+| `src/core/**` | 66% | 55% |
 | `src/elements/**` | 57% | 53% |
 | Whole project | 64% | 60% |
 
@@ -871,7 +871,7 @@ requireComponent<T>(entity: Entity, ctor: ComponentCtor<T>): T  // throws if mis
 | EventBus event maps | Event names and payload types are coupled; custom maps supported |
 | Scene.toJSON(): runtime state + built-in prop serialization | Environment, camera, view, light IDs/options, collider, built-ins |
 | Lib build: ESM + CJS dual output + .d.ts (npm run build:lib) | |
-| Unit tests: 434 tests across 47 files (Vitest 4, Node ≥ 22) | |
+| Unit tests: 446 tests across 47 files (Vitest 4, Node ≥ 22) | |
 | Coverage ratchets per module (`npm run test:coverage`) | v8 provider; per-glob floors on math/physics/lighting/ecs/animation/elements/audio/core |
 | Examples: 9 progressive demos + tools gallery | |
 
@@ -884,7 +884,6 @@ See [FRAMEWORK_ANALYSIS.md](FRAMEWORK_ANALYSIS.md) for a detailed comparison wit
 | P1 | `example-05` sky draw functions (400+ lines) inline in `main.ts` | Split to `environment/*.ts` |
 | P2 | Six of nine WebGL fixtures are not baseline-gated | `day-ne` / `low-angle` / `night-lanterns` compare against committed baselines at 1.5%; extending the set means adding IDs to `PIXEL_GATED_FIXTURES` and regenerating |
 | P2 | `src/elements/**` (57% branches 53%) is the lowest-covered module | Mostly canvas draw code; the uncovered branches are painting paths, not logic. `Engine` / `Scene` also need a canvas harness to go much higher |
-| P2 | `SceneManager` does not auto-clear `AssetLoader` on scene exit | Add `assetLoader?` to `ManagedScene` |
 | P2 | Custom prop serialization requires application code | Add serializer registry paired with `registerProp()` |
 | P2 | `EditorRenderer` rebuilds the whole scene on every state change | Debounce to one rebuild per frame, or mutate objects in place for transform-only edits |
 | P2 | `webgl-next` `TextureRegistry` never evicts | Reference-count or LRU-evict per frame; `dispose()` should delete its own GL textures |

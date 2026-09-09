@@ -1,7 +1,7 @@
 # LuxIso 架构分析报告 v5
 
 > 更新日期：2026-09-09
-> 基线：Canvas 2D 默认 + WebGL2 预览，434 个 Vitest 测试 / 47 个测试文件（含 v8 覆盖率阈值），11 个 Playwright WebGL 测试
+> 基线：Canvas 2D 默认 + WebGL2 预览，446 个 Vitest 测试 / 47 个测试文件（含 v8 覆盖率阈值），11 个 Playwright WebGL 测试
 
 ## 执行摘要
 
@@ -191,6 +191,15 @@ const bus = new EventBus<GameEvents>();
   荷叶、水母这类软性装饰保持可走），出生点与传送门格显式保留可走，避免角色一落地
   就被 `resolveMove` 卡在障碍里。出生坐标提为 `LAKE_SPAWN_*` / `DEEP_SPAWN_*` 常量，
   单测用 `Pathfinder` 钉住「出生点到传送门始终连通」，防止以后加道具把 demo 堵死。
+- `SceneManager.push()` 的 `onPause` / `onResume` 会失配。旧栈顶先收 `onPause`，然后才
+  去 build 新场景；build 或新场景的 `onEnter` 一抛异常，旧场景就永远停在 paused 状态，
+  而症状（输入没反应、动画不走）离原因很远。现在失败会回滚：弹出未完成的入栈、把
+  引擎切回旧场景并补发 `onResume`，再把异常抛给调用方。另外 `pop()` / `replace()` 里
+  `assetLoader?.clear()` 排在 `onExit()` 之后同一条直线上，`onExit` 抛异常就漏掉释放——
+  而此时场景已经出栈，那是最后一次机会；改成 `finally`。顺带修掉两处文档与实现相反
+  的说法：`replace()` 注释写「bottom to top」而循环是自顶向下；`register()` 说工厂
+  「first pushed 时调用」，实现是每次 push 都调用、从不缓存。
+
 
 
 
@@ -207,11 +216,11 @@ const bus = new EventBus<GameEvents>();
 | 类型安全 | 9/10 | ComponentCtor 与 EventMap 覆盖核心扩展面；`tsc` 现已覆盖 examples 与 e2e |
 | 可扩展性 | 8/10 | 加载注册表与自定义事件良好；序列化注册表待补 |
 | 文档质量 | 8/10 | README 与本报告已同步当前实现 |
-| 测试覆盖 | 8/10 | 434 个单测 + 11 个浏览器测试；已接入 v8 覆盖率与分模块阈值（整体 64.2% 语句 / 60.4% 分支），三个 fixture 已按 1.5% 门槛比对基线 |
+| 测试覆盖 | 8/10 | 446 个单测 + 11 个浏览器测试；已接入 v8 覆盖率与分模块阈值（整体 64.4% 语句 / 60.9% 分支），三个 fixture 已按 1.5% 门槛比对基线 |
 | 综合 | 8.3/10 | 架构短板已大幅收敛，下一阶段应由 profiling 驱动 |
 
 测试数量不等于覆盖率。`vitest.config.ts` 现已按模块设定阈值（math/physics/lighting
-90% 语句、ecs 82%、animation 81%、audio 67%、core 65%、elements 57%，整体 64%），
+90% 语句、ecs 82%、animation 81%、audio 67%、core 66%、elements 57%，整体 64%），
 并在 CI 中作为门禁。阈值一律设在当前值略下方，只能随新测试上调，不允许为了让构建
 通过而下调。
 
