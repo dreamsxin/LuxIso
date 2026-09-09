@@ -13,8 +13,8 @@ import {
 } from '../../src/index';
 import { CubeHero } from './entities/CubeHero';
 import { buildPlainsScene, PLAINS_COLS, PLAINS_ROWS, PORTAL_X, PORTAL_Y } from './scenes/PlainsScene';
-import { buildLakeScene, LAKE_PORTAL_X, LAKE_PORTAL_Y } from './scenes/LakeScene';
-import { buildDeepSeaScene, DEEP_COLS, DEEP_ROWS, DEEP_PORTAL_X, DEEP_PORTAL_Y } from './scenes/DeepSeaScene';
+import { buildLakeScene, LAKE_PORTAL_X, LAKE_PORTAL_Y, LAKE_SPAWN_X, LAKE_SPAWN_Y } from './scenes/LakeScene';
+import { buildDeepSeaScene, DEEP_COLS, DEEP_ROWS, DEEP_PORTAL_X, DEEP_PORTAL_Y, DEEP_SPAWN_X, DEEP_SPAWN_Y } from './scenes/DeepSeaScene';
 import { DayNightCycle } from './environment/DayNightCycle';
 import { Portal } from './entities/Portal';
 
@@ -67,20 +67,20 @@ const plainsMover = new ClickMover({ cols: PLAINS_COLS, rows: PLAINS_ROWS, speed
 
 // 湖水
 const LAKE_COLS = 13, LAKE_ROWS = 13;
-const { scene: lakeScene, lake: waveLake, portal: lakePortal } = buildLakeScene(LAKE_COLS, LAKE_ROWS);
+const { scene: lakeScene, lake: waveLake, portal: lakePortal, collider: lakeCollider } = buildLakeScene(LAKE_COLS, LAKE_ROWS);
 const lakeHero  = new CubeHero('hero-lake', LAKE_COLS / 2, LAKE_ROWS / 2);
 lakeScene.addObject(lakeHero);
 lakeScene.camera.follow(lakeHero);
 lakeScene.camera.lerpFactor = 0.05;
-const lakeMover = new ClickMover({ cols: LAKE_COLS, rows: LAKE_ROWS, speed: 0.08 });
+const lakeMover = new ClickMover({ cols: LAKE_COLS, rows: LAKE_ROWS, speed: 0.08, collider: lakeCollider });
 
 // 深海
-const { scene: deepScene, portal: deepPortal } = buildDeepSeaScene();
+const { scene: deepScene, portal: deepPortal, collider: deepCollider } = buildDeepSeaScene();
 const deepHero  = new CubeHero('hero-deep', DEEP_COLS / 2, DEEP_ROWS / 2);
 deepScene.addObject(deepHero);
 deepScene.camera.follow(deepHero);
 deepScene.camera.lerpFactor = 0.05;
-const deepMover = new ClickMover({ cols: DEEP_COLS, rows: DEEP_ROWS, speed: 0.08 });
+const deepMover = new ClickMover({ cols: DEEP_COLS, rows: DEEP_ROWS, speed: 0.08, collider: deepCollider });
 
 // ── 传送 ─────────────────────────────────────────────────────────────────
 
@@ -194,7 +194,7 @@ mgr.register('lake', () => ({
     sceneLabel.text = '幻梦之湖'; hintLabel.text = '感受水之低语… 寻找深海传送门'; hintLabel.visible = true;
     _lakePortalTriggered = false;
     lakeMover.reset();
-    const landX = 3.5, landY = 3.5;
+    const landX = LAKE_SPAWN_X, landY = LAKE_SPAWN_Y;
     lakeHero.position.x = landX; lakeHero.position.y = landY;
     const beam = new Portal('arrival-beam', landX, landY);
     lakeScene.addObject(beam); beam.activateBeam(1.8); lakeHero.triggerDescend(Portal.BEAM_HEIGHT_PX);
@@ -227,10 +227,10 @@ mgr.register('deep', () => ({
     sceneLabel.text = '神秘深海'; hintLabel.text = '深海的秘密… 寻找回归之门'; hintLabel.visible = true;
     _deepPortalTriggered = false;
     deepMover.reset();
-    deepHero.position.x = 3.5; deepHero.position.y = 3.5;
+    deepHero.position.x = DEEP_SPAWN_X; deepHero.position.y = DEEP_SPAWN_Y;
     deepHero.triggerDescend(Portal.BEAM_HEIGHT_PX);
     // 降落光柱
-    const deepBeam = new Portal('deep-arrival-beam', 3.5, 3.5);
+    const deepBeam = new Portal('deep-arrival-beam', DEEP_SPAWN_X, DEEP_SPAWN_Y);
     deepScene.addObject(deepBeam); deepBeam.activateBeam(1.8);
     setTimeout(() => { deepScene.removeById('deep-arrival-beam'); hintLabel.visible = false; }, 2600);
   },

@@ -1,7 +1,7 @@
 # LuxIso 架构分析报告 v5
 
 > 更新日期：2026-09-09
-> 基线：Canvas 2D 默认 + WebGL2 预览，426 个 Vitest 测试 / 46 个测试文件（含 v8 覆盖率阈值），11 个 Playwright WebGL 测试
+> 基线：Canvas 2D 默认 + WebGL2 预览，434 个 Vitest 测试 / 47 个测试文件（含 v8 覆盖率阈值），11 个 Playwright WebGL 测试
 
 ## 执行摘要
 
@@ -117,7 +117,6 @@ const bus = new EventBus<GameEvents>();
 
 | 优先级 | 问题 | 建议 |
 |---|---|---|
-| P1 | example-05 移动绕过 `MovementComponent` | `ClickMover` 直接改 `position`；且只有草原场景建了 `TileCollider`，湖水/深海的 hero 只受边界钳制，不做碰撞 |
 | P1 | example-05 天空绘制函数仍集中在 main.ts | 拆到 environment 模块 |
 | P1 | 自定义 prop 没有配套 serializer registry | 为注册表增加 serialize 回调或独立注册 API |
 | P2 | 9 个 WebGL fixture 中有 6 个未接入基线比对 | `day-ne` / `low-angle` / `night-lanterns` 已按 1.5% 门槛比对committed 基线；扩展只需往 `PIXEL_GATED_FIXTURES` 加 ID 并重新生成 |
@@ -186,6 +185,13 @@ const bus = new EventBus<GameEvents>();
   恰好等于 `speed`，所有既有 example 的手感不变，其它刷新率下才被纠正。到达判定
   同步按步长缩放，并在最后一帧直接输出剩余精确位移——此前是「距离小于 1.2 步就
   停」，停下的位置离点击点最多差 1.2 步且随帧时长放大（24FPS 下差 0.2 格）。
+- example-05 的湖水与深海场景根本没有 `TileCollider`——只有草原场景建了。石头、珊瑚
+  这些看起来是实体的道具，角色可以直接穿过去；两个场景先前只靠 `ClickMover` 的
+  `cols/rows` 边界钳制。现在两个 builder 各自建 collider 并封住石头 / 珊瑚格（水草、
+  荷叶、水母这类软性装饰保持可走），出生点与传送门格显式保留可走，避免角色一落地
+  就被 `resolveMove` 卡在障碍里。出生坐标提为 `LAKE_SPAWN_*` / `DEEP_SPAWN_*` 常量，
+  单测用 `Pathfinder` 钉住「出生点到传送门始终连通」，防止以后加道具把 demo 堵死。
+
 
 
 
@@ -201,7 +207,7 @@ const bus = new EventBus<GameEvents>();
 | 类型安全 | 9/10 | ComponentCtor 与 EventMap 覆盖核心扩展面；`tsc` 现已覆盖 examples 与 e2e |
 | 可扩展性 | 8/10 | 加载注册表与自定义事件良好；序列化注册表待补 |
 | 文档质量 | 8/10 | README 与本报告已同步当前实现 |
-| 测试覆盖 | 8/10 | 426 个单测 + 11 个浏览器测试；已接入 v8 覆盖率与分模块阈值（整体 64.2% 语句 / 60.4% 分支），三个 fixture 已按 1.5% 门槛比对基线 |
+| 测试覆盖 | 8/10 | 434 个单测 + 11 个浏览器测试；已接入 v8 覆盖率与分模块阈值（整体 64.2% 语句 / 60.4% 分支），三个 fixture 已按 1.5% 门槛比对基线 |
 | 综合 | 8.3/10 | 架构短板已大幅收敛，下一阶段应由 profiling 驱动 |
 
 测试数量不等于覆盖率。`vitest.config.ts` 现已按模块设定阈值（math/physics/lighting

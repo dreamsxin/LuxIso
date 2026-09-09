@@ -12,6 +12,7 @@ import { IsoObject, DrawContext } from '../../../src/elements/IsoObject';
 import { AABB } from '../../../src/math/depthSort';
 import { project } from '../../../src/math/IsoProjection';
 import { Scene } from '../../../src/core/Scene';
+import { TileCollider } from '../../../src/physics/TileCollider';
 import { DirectionalLight } from '../../../src/lighting/DirectionalLight';
 import { OmniLight } from '../../../src/lighting/OmniLight';
 import { Portal } from '../entities/Portal';
@@ -19,6 +20,11 @@ import { FishSchool, WaterLilyFlower } from '../entities/AquaticLife';
 
 export const LAKE_PORTAL_X = 9;
 export const LAKE_PORTAL_Y = 9;
+
+/** Where main.ts lands the hero on entry; the collider keeps this tile clear. */
+export const LAKE_SPAWN_X = 3.5;
+export const LAKE_SPAWN_Y = 3.5;
+
 
 // ── 波浪湖面 ───────────────────────────────────────────────────────────────
 
@@ -550,11 +556,18 @@ export class LotusFlower extends IsoObject {
 
 // ── 构建湖水场景 ───────────────────────────────────────────────────────────
 
-export function buildLakeScene(cols: number, rows: number): { scene: Scene; lake: WaveLake; portal: Portal } {
+export function buildLakeScene(cols: number, rows: number): { scene: Scene; lake: WaveLake; portal: Portal; collider: TileCollider } {
   const scene = new Scene({ tileW: 64, tileH: 32, cols, rows });
+
+  // ── 碰撞地图 ──────────────────────────────────────────────────────────────
+  // 石头是实体障碍，此前湖水场景没有 collider，角色会直接穿过它们。
+  // 水草/荷叶/荷花是软性装饰，保持可走。
+  const collider = new TileCollider(cols, rows);
+  scene.collider = collider;
 
   const lake = new WaveLake('lake', cols, rows);
   scene.addObject(lake);
+
 
   scene.addLight(new DirectionalLight({ angle: 225, elevation: 42, color: '#90c0ff', intensity: 0.85 }));
   scene.addLight(new OmniLight({ x: cols / 2, y: rows / 2, z: 80, color: '#3870c0', intensity: 0.55, radius: 600 }));
@@ -570,7 +583,9 @@ export function buildLakeScene(cols: number, rows: number): { scene: Scene; lake
   ];
   for (const [i, [rx,ry,sz,col,seed]] of rocks.entries()) {
     scene.addObject(new LakeRock(`rock-${i}`, rx as number, ry as number, { color: col as string, size: sz as number, seed: seed as number }));
+    collider.setWalkable(Math.floor(rx as number), Math.floor(ry as number), false);
   }
+
 
   // 水草
   const grasses = [
@@ -623,5 +638,10 @@ export function buildLakeScene(cols: number, rows: number): { scene: Scene; lake
     scene.addObject(new WaterLilyFlower(`lily-${i}`, lx, ly, { seed, open }));
   }
 
-  return { scene, lake, portal };
+  // 出生点与传送门格必须可走，否则角色会被 resolveMove 卡死在障碍里。
+  collider.setWalkable(Math.floor(LAKE_SPAWN_X), Math.floor(LAKE_SPAWN_Y), true);
+  collider.setWalkable(LAKE_PORTAL_X, LAKE_PORTAL_Y, true);
+
+  return { scene, lake, portal, collider };
 }
+

@@ -13,6 +13,7 @@ import { IsoObject, DrawContext } from '../../../src/elements/IsoObject';
 import { AABB } from '../../../src/math/depthSort';
 import { project } from '../../../src/math/IsoProjection';
 import { Scene } from '../../../src/core/Scene';
+import { TileCollider } from '../../../src/physics/TileCollider';
 import { OmniLight } from '../../../src/lighting/OmniLight';
 import { Floor } from '../../../src/elements/Floor';
 
@@ -20,6 +21,11 @@ export const DEEP_COLS = 14;
 export const DEEP_ROWS = 14;
 export const DEEP_PORTAL_X = 10;
 export const DEEP_PORTAL_Y = 10;
+
+/** Where main.ts lands the hero on entry; the collider keeps this tile clear. */
+export const DEEP_SPAWN_X = 3.5;
+export const DEEP_SPAWN_Y = 3.5;
+
 
 // ── 气泡系统 ───────────────────────────────────────────────────────────────
 
@@ -555,10 +561,16 @@ export class DeepPortal extends IsoObject {
 
 // ── 构建深海场景 ───────────────────────────────────────────────────────────
 
-export function buildDeepSeaScene(): { scene: Scene; portal: DeepPortal; bubbles: BubbleSystem } {
+export function buildDeepSeaScene(): { scene: Scene; portal: DeepPortal; bubbles: BubbleSystem; collider: TileCollider } {
   const scene = new Scene({ tileW: 64, tileH: 32, cols: DEEP_COLS, rows: DEEP_ROWS });
   scene.ambientColor     = '#001830';
   scene.ambientIntensity = 0.18;
+
+  // ── 碰撞地图 ──────────────────────────────────────────────────────────────
+  // 珊瑚是实体障碍；海草与水母是软性/漂浮装饰，保持可走。
+  const collider = new TileCollider(DEEP_COLS, DEEP_ROWS);
+  scene.collider = collider;
+
 
   // 深海地面（深蓝黑色）
   scene.addObject(new Floor({ id: 'seafloor', cols: DEEP_COLS, rows: DEEP_ROWS, color: '#0a1a2e', altColor: '#0d2040' }));
@@ -597,7 +609,9 @@ export function buildDeepSeaScene(): { scene: Scene; portal: DeepPortal; bubbles
   ];
   for (const [i, [cx, cy, seed, color]] of coralPositions.entries()) {
     scene.addObject(new Coral(`coral-${i}`, cx as number, cy as number, { seed: seed as number, color }));
+    collider.setWalkable(Math.floor(cx as number), Math.floor(cy as number), false);
   }
+
 
   // 水母（漂浮在不同高度）
   const jellyfishPositions: Array<[number, number, number]> = [
@@ -613,5 +627,9 @@ export function buildDeepSeaScene(): { scene: Scene; portal: DeepPortal; bubbles
   const portal = new DeepPortal('deep-portal', DEEP_PORTAL_X, DEEP_PORTAL_Y);
   scene.addObject(portal);
 
-  return { scene, portal, bubbles };
+  // 出生点与传送门格必须可走，否则角色会被 resolveMove 卡死在障碍里。
+  collider.setWalkable(Math.floor(DEEP_SPAWN_X), Math.floor(DEEP_SPAWN_Y), true);
+  collider.setWalkable(DEEP_PORTAL_X, DEEP_PORTAL_Y, true);
+
+  return { scene, portal, bubbles, collider };
 }
