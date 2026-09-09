@@ -17,6 +17,14 @@ export interface ClickMoverOptions {
  * Resolves pointer clicks to world coordinates, drives the entity toward the
  * target each frame, and optionally resolves collisions via TileCollider.
  *
+ * `speed` is **world units per frame at 60 FPS** — i.e. `speed * 60` units per
+ * second. The per-frame wording is historical, but the displacement really is
+ * time-scaled: `update()` multiplies by `dt * REFERENCE_FPS`, so the entity
+ * covers the same ground on a 144 Hz display as on a 60 Hz one. Keep passing
+ * `dt` in seconds (that is what `Engine`'s frame callback and `ManagedScene`
+ * hand you); a `dt` of 0 — which `Engine` reports for the very first frame —
+ * simply produces no displacement.
+ *
  * Usage:
  *   const mover = new ClickMover({ cols, rows, speed: 0.08, collider });
  *   // each frame:
@@ -27,8 +35,16 @@ export interface ClickMoverOptions {
  *   entity.velY = mover.velY;
  */
 export class ClickMover {
+  /**
+   * Frame rate `speed` is calibrated against. Displacement is
+   * `speed * dt * REFERENCE_FPS`, so at exactly 60 FPS a step equals `speed`
+   * and every value tuned before the timing fix keeps its old feel.
+   */
+  static readonly REFERENCE_FPS = 60;
+
   velX = 0;
   velY = 0;
+
 
   private _target: { x: number; y: number } | null = null;
   private _markerX = 0;
@@ -92,24 +108,38 @@ export class ClickMover {
     if (hasKb) this._target = null;
     if (this._markerAlpha > 0) this._markerAlpha = Math.max(0, this._markerAlpha - dt * 1.8);
 
+    // Displacement for this frame. Scaling by dt is what keeps the entity's
+    // ground speed independent of the refresh rate; the arrival threshold below
+    // has to scale with it too, or a long frame would overshoot the target and
+    // the entity would oscillate around it forever.
+    const step = this.speed * Math.max(0, dt) * ClickMover.REFERENCE_FPS;
+
     let moveX = 0, moveY = 0;
 
     if (hasKb) {
       const len = Math.hypot(kbAxis.x, kbAxis.y) || 1;
-      moveX = kbAxis.x / len * this.speed;
-      moveY = kbAxis.y / len * this.speed;
+      moveX = kbAxis.x / len * step;
+      moveY = kbAxis.y / len * step;
     } else if (this._target) {
       const dx = this._target.x - entityX;
       const dy = this._target.y - entityY;
       const dist = Math.hypot(dx, dy);
-      if (dist < this.speed * 1.2) {
-        this.velX = 0; this.velY = 0;
+      if (dist <= step * 1.2) {
+        // Close enough to finish this frame: emit the exact remaining delta
+        // rather than zero, so the entity lands on the target instead of
+        // stopping up to 1.2 steps short — a shortfall that would otherwise
+        // grow with frame time (0.2 tiles at 24 FPS versus 0.1 at 60). The
+        // delta still goes through collision resolution below.
+        moveX = dx;
+        moveY = dy;
         this._target = null;
-        return;
+      } else {
+        moveX = (dx / dist) * step;
+        moveY = (dy / dist) * step;
       }
-      moveX = (dx / dist) * this.speed;
-      moveY = (dy / dist) * this.speed;
     }
+
+
 
     if (moveX === 0 && moveY === 0) { this.velX = 0; this.velY = 0; return; }
 

@@ -1,7 +1,7 @@
 # LuxIso 架构分析报告 v5
 
 > 更新日期：2026-09-09
-> 基线：Canvas 2D 默认 + WebGL2 预览，410 个 Vitest 测试 / 45 个测试文件（含 v8 覆盖率阈值），11 个 Playwright WebGL 测试
+> 基线：Canvas 2D 默认 + WebGL2 预览，426 个 Vitest 测试 / 46 个测试文件（含 v8 覆盖率阈值），11 个 Playwright WebGL 测试
 
 ## 执行摘要
 
@@ -121,7 +121,7 @@ const bus = new EventBus<GameEvents>();
 | P1 | example-05 天空绘制函数仍集中在 main.ts | 拆到 environment 模块 |
 | P1 | 自定义 prop 没有配套 serializer registry | 为注册表增加 serialize 回调或独立注册 API |
 | P2 | 9 个 WebGL fixture 中有 6 个未接入基线比对 | `day-ne` / `low-angle` / `night-lanterns` 已按 1.5% 门槛比对committed 基线；扩展只需往 `PIXEL_GATED_FIXTURES` 加 ID 并重新生成 |
-| P2 | `src/elements/**` 57% / `src/core/**` 59% 是当前最低的两块 | 主体是 canvas 绘制代码，未覆盖分支集中在绘制路径；再往上需要给 `Engine` / `Scene` 搭 canvas 测试夹具 |
+| P2 | `src/elements/**` 57% / 分支 53% 是当前最低的一块 | 主体是 canvas 绘制代码，未覆盖分支集中在绘制路径；再往上需要给 `Engine` / `Scene` 搭 canvas 测试夹具 |
 | P2 | System 每次调度扫描所有 Entity × System | 达到千级实体后引入 query/archetype 缓存 |
 | P2 | 稠密深度桶仍可能 O(n²) | 基准验证后考虑 sweep-and-prune 或分层 chunk |
 | P2 | WebGL context-loss 尚未覆盖完整浏览器矩阵 | Chromium/SwiftShader 自动化已完成；Phase 5 扩展到 Firefox、Safari 和真实 GPU |
@@ -180,6 +180,13 @@ const bus = new EventBus<GameEvents>();
   却整个忽略——README 承诺的用法从来没生效过。现在 `onExhausted` 由 `spawn()` 重新
   武装的闩锁保证「每轮爆发恰好一次」，池上限为 `ParticleSystem.poolLimit = 512`
   （配套 `poolSize` / `clearPool()`），preset 入参经 `burstPreset()` 真正生效。
+- `ClickMover` 的移动量与帧率挂钩。`update(dt, ...)` 收下了 `dt`，却只用来淡出点击
+  标记，位移一直是每帧固定的 `speed`——144Hz 屏上角色的实际速度是 60Hz 的 2.4 倍。
+  现在位移按 `speed * dt * ClickMover.REFERENCE_FPS`（60）计算：60FPS 下步长仍然
+  恰好等于 `speed`，所有既有 example 的手感不变，其它刷新率下才被纠正。到达判定
+  同步按步长缩放，并在最后一帧直接输出剩余精确位移——此前是「距离小于 1.2 步就
+  停」，停下的位置离点击点最多差 1.2 步且随帧时长放大（24FPS 下差 0.2 格）。
+
 
 
 
@@ -194,16 +201,16 @@ const bus = new EventBus<GameEvents>();
 | 类型安全 | 9/10 | ComponentCtor 与 EventMap 覆盖核心扩展面；`tsc` 现已覆盖 examples 与 e2e |
 | 可扩展性 | 8/10 | 加载注册表与自定义事件良好；序列化注册表待补 |
 | 文档质量 | 8/10 | README 与本报告已同步当前实现 |
-| 测试覆盖 | 8/10 | 410 个单测 + 11 个浏览器测试；已接入 v8 覆盖率与分模块阈值（整体 62.7% 语句 / 59.2% 分支），三个 fixture 已按 1.5% 门槛比对基线 |
+| 测试覆盖 | 8/10 | 426 个单测 + 11 个浏览器测试；已接入 v8 覆盖率与分模块阈值（整体 64.2% 语句 / 60.4% 分支），三个 fixture 已按 1.5% 门槛比对基线 |
 | 综合 | 8.3/10 | 架构短板已大幅收敛，下一阶段应由 profiling 驱动 |
 
 测试数量不等于覆盖率。`vitest.config.ts` 现已按模块设定阈值（math/physics/lighting
-90% 语句、ecs 82%、animation 81%、audio 67%、core 59%、elements 57%，整体 62%），
+90% 语句、ecs 82%、animation 81%、audio 67%、core 65%、elements 57%，整体 64%），
 并在 CI 中作为门禁。阈值一律设在当前值略下方，只能随新测试上调，不允许为了让构建
 通过而下调。
 
 补测的实际收益是找 bug，而不是把百分比推高：`AudioManager`（0%→68%）、`ObjectPool`
 （0%→100%）、`InputMap`（0%→98%）、`AssetLoader`（20%→98%）、`DirectionalAnimator`
-（0%→99%）、`ParticleSystem`（47%→85%）这六轮，每一轮都在原本无人覆盖的分支里发现了
-缺陷。规律已经很稳定：**文档写得越完整、测试却是零的模块，实现几乎必然已经和文档
-分叉**——上面六个模块的 README 段落都写得像已经验证过。
+（0%→99%）、`ParticleSystem`（47%→85%）、`ClickMover`（0%→100%）这七轮，每一轮都在
+原本无人覆盖的分支里发现了缺陷。规律已经很稳定：**文档写得越完整、测试却是零的
+模块，实现几乎必然已经和文档分叉**——上面七个模块的 README 段落都写得像已经验证过。
