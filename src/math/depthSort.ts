@@ -1,12 +1,26 @@
-/** 3D axis-aligned bounds in world-space depth units. */
+/** 3D axis-aligned bounds. All values are in the same units the scene uses:
+ *  X/Y in world tiles, `baseZ`/`maxZ` in SCREEN PIXELS (same unit as
+ *  `IsoObject.position.z`). */
 export interface AABB {
   minX: number;
   minY: number;
   maxX: number;
   maxY: number;
   baseZ: number;
+  /**
+   * Top of the bounding volume, in screen pixels. Omit for flat/ground objects:
+   * they are then treated as a thin slab of `MIN_Z_EXTENT_PX` rather than an
+   * infinite column, so a floor never claims to overlap everything above it.
+   */
   maxZ?: number;
 }
+
+/**
+ * Vertical extent assumed for an AABB that omits `maxZ`, in screen pixels.
+ * 16 px is half a standard 32 px tile — thin enough not to swallow objects
+ * standing on top, thick enough that two flat objects still compare.
+ */
+export const MIN_Z_EXTENT_PX = 16;
 
 export interface Sortable {
   aabb: AABB;
@@ -20,8 +34,8 @@ function isBehind(a: AABB, b: AABB): boolean {
 
   if (!overlapX || !overlapY) return centerA < centerB;
 
-  const maxZA = a.maxZ ?? a.baseZ + 1;
-  const maxZB = b.maxZ ?? b.baseZ + 1;
+  const maxZA = a.maxZ ?? a.baseZ + MIN_Z_EXTENT_PX;
+  const maxZB = b.maxZ ?? b.baseZ + MIN_Z_EXTENT_PX;
   const overlapZ = a.baseZ < maxZB && maxZA > b.baseZ;
   if (!overlapZ) return a.baseZ < b.baseZ;
 

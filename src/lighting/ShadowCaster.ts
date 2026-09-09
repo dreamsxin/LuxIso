@@ -1,7 +1,7 @@
 import { OmniLight } from './OmniLight';
 import { DirectionalLight } from './DirectionalLight';
 import { IsoObject } from '../elements/IsoObject';
-import { project, Z_UNITS_PER_PX } from '../math/IsoProjection';
+import { project } from '../math/IsoProjection';
 
 interface ShadowCacheEntry {
   hull: [number, number][];
@@ -52,10 +52,9 @@ export class ShadowCaster {
     const lx = light.position.x;
     const ly = light.position.y;
     // lz is in SCREEN PIXELS (light.position.z feeds project()'s sy directly).
-    // Object AABB baseZ/maxZ are in WORLD-Z units (1 unit = tileH/2 px, via
-    // Z_UNITS_PER_PX). Convert lz to world units so the projection formula
-    // `t = lzWorld / (lzWorld - height)` is dimensionally consistent.
-    const lzWorld = light.position.z * Z_UNITS_PER_PX;
+    // Light z and object AABB Z are both screen pixels, so the projection
+    // formula `t = lz / (lz - height)` is already dimensionally consistent.
+    const lzWorld = light.position.z;
 
     if (lzWorld <= 0) return;
 

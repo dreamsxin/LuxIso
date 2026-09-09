@@ -1,4 +1,4 @@
-import { project, Z_UNITS_PER_PX } from '../math/IsoProjection';
+import { project } from '../math/IsoProjection';
 import { AABB } from '../math/depthSort';
 import { IsoObject, DrawContext } from './IsoObject';
 import { hexToRgb } from '../math/color';
@@ -57,9 +57,7 @@ export class Wall extends IsoObject {
   }
 
   get aabb(): AABB {
-    // wallHeight is in screen pixels; convert to AABB world-Z units
-    // (1 unit = tileH/2 ≈ 16 px). This is the canonical Z-unit convention.
-    const worldH = this.wallHeight * Z_UNITS_PER_PX;
+    // wallHeight is in screen pixels, and so is AABB Z — no conversion.
     // Give walls a minimum thickness of 0.1 so depth sort has a proper Y extent
     const minX = Math.min(this.position.x, this.endX);
     const minY = Math.min(this.position.y, this.endY);
@@ -71,7 +69,7 @@ export class Wall extends IsoObject {
       maxX: minX === maxX ? maxX + 0.1 : maxX,
       maxY: minY === maxY ? maxY + 0.1 : maxY,
       baseZ: 0,
-      maxZ: worldH,
+      maxZ: this.wallHeight,
     };
   }
 

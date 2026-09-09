@@ -128,7 +128,6 @@ const bus = new EventBus<GameEvents>();
 | P2 | WebGL context-loss 尚未覆盖完整浏览器矩阵 | Chromium/SwiftShader 自动化已完成；Phase 5 扩展到 Firefox、Safari 和真实 GPU |
 | P2 | `EditorRenderer` 每次状态变更全量重建场景 | 按帧防抖，或对纯变换编辑原地改对象 |
 | P2 | `webgl-next` `TextureRegistry` 不淘汰 | 按帧引用计数或 LRU 淘汰；`dispose()` 应删除自己创建的 GL 纹理 |
-| P2 | 双 Z 单位仍是公开 API 认知成本 | 新主版本统一世界高度单位；旧 API 提供显式转换 |
 | P3 | `AudioManager.spatialVolume()` 仍是手算距离衰减 | `playSfx({ spatial })` 已走 `PannerNode` + HRTF，该静态方法是遗留路径 |
 | P3 | 地图未分块 | 大地图引入 tile chunks 与脏区重绘 |
 
@@ -164,6 +163,18 @@ const bus = new EventBus<GameEvents>();
   `InputMap.remove()` 只清了一个从未被读取的簿记 map，InputManager 侧的回调仍然存活；
   `AssetLoader.unload()` 的行为与自身文档相反，飞行中的加载完成后仍会把已释放的资源
   写回缓存。`ObjectPool.prewarm()` 也不再能越过 `maxSize` 分配永远取不出来的对象。
+- 补测 `DirectionalAnimator`（0%→99%）时发现 `playOnce()` 不覆盖 clip 自身的 `loop`
+  标志，而 `buildSheet` 生成的每个 clip 都默认 `loop: true`——用文档推荐方式造出来的
+  一次性动画会永远循环、完成回调永不触发、也回不到 `returnTo`。类注释里的 N 方向
+  fallback 链同时也与实现不符。
+- 统一 Z 单位到屏幕像素。此前 `position.z` 用像素、AABB 的 `baseZ`/`maxZ` 用「世界 Z
+  单位」并靠硬编码 `Z_UNITS_PER_PX = 1/16` 换算，该常量只在 `tileH = 32` 时满足它自己
+  声明的「1 单位 = tileH/2」；而 WebGL 提取路径又把世界 Z 乘回 `tileH/2`，于是任何
+  非标准 tileH 下两个后端对同一个 z 的落点不一致。现在只有一个单位，
+  `Z_UNITS_PER_PX` 与 `legacyPixelsToWorldZ` 一并删除，`projectIso` 与 `project()`
+  在多组 tileW/tileH 下逐点等价（有测试钉住）。`depthSort` 的隐含「1 单位」兜底改为
+  导出的 `MIN_Z_EXTENT_PX = 16`。
+
 
 
 ## 当前评价

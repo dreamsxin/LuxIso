@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { project, unproject, depthKey, drawIsoCube, Z_UNITS_PER_PX } from '../math/IsoProjection';
+import { project, unproject, depthKey, drawIsoCube } from '../math/IsoProjection';
 
 const TW = 64;
 const TH = 32;
@@ -67,12 +67,6 @@ describe('project - view parameter', () => {
     const noView = project(3, 5, 10, 64, 32);
     const withView = project(3, 5, 10, 64, 32, { rotation: 90, elevation: 1.0 });
     expect(withView).toEqual(noView);
-  });
-});
-
-describe('Z_UNITS_PER_PX', () => {
-  it('equals 1/16 (tileH/2 for standard tileH=32)', () => {
-    expect(Z_UNITS_PER_PX).toBe(1 / 16);
   });
 });
 

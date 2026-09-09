@@ -1,8 +1,8 @@
 import type { IsoObject } from '../../../src/elements/IsoObject';
 import type { DirectionalLight } from '../../../src/lighting/DirectionalLight';
 import type { OmniLight } from '../../../src/lighting/OmniLight';
-import { Z_UNITS_PER_PX } from '../../../src/math/IsoProjection';
-import { projectWorld } from './projection';
+import { MIN_Z_EXTENT_PX } from '../../../src/math/depthSort';
+import { projectIso } from './projection';
 
 export type ShadowPoint = readonly [number, number];
 
@@ -63,9 +63,10 @@ export function projectOmniShadow(
   if (!light.enabled || light.isGlobal || light.position.z <= 0) return null;
 
   const { baseZ, maxZ } = object.aabb;
-  const topZ = maxZ ?? baseZ + 1;
+  const topZ = maxZ ?? baseZ + MIN_Z_EXTENT_PX;
   const height = topZ - baseZ;
-  const lightZ = light.position.z * Z_UNITS_PER_PX;
+  // Light z and AABB Z are both screen pixels — no conversion.
+  const lightZ = light.position.z;
   if (height <= 0 || topZ >= lightZ) return null;
 
   const footprint = objectFootprint(object);
@@ -146,7 +147,7 @@ function objectFootprint(object: IsoObject): ShadowPoint[] {
 }
 
 function screenPoint(x: number, y: number, tileW: number, tileH: number): ShadowPoint {
-  const point = projectWorld(x, y, 0, tileW, tileH);
+  const point = projectIso(x, y, 0, tileW, tileH);
   return [point.x, point.y];
 }
 

@@ -31,29 +31,29 @@ export interface IsoView {
 export const DEFAULT_ISO_VIEW: IsoView = { rotation: 0, elevation: 0.5 };
 
 /**
- * Conversion factor from screen pixels to AABB world-Z units.
+ * Z convention: **everything is in screen pixels.**
  *
- * Convention: 1 AABB-Z unit == `tileH / 2` pixels (≈16 px for the standard
- * tileH=32). This is the SAME unit Wall has always used (`wallHeight / 16`),
- * so Wall's numeric `maxZ` is unchanged. All other object AABBs (Character,
- * Crystal, Boulder, Chest, Cloud, FloatingText, ParticleSystem) now express
- * `baseZ` / `maxZ` in this unit too, so depth-sort `overlapZ` comparisons and
- * ShadowCaster projections are consistent across object classes.
+ * `IsoObject.position.z` and the `baseZ` / `maxZ` of every AABB share one unit —
+ * screen pixels — and `project()` subtracts z from `sy` directly. A character at
+ * `z = 48` renders 48 px above the ground and its AABB spans `baseZ = 48`.
  *
- * NOTE: `position.z` (the IsoObject world position) stays in SCREEN PIXELS
- * because `project()` feeds it directly into `sy = (x+y)*tileH/2 - z`. The
- * pixel->world-unit conversion happens only inside each `get aabb()` getter.
+ * This used to be two units: position.z in pixels, AABB Z in "world-Z units"
+ * where 1 unit was meant to be `tileH / 2` px, converted through a hardcoded
+ * `Z_UNITS_PER_PX = 1/16`. That constant only satisfied the stated equivalence at
+ * `tileH = 32`, and the WebGL extraction path multiplied world-Z back by
+ * `tileH / 2` — so at any other tile height the two backends disagreed on how far
+ * up a given z sat. Collapsing to a single unit removes both the conversion and
+ * that divergence.
  *
- * For non-standard tileH, derive the factor as `1 / (tileH / 2)`. We hardcode
- * `1/16` here (matching the historical convention) so object construction
- * remains tileH-agnostic, exactly as Wall already was.
+ * Migration: drop any `* Z_UNITS_PER_PX` from custom `get aabb()` getters and
+ * pass pixel heights straight through.
  */
-export const Z_UNITS_PER_PX = 1 / 16;
 
 /**
  * Projects isometric world coordinates to screen coordinates.
  *
- * `position.z` is in SCREEN PIXELS (not AABB world-Z units) - it is subtracted
+ * `z` is in SCREEN PIXELS — the single Z unit, shared with every AABB's
+ * `baseZ` / `maxZ` — and is subtracted
  * directly from `sy`. The optional `_view` is intentionally ignored: rotation
  * and elevation are applied as canvas 2D transforms by `Camera.applyTransform`,
  * so every `draw()` call using this function responds to view changes without

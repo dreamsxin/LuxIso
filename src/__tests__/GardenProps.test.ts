@@ -10,7 +10,7 @@ describe('common garden props', () => {
     const { context, calls } = drawContext();
 
     expect(() => tree.draw(context)).not.toThrow();
-    expect(tree.aabb.maxZ).toBeCloseTo(80 * 1.2 * 1.08 / 16);
+    expect(tree.aabb.maxZ).toBeCloseTo(80 * 1.2 * 1.08);
     expect(calls.filter((call) => call === 'ellipse').length).toBe(6);
   });
 
@@ -29,7 +29,7 @@ describe('common garden props', () => {
     const { context, calls } = drawContext();
 
     expect(() => lantern.draw(context)).not.toThrow();
-    expect(lantern.aabb.maxZ).toBeGreaterThan(3);
+    expect(lantern.aabb.maxZ).toBeGreaterThan(54);
     expect(calls).toEqual(expect.arrayContaining(['ellipse', 'fillRect', 'stroke']));
   });
 });

@@ -221,30 +221,38 @@ sx = (x - y) * (tileW / 2)
 sy = (x + y) * (tileH / 2) - z
 ```
 
-- **`position.z` is in SCREEN PIXELS.** It is subtracted directly from `sy` by
-  `project()`, so a character at `z=48` renders 48 pixels above the ground.
+**There is exactly one Z unit: screen pixels.** `position.z` and every AABB's
+`baseZ` / `maxZ` share it.
+
+- `project()` subtracts `z` from `sy` directly, so a character at `z=48` renders
+  48 pixels above the ground and its AABB spans `baseZ = 48`.
   `Camera.applyTransform()` applies rotation/elevation as a canvas 2D transform;
   `project()` itself ignores the `IsoView` argument (kept for API stability).
   Callers needing a view-aware screen position outside the transformed canvas
   should use `Camera.worldToScreen(..., view)`.
 
-- **AABB `baseZ` / `maxZ` are in WORLD-Z UNITS**, where
-  `1 unit == tileH / 2 pixels` (≈16 px for `tileH=32`). The conversion factor is
-  exported as `Z_UNITS_PER_PX = 1/16`. Every object's `get aabb()` getter
-  converts its pixel-based height into this unit so that `depthSort`'s
-  `overlapZ` comparisons and `ShadowCaster` projections are consistent across
-  classes (Wall, Character, Crystal, Boulder, Chest, Cloud, …).
+- Each object's `get aabb()` passes its pixel height straight through, so
+  `depthSort`'s `overlapZ` comparisons and `ShadowCaster` projections are
+  consistent across classes (Wall, Character, Crystal, Boulder, Chest, Cloud, …).
 
   ```ts
-  // Example: a Wall of height 80px
-  wall.aabb.maxZ === 80 * Z_UNITS_PER_PX   // = 5.0 world-Z units
-  // A Character of radius 22px (upper half above anchor)
-  char.aabb.maxZ === position.z*Z_UNITS_PER_PX + 22*Z_UNITS_PER_PX  // ≈ 1.375
+  // A Wall of height 80px
+  wall.aabb.maxZ === 80
+  // A Character of radius 22px (upper half rises above the anchor)
+  char.aabb.maxZ === position.z + 22
   ```
 
-  `position.z` stays in pixels for rendering; the pixel→world-unit conversion
-  happens only inside each `aabb` getter. Do not mix the two when constructing
-  custom objects—always multiply pixel heights by `Z_UNITS_PER_PX` for AABB Z.
+- An AABB may omit `maxZ`; `depthSort` then assumes a slab of
+  `MIN_Z_EXTENT_PX` (16 px) rather than an infinite column, so a floor never
+  claims to overlap everything above it.
+
+Earlier versions used two units — `position.z` in pixels, AABB Z in "world-Z
+units" via a hardcoded `Z_UNITS_PER_PX = 1/16`. That constant only satisfied its
+own stated rule (`1 unit == tileH / 2`) at `tileH = 32`, and the WebGL extraction
+path multiplied world-Z back by `tileH / 2`, so at any other tile height the two
+backends disagreed about how far up a given `z` sat. `Z_UNITS_PER_PX` is gone;
+if you wrote a custom `get aabb()`, drop the `* Z_UNITS_PER_PX` and pass pixels.
+
 
 ## Architecture
 
@@ -658,13 +666,18 @@ topoSort<T extends Sortable>(objects: T[]): T[]
 ```ts
 interface AABB {
   minX: number; minY: number; maxX: number; maxY: number;
-  baseZ: number;    // bottom Z of the bounding volume
-  maxZ?: number;    // top Z; omit for flat/ground objects (treated as infinite upward extent)
+  baseZ: number;    // bottom Z, in screen pixels
+  maxZ?: number;    // top Z, in screen pixels; omit for flat/ground objects
 }
 // Setting maxZ enables vertical separation: objects that don't share Z space
 // are sorted by baseZ rather than XY heuristic, preventing terrain from
 // occluding elevated characters.
+//
+// Omitting maxZ makes depthSort assume a slab of MIN_Z_EXTENT_PX (16 px), not an
+// infinite column — a floor must not claim to overlap everything above it.
+export const MIN_Z_EXTENT_PX = 16;
 ```
+
 
 ### `AudioManager`
 
@@ -789,7 +802,7 @@ requireComponent<T>(entity: Entity, ctor: ComponentCtor<T>): T  // throws if mis
 |---|---|
 | Isometric math (project / unproject / depthKey / drawIsoCube) | |
 | Topological depth sort - 3-D AABB + containment detection + maxZ | |
-| Depth sort: Z-aware containment + unified Z-unit convention | `isBehind` now compares `maxZ` when one footprint contains another; all object AABBs use `Z_UNITS_PER_PX` (1 unit = tileH/2 px) |
+| Depth sort: Z-aware containment + single pixel Z unit | `isBehind` compares `maxZ` when one footprint contains another; `position.z` and all AABB Z share one unit (screen pixels) |
 | Depth sort: mixed-axis cycle fix + pairKey overflow fix | Strict `<` on equal far-sums; `i*n+j` pair key (no 65536 collision) |
 | Light halo: view-aware projection under rotation/elevation | |
 | Floor: OmniLight + DirectionalLight RGB illumination | |

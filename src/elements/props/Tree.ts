@@ -1,6 +1,6 @@
 import { Entity } from '../../ecs/Entity';
 import { AABB } from '../../math/depthSort';
-import { project, Z_UNITS_PER_PX } from '../../math/IsoProjection';
+import { project } from '../../math/IsoProjection';
 import { lerpColor, shiftColor } from '../../math/color';
 import { DrawContext } from '../IsoObject';
 
@@ -44,7 +44,7 @@ export class Tree extends Entity {
       maxX: this.position.x + radius,
       maxY: this.position.y + radius,
       baseZ: 0,
-      maxZ: this._heightPx * this._scale * 1.08 * Z_UNITS_PER_PX,
+      maxZ: this._heightPx * this._scale * 1.08,
     };
   }
 

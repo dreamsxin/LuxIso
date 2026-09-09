@@ -1,6 +1,6 @@
 import { Entity } from '../../ecs/Entity';
 import { AABB } from '../../math/depthSort';
-import { project, Z_UNITS_PER_PX } from '../../math/IsoProjection';
+import { project } from '../../math/IsoProjection';
 import { shiftColor } from '../../math/color';
 import { DrawContext } from '../IsoObject';
 
@@ -53,7 +53,7 @@ export class FlowerPatch extends Entity {
       maxX: this.position.x + 0.55,
       maxY: this.position.y + 0.55,
       baseZ: 0,
-      maxZ: 18 * Z_UNITS_PER_PX,
+      maxZ: 18,
     };
   }
 

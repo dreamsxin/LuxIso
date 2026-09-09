@@ -25,7 +25,7 @@ import type {
   UnsupportedRenderObject,
 } from '../contracts/RenderSnapshot';
 import { GeometryBuilder, type RenderColor, type RenderPoint } from './GeometryBuilder';
-import { legacyPixelsToWorldZ, projectLegacy, projectWorld } from './projection';
+import { projectIso } from './projection';
 import {
   clipShadowHullToScene,
   type ProjectedShadow,
@@ -207,11 +207,11 @@ export class SceneExtractor {
     for (let row = startRow; row < endRow; row++) {
       for (let col = startCol; col < endCol; col++) {
         const first = this._builder.mark();
-        const top = point(projectWorld(col, row, 0, tileW, tileH));
-        const right = point(projectWorld(col + 1, row, 0, tileW, tileH));
-        const bottom = point(projectWorld(col + 1, row + 1, 0, tileW, tileH));
-        const left = point(projectWorld(col, row + 1, 0, tileW, tileH));
-        const center = point(projectWorld(col + 0.5, row + 0.5, 0, tileW, tileH));
+        const top = point(projectIso(col, row, 0, tileW, tileH));
+        const right = point(projectIso(col + 1, row, 0, tileW, tileH));
+        const bottom = point(projectIso(col + 1, row + 1, 0, tileW, tileH));
+        const left = point(projectIso(col, row + 1, 0, tileW, tileH));
+        const center = point(projectIso(col + 0.5, row + 0.5, 0, tileW, tileH));
         const even = (col + row) % 2 === 0;
         const textureUrl = even
           ? floor.tileImageUrl
@@ -240,7 +240,7 @@ export class SceneExtractor {
   private _extractShadow(object: IsoObject, scene: Scene, tileW: number, tileH: number): void {
     if (!(object.castsShadow || object instanceof Character || object instanceof Cloud)) return;
 
-    const ground = point(projectWorld(object.position.x, object.position.y, 0, tileW, tileH));
+    const ground = point(projectIso(object.position.x, object.position.y, 0, tileW, tileH));
     const radius = object instanceof Character
       ? object.radius * 1.25
       : object instanceof Cloud
@@ -316,8 +316,8 @@ export class SceneExtractor {
   }
 
   private _extractWall(wall: Wall, tileW: number, tileH: number): void {
-    const start = point(projectWorld(wall.position.x, wall.position.y, 0, tileW, tileH));
-    const end = point(projectWorld(wall.endX, wall.endY, 0, tileW, tileH));
+    const start = point(projectIso(wall.position.x, wall.position.y, 0, tileW, tileH));
+    const end = point(projectIso(wall.endX, wall.endY, 0, tileW, tileH));
     const topEnd: RenderPoint = [end[0], end[1] - wall.wallHeight];
     const topStart: RenderPoint = [start[0], start[1] - wall.wallHeight];
     const sample: RenderPoint = [(start[0] + end[0]) / 2, (start[1] + end[1]) / 2];
@@ -353,7 +353,7 @@ export class SceneExtractor {
   }
 
   private _extractCharacter(character: Character, tileW: number, tileH: number): string | undefined {
-    const center = point(projectLegacy(
+    const center = point(projectIso(
       character.position.x,
       character.position.y,
       character.position.z,
@@ -406,7 +406,7 @@ export class SceneExtractor {
   }
 
   private _extractCrystal(crystal: Crystal, tileW: number, tileH: number): void {
-    const center = point(projectWorld(crystal.position.x, crystal.position.y, 0, tileW, tileH));
+    const center = point(projectIso(crystal.position.x, crystal.position.y, 0, tileW, tileH));
     const pickId = this._pickId(crystal);
     const height = crystal.propHeightPx;
     const width = tileW * 0.28;
@@ -465,7 +465,7 @@ export class SceneExtractor {
   }
 
   private _extractTree(tree: Tree, tileW: number, tileH: number): void {
-    const center = point(projectWorld(tree.position.x, tree.position.y, 0, tileW, tileH));
+    const center = point(projectIso(tree.position.x, tree.position.y, 0, tileW, tileH));
     const pickId = this._pickId(tree);
     const scale = tree.propScale;
     const height = tree.propHeightPx * scale;
@@ -507,7 +507,7 @@ export class SceneExtractor {
   }
 
   private _extractFlowerPatch(flowers: FlowerPatch, tileW: number, tileH: number): void {
-    const center = point(projectWorld(flowers.position.x, flowers.position.y, 0, tileW, tileH));
+    const center = point(projectIso(flowers.position.x, flowers.position.y, 0, tileW, tileH));
     const pickId = this._pickId(flowers);
     for (const flower of flowers.flowerOffsets) {
       const x = center[0] + flower.x * tileW * 0.5;
@@ -546,7 +546,7 @@ export class SceneExtractor {
   }
 
   private _extractLantern(lantern: Lantern, tileW: number, tileH: number): void {
-    const center = point(projectWorld(lantern.position.x, lantern.position.y, 0, tileW, tileH));
+    const center = point(projectIso(lantern.position.x, lantern.position.y, 0, tileW, tileH));
     const pickId = this._pickId(lantern);
     const lampY = center[1] - lantern.propHeightPx;
     const bodyWidth = tileW * 0.16;
@@ -593,7 +593,7 @@ export class SceneExtractor {
   }
 
   private _extractBoulder(boulder: Boulder, tileW: number, tileH: number): void {
-    const center = point(projectWorld(boulder.position.x, boulder.position.y, 0, tileW, tileH));
+    const center = point(projectIso(boulder.position.x, boulder.position.y, 0, tileW, tileH));
     const pickId = this._pickId(boulder);
     const radius = boulder.propRadius;
     this._builder.ellipse([center[0], center[1] - radius * 0.42], radius, radius * 0.72, {
@@ -613,13 +613,13 @@ export class SceneExtractor {
   private _extractChest(chest: Chest, tileW: number, tileH: number): void {
     const { x, y } = chest.position;
     const half = 0.38;
-    const north = point(projectWorld(x - half, y - half, 0, tileW, tileH));
-    const east = point(projectWorld(x + half, y - half, 0, tileW, tileH));
-    const south = point(projectWorld(x + half, y + half, 0, tileW, tileH));
-    const west = point(projectWorld(x - half, y + half, 0, tileW, tileH));
+    const north = point(projectIso(x - half, y - half, 0, tileW, tileH));
+    const east = point(projectIso(x + half, y - half, 0, tileW, tileH));
+    const south = point(projectIso(x + half, y + half, 0, tileW, tileH));
+    const west = point(projectIso(x - half, y + half, 0, tileW, tileH));
     const height = tileH * 1.1;
     const lift = (p: RenderPoint): RenderPoint => [p[0], p[1] - height];
-    const sample = point(projectWorld(x, y, 0, tileW, tileH));
+    const sample = point(projectIso(x, y, 0, tileW, tileH));
     const pickId = this._pickId(chest);
     const topEast = lift(east);
     const topSouth = lift(south);
@@ -711,7 +711,7 @@ export class SceneExtractor {
   }
 
   private _extractCloud(cloud: Cloud, tileW: number, tileH: number): void {
-    const center = point(projectLegacy(cloud.position.x, cloud.position.y, cloud.position.z, tileW, tileH));
+    const center = point(projectIso(cloud.position.x, cloud.position.y, cloud.position.z, tileW, tileH));
     const pickId = this._pickId(cloud);
     const scale = cloud.scale * (tileW / 64);
     const puffs: ReadonlyArray<readonly [number, number, number, number, string]> = [
@@ -735,7 +735,7 @@ export class SceneExtractor {
     const pickId = this._pickId(system);
     system.forEachParticle((particle) => {
       const first = this._builder.mark();
-      const center = point(projectLegacy(particle.x, particle.y, particle.z, tileW, tileH));
+      const center = point(projectIso(particle.x, particle.y, particle.z, tileW, tileH));
       const radius = Math.max(0.5, particle.size * (tileW / 32));
       const color = particleColor(particle);
       const spriteSheet = particle.spriteSheet;
@@ -786,7 +786,7 @@ export class SceneExtractor {
 
   private _extractFloatingText(text: FloatingText, tileW: number, tileH: number): void {
     if (text.alpha <= 0 || !text.text) return;
-    const position = projectLegacy(text.position.x, text.position.y, text.position.z, tileW, tileH);
+    const position = projectIso(text.position.x, text.position.y, text.position.z, tileW, tileH);
     this._textOverlays.push({
       id: text.id,
       text: text.text,
@@ -804,10 +804,10 @@ export class SceneExtractor {
       for (let row = 0; row < scene.rows; row++) {
         for (let col = 0; col < scene.cols; col++) {
           if (scene.collider.isWalkable(col, row)) continue;
-          const top = point(projectWorld(col, row, 0, tileW, tileH));
-          const right = point(projectWorld(col + 1, row, 0, tileW, tileH));
-          const bottom = point(projectWorld(col + 1, row + 1, 0, tileW, tileH));
-          const left = point(projectWorld(col, row + 1, 0, tileW, tileH));
+          const top = point(projectIso(col, row, 0, tileW, tileH));
+          const right = point(projectIso(col + 1, row, 0, tileW, tileH));
+          const bottom = point(projectIso(col + 1, row + 1, 0, tileW, tileH));
+          const left = point(projectIso(col, row + 1, 0, tileW, tileH));
           this._builder.quad(top, right, bottom, left, {
             color: [0.9, 0.12, 0.16, 0.28],
             sample: top,
@@ -823,7 +823,7 @@ export class SceneExtractor {
     }
 
     for (const marker of options.debugMarkers ?? []) {
-      const center = point(projectWorld(marker.x, marker.y, 0, tileW, tileH));
+      const center = point(projectIso(marker.x, marker.y, 0, tileW, tileH));
       const pickId = marker.kind === 'target' ? 0 : this._pickExternalId(marker.id);
       const color = rgba(marker.color ?? (marker.kind === 'directional' ? '#f6d46b' : '#ffd080'), 0.9);
       const radius = marker.id === options.selectedId ? 18 : 12;
@@ -861,16 +861,16 @@ export class SceneExtractor {
     const bounds = object.aabb;
     const topZ = bounds.maxZ ?? bounds.baseZ + 1;
     const base = [
-      point(projectWorld(bounds.minX, bounds.minY, bounds.baseZ, tileW, tileH)),
-      point(projectWorld(bounds.maxX, bounds.minY, bounds.baseZ, tileW, tileH)),
-      point(projectWorld(bounds.maxX, bounds.maxY, bounds.baseZ, tileW, tileH)),
-      point(projectWorld(bounds.minX, bounds.maxY, bounds.baseZ, tileW, tileH)),
+      point(projectIso(bounds.minX, bounds.minY, bounds.baseZ, tileW, tileH)),
+      point(projectIso(bounds.maxX, bounds.minY, bounds.baseZ, tileW, tileH)),
+      point(projectIso(bounds.maxX, bounds.maxY, bounds.baseZ, tileW, tileH)),
+      point(projectIso(bounds.minX, bounds.maxY, bounds.baseZ, tileW, tileH)),
     ];
     const top = [
-      point(projectWorld(bounds.minX, bounds.minY, topZ, tileW, tileH)),
-      point(projectWorld(bounds.maxX, bounds.minY, topZ, tileW, tileH)),
-      point(projectWorld(bounds.maxX, bounds.maxY, topZ, tileW, tileH)),
-      point(projectWorld(bounds.minX, bounds.maxY, topZ, tileW, tileH)),
+      point(projectIso(bounds.minX, bounds.minY, topZ, tileW, tileH)),
+      point(projectIso(bounds.maxX, bounds.minY, topZ, tileW, tileH)),
+      point(projectIso(bounds.maxX, bounds.maxY, topZ, tileW, tileH)),
+      point(projectIso(bounds.minX, bounds.maxY, topZ, tileW, tileH)),
     ];
     const style = {
       color: [0.28, 0.92, 0.66, 0.95] as RenderColor,
@@ -927,10 +927,10 @@ export class SceneExtractor {
   }
 
   private _extractDiagnostic(object: IsoObject, tileW: number, tileH: number): void {
-    const center = point(projectWorld(
+    const center = point(projectIso(
       object.position.x,
       object.position.y,
-      legacyPixelsToWorldZ(object.position.z),
+      object.position.z,
       tileW,
       tileH,
     ));
@@ -947,7 +947,7 @@ export class SceneExtractor {
   private _extractLightHalos(scene: Scene, tileW: number, tileH: number): void {
     for (const light of scene.omniLights) {
       if (light.isGlobal) continue;
-      const center = point(projectLegacy(
+      const center = point(projectIso(
         light.position.x,
         light.position.y,
         light.position.z,
@@ -965,7 +965,7 @@ export class SceneExtractor {
 
   private _extractLights(scene: Scene, tileW: number, tileH: number): void {
     for (const light of scene.omniLights) {
-      const projected = projectLegacy(
+      const projected = projectIso(
         light.position.x,
         light.position.y,
         light.position.z,

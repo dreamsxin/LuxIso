@@ -9,7 +9,7 @@ export type {
   RenderSnapshot,
 } from './contracts/RenderSnapshot';
 export { SceneExtractor } from './extraction/SceneExtractor';
-export { legacyPixelsToWorldZ, projectLegacy, projectWorld } from './extraction/projection';
+export { projectIso } from './extraction/projection';
 export { clipShadowHullToScene, projectDirectionalShadow, projectOmniShadow } from './extraction/ShadowProjector';
 export type { ProjectedShadow, ShadowPoint } from './extraction/ShadowProjector';
 export { ShadowProjectionCache } from './extraction/ShadowProjectionCache';

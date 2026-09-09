@@ -1,4 +1,4 @@
-import { project, Z_UNITS_PER_PX } from '../../math/IsoProjection';
+import { project } from '../../math/IsoProjection';
 import { AABB } from '../../math/depthSort';
 import { DrawContext } from '../IsoObject';
 import { Entity } from '../../ecs/Entity';
@@ -55,8 +55,8 @@ export class Chest extends Entity {
   get aabb(): AABB {
     // Chest body is ~tileH*1.1 px tall + lid ~tileH*0.5 px. The constructor
     // does not receive tileH, so approximate with the standard tileH=32:
-    // (32*1.1 + 32*0.5) = 51.2 px -> 3.2 AABB-Z units. This is only used for
-    // depth sorting; the draw path computes the real pixel height from tileH.
+    // (32*1.1 + 32*0.5) = 51.2 px, and AABB Z is in pixels. This is only used
+    // for depth sorting; the draw path computes the real pixel height from tileH.
     const approxHeightPx = 32 * 1.1 + 32 * 0.5;
     return {
       minX: this.position.x - 0.4,
@@ -64,7 +64,7 @@ export class Chest extends Entity {
       maxX: this.position.x + 0.4,
       maxY: this.position.y + 0.4,
       baseZ: 0,
-      maxZ: approxHeightPx * Z_UNITS_PER_PX,
+      maxZ: approxHeightPx,
     };
   }
 

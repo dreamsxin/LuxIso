@@ -5,18 +5,29 @@ import {
   encodePickId,
   GeometryBuilder,
 } from '../../webgl-next/src/extraction/GeometryBuilder';
-import {
-  legacyPixelsToWorldZ,
-  projectLegacy,
-  projectWorld,
-} from '../../webgl-next/src/extraction/projection';
+import { projectIso } from '../../webgl-next/src/extraction/projection';
+import { project } from '../math/IsoProjection';
 
 describe('WebGL Next geometry contracts', () => {
-  it('converts legacy pixel Z into canonical world Z', () => {
-    expect(legacyPixelsToWorldZ(32)).toBe(2);
-    expect(projectWorld(2, 1, 2, 64, 32)).toEqual({ x: 32, y: 16 });
-    expect(projectLegacy(2, 1, 32, 64, 32)).toEqual({ x: 32, y: 16 });
+  it('projects identically to the Canvas2D path, in pixels', () => {
+    // The extraction path used to take "world Z" and multiply it by tileH/2,
+    // while a separate helper divided pixels by a hardcoded 16. Those cancelled
+    // only at tileH=32; anywhere else the two backends placed z differently.
+    for (const [tw, th] of [[64, 32], [64, 64], [128, 48]] as const) {
+      for (const z of [0, 32, 48]) {
+        const canvas = project(2, 1, z, tw, th);
+        const webgl = projectIso(2, 1, z, tw, th);
+        expect(webgl.x).toBeCloseTo(canvas.sx, 10);
+        expect(webgl.y).toBeCloseTo(canvas.sy, 10);
+      }
+    }
   });
+
+  it('subtracts z from the screen Y directly', () => {
+    expect(projectIso(2, 1, 0, 64, 32)).toEqual({ x: 32, y: 48 });
+    expect(projectIso(2, 1, 32, 64, 32)).toEqual({ x: 32, y: 16 });
+  });
+
 
   it('encodes the complete 24-bit picking ID range', () => {
     for (const id of [0, 1, 255, 256, 65_535, 0xabcdef, 0xffffff]) {

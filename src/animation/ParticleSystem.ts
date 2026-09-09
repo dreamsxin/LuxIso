@@ -1,5 +1,5 @@
 import { IsoObject, DrawContext } from '../elements/IsoObject';
-import { project, Z_UNITS_PER_PX } from '../math/IsoProjection';
+import { project } from '../math/IsoProjection';
 import { AABB } from '../math/depthSort';
 import { SpriteSheet } from './SpriteSheet';
 import { lerpColor } from '../math/color';
@@ -141,9 +141,8 @@ export class ParticleSystem extends IsoObject {
   }
 
   get aabb(): AABB {
-    // position.z is in screen pixels; convert to AABB world-Z units for
-    // depth-sort consistency with other object classes.
-    const baseZ = this.position.z * Z_UNITS_PER_PX;
+    // position.z and AABB Z share one unit: screen pixels.
+    const baseZ = this.position.z;
     if (this.particles.length === 0) {
       return { minX: this.position.x - 0.5, minY: this.position.y - 0.5, maxX: this.position.x + 0.5, maxY: this.position.y + 0.5, baseZ };
     }

@@ -1,4 +1,4 @@
-import { project, Z_UNITS_PER_PX } from '../../math/IsoProjection';
+import { project } from '../../math/IsoProjection';
 import { AABB } from '../../math/depthSort';
 import { IsoObject, DrawContext } from '../IsoObject';
 
@@ -61,19 +61,17 @@ export class Cloud extends IsoObject {
   get aabb(): AABB {
     // Clouds are high in the air - their AABB baseZ reflects their altitude
     // so they sort correctly above ground objects.
-    // position.z is in SCREEN PIXELS (altitude * tileH); convert to AABB
-    // world-Z units (1 unit = tileH/2, approximately 16 px) for depth-sort consistency.
-    // A cloud's visual thickness is ~2 scale units * tileH px -> ~2*scale
-    // world-Z units of body above its base.
+    // position.z is in SCREEN PIXELS (altitude * tileH), and so is AABB Z.
+    // A cloud's visual thickness is ~32 px per scale unit of body above its base.
     const r = 1.2 * this._scale;
-    const baseZ = this.position.z * Z_UNITS_PER_PX;
+    const baseZ = this.position.z;
     return {
       minX: this.position.x - r,
       minY: this.position.y - r,
       maxX: this.position.x + r,
       maxY: this.position.y + r,
       baseZ,
-      maxZ: baseZ + 2 * this._scale,
+      maxZ: baseZ + 32 * this._scale,
     };
   }
 

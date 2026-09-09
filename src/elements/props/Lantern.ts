@@ -1,6 +1,6 @@
 import { Entity } from '../../ecs/Entity';
 import { AABB } from '../../math/depthSort';
-import { project, Z_UNITS_PER_PX } from '../../math/IsoProjection';
+import { project } from '../../math/IsoProjection';
 import { hexToRgba, shiftColor } from '../../math/color';
 import { DrawContext } from '../IsoObject';
 
@@ -39,7 +39,7 @@ export class Lantern extends Entity {
       maxX: this.position.x + 0.24,
       maxY: this.position.y + 0.24,
       baseZ: 0,
-      maxZ: (this._heightPx + 8) * Z_UNITS_PER_PX,
+      maxZ: this._heightPx + 8,
     };
   }
 

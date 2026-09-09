@@ -92,9 +92,8 @@ handles.
   at zoom 1 and default elevation.
 - Projection scale belongs to the camera/view, not individual objects.
 - GPU uses camera-relative coordinates to reduce precision loss on large maps.
-- Legacy `position.z` pixel values enter through `LegacyDrawAdapter` and are
-  converted once with `Z_UNITS_PER_PX`.
-- New WebGL APIs never accept ambiguous pixel-height Z values.
+- Z is screen pixels everywhere — `position.z`, AABB `baseZ`/`maxZ` and
+  `projectIso` all share one unit, so extraction needs no conversion step.
 
 This is the migration point for removing the dual-Z public contract without
 changing serialized legacy scenes immediately.

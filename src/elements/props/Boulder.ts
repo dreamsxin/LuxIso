@@ -1,4 +1,4 @@
-import { project, Z_UNITS_PER_PX } from '../../math/IsoProjection';
+import { project } from '../../math/IsoProjection';
 import { AABB } from '../../math/depthSort';
 import { DrawContext } from '../IsoObject';
 import { Entity } from '../../ecs/Entity';
@@ -24,14 +24,14 @@ export class Boulder extends Entity {
 
   get aabb(): AABB {
     // radius is the drawn rock radius in screen pixels; the full vertical
-    // extent is ~2*radius. Convert to AABB world-Z units for depth sort.
+    // extent is ~2*radius. AABB Z is in pixels too, so no conversion.
     return {
       minX: this.position.x - 0.45,
       minY: this.position.y - 0.45,
       maxX: this.position.x + 0.45,
       maxY: this.position.y + 0.45,
       baseZ: 0,
-      maxZ: (this.radius * 2) * Z_UNITS_PER_PX,
+      maxZ: this.radius * 2,
     };
   }
 

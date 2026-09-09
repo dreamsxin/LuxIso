@@ -100,9 +100,9 @@ export { validateSceneJson, validateComponents, requireComponent } from './core/
 export type { ValidationResult, SceneValidationOptions } from './core/Validator';
 
 // Math
-export { project, unproject, depthKey, drawIsoCube, Z_UNITS_PER_PX } from './math/IsoProjection';
+export { project, unproject, depthKey, drawIsoCube } from './math/IsoProjection';
 export type { IsoVec3, ScreenVec2, IsoView } from './math/IsoProjection';
 export { DEFAULT_ISO_VIEW } from './math/IsoProjection';
-export { topoSort } from './math/depthSort';
+export { topoSort, MIN_Z_EXTENT_PX } from './math/depthSort';
 export type { AABB, Sortable } from './math/depthSort';
 export { hexToRgb, hexToRgba, shiftColor, blendColor, blendColorRaw, lerpColor } from './math/color';
