@@ -38,12 +38,9 @@ jobs:
       # Unit suite with the coverage ratchets in vitest.config.ts. Fails the job
       # if a correctness-critical module loses coverage.
       - run: npm run test:coverage
-      # Type-checks and bundles the demos/editors. NOTE: this artifact is not
-      # what the browser tests below exercise — playwright.webgl.config.ts starts
-      # the Vite dev server, because lifecycle.pw.ts dynamically imports
-      # WebGL2Renderer's .ts source, which only resolves under dev. Treat this
-      # step as build verification, not as the subject of the e2e run.
-      - run: npm run build
+      # Runs `npm run build` first (see the test:webgl script), so the browser
+      # suite exercises the production bundle via `vite preview`, and the build's
+      # `tsc` doubles as the type-check gate.
       - run: npm run test:webgl
       - name: Upload coverage report
         if: always()

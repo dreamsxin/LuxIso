@@ -61,8 +61,12 @@ test.describe('WebGL resource lifecycle', () => {
     await page.goto('/webgl-next/?fixture=lights-off', { waitUntil: 'networkidle' });
 
     const result = await page.evaluate(async () => {
-      const moduleUrl = '/webgl-next/src/renderer/WebGLRenderer.ts';
-      const { WebGLRenderer } = await import(moduleUrl);
+      // Exposed by webgl-next/main.ts. Reaching the class this way — rather than
+      // dynamically importing its .ts source — is what lets this suite run
+      // against the production bundle under `vite preview`.
+      const hook = window.__luxisoPreview;
+      if (!hook) throw new Error('window.__luxisoPreview is missing; is the preview entry loaded?');
+      const { WebGLRenderer } = hook;
       const cycles: Array<{ before: number; after: number; disposedGuard: boolean }> = [];
 
       for (let cycle = 0; cycle < 6; cycle++) {

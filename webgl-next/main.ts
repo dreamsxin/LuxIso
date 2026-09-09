@@ -81,6 +81,28 @@ try {
 
 if (initialFixture) required('selection').textContent = `校验夹具 · ${initialFixture.label}`;
 
+/**
+ * Test hook for the Playwright lifecycle suite.
+ *
+ * That suite constructs and disposes renderers of its own to assert
+ * GLResourceRegistry releases every handle. It used to reach the class by
+ * dynamically importing `/webgl-next/src/renderer/WebGLRenderer.ts`, which only
+ * resolves through Vite's dev module graph — and that single line was the reason
+ * the whole browser suite had to run against the dev server rather than the
+ * production bundle. Re-exporting the already-imported class here lets the suite
+ * run against `vite preview`, i.e. against the artifact we actually ship.
+ *
+ * This file is the preview entry point; it is not part of the published library
+ * (`files: ["dist"]`, and the lib build bundles only `src/index.ts`).
+ */
+declare global {
+  interface Window {
+    __luxisoPreview?: { WebGLRenderer: typeof WebGLRenderer };
+  }
+}
+window.__luxisoPreview = { WebGLRenderer };
+
+
 syncControls();
 bindControls();
 bindViewportInput();

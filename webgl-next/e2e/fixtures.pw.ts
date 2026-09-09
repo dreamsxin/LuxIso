@@ -3,6 +3,13 @@ import { expect, test } from '@playwright/test';
 import { PNG } from 'pngjs';
 import { PREVIEW_LIGHTING_FIXTURES } from '../src/testing/PreviewLightingFixtures';
 
+/**
+ * Fixtures compared against a committed baseline with the 1.5% pixel-diff gate.
+ * The rest still run the heuristic assertions only — see ACCEPTANCE.md.
+ */
+const PIXEL_GATED_FIXTURES = new Set(['day-ne', 'low-angle', 'night-lanterns']);
+
+
 test.describe('WebGL deterministic fixture matrix', () => {
   for (const fixture of PREVIEW_LIGHTING_FIXTURES) {
     test(`${fixture.id} renders a stable candidate`, async ({ page }, testInfo) => {
@@ -61,10 +68,26 @@ test.describe('WebGL deterministic fixture matrix', () => {
         path: candidatePath,
         contentType: 'image/png',
       });
+
+      // Approved-baseline gate. Only a subset is pinned for now: three fixtures
+      // that between them cover day lighting, a low sun with long projected
+      // shadows, and practical local lights at low ambient — enough to catch a
+      // real regression without putting nine binaries under review.
+      //
+      // CI-only on purpose. Baselines are generated exclusively by the
+      // `webgl-baselines` workflow so there is one authoritative set; letting a
+      // developer machine write them would mint a second, conflicting one.
+      if (PIXEL_GATED_FIXTURES.has(fixture.id) && process.env.CI) {
+        await expect(canvas).toHaveScreenshot(`${fixture.id}.png`, {
+          animations: 'disabled',
+        });
+      }
+
       expect(runtimeErrors).toEqual([]);
     });
   }
 });
+
 
 function analyzePng(buffer: Buffer): {
   width: number;

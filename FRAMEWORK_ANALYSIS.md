@@ -120,8 +120,7 @@ const bus = new EventBus<GameEvents>();
 | P1 | example-05 移动绕过 `MovementComponent` | `ClickMover` 直接改 `position`；且只有草原场景建了 `TileCollider`，湖水/深海的 hero 只受边界钳制，不做碰撞 |
 | P1 | example-05 天空绘制函数仍集中在 main.ts | 拆到 environment 模块 |
 | P1 | 自定义 prop 没有配套 serializer registry | 为注册表增加 serialize 回调或独立注册 API |
-| P1 | WebGL golden 基线尚未审批 | 目前 CI 只断言颜色直方图启发式，`ACCEPTANCE.md` 里的 1.5% diff 门槛尚未生效 |
-| P1 | Playwright 跑的是 Vite dev server 而非构建产物 | `playwright.webgl.config.ts` 启动 `npm run dev`，发布包从未被浏览器测试覆盖 |
+| P2 | 9 个 WebGL fixture 中有 6 个未接入基线比对 | `day-ne` / `low-angle` / `night-lanterns` 已按 1.5% 门槛比对committed 基线；扩展只需往 `PIXEL_GATED_FIXTURES` 加 ID 并重新生成 |
 | P2 | `ParticleSystem` 47% 覆盖率偏低 | 其 preset 工厂同时存在忽略入参的问题，见 README API 说明 |
 | P2 | System 每次调度扫描所有 Entity × System | 达到千级实体后引入 query/archetype 缓存 |
 | P2 | 稠密深度桶仍可能 O(n²) | 基准验证后考虑 sweep-and-prune 或分层 chunk |

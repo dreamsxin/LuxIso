@@ -50,7 +50,8 @@
     "test": "vitest --run",
     "test:watch": "vitest",
     "test:coverage": "vitest --run --coverage",
-    "test:webgl": "playwright test --config playwright.webgl.config.ts"
+    "test:webgl": "npm run build && playwright test --config playwright.webgl.config.ts",
+    "test:webgl:update": "npm run build && playwright test --config playwright.webgl.config.ts --update-snapshots"
   },
   "devDependencies": {
     "@playwright/test": "^1.62.0",

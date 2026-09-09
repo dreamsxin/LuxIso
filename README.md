@@ -84,7 +84,8 @@ npm run test:coverage   # same suite + v8 coverage; enforces the thresholds belo
 npm run encoding:check  # verify source file encodings (runs before both builds)
 npm run encoding:fix    # rewrite offending files in place
 npx playwright install chromium  # one-time browser install
-npm run test:webgl # run 9 deterministic captures + context/resource lifecycle tests
+npm run test:webgl # builds, then runs 9 deterministic captures + lifecycle tests
+                   # against `vite preview` (the production bundle)
 ```
 
 ## Testing
@@ -93,7 +94,7 @@ npm run test:webgl # run 9 deterministic captures + context/resource lifecycle t
 |---|---|---|
 | Unit | `npm test` | 382 tests across 44 files (Vitest 4) |
 | Coverage | `npm run test:coverage` | v8 provider + per-module ratchets |
-| Browser | `npm run test:webgl` | 9 fixture captures + 2 context-lifecycle tests (Chromium/SwiftShader) |
+| Browser | `npm run test:webgl` | 9 fixture captures + 2 context-lifecycle tests (Chromium/SwiftShader) against the built bundle |
 
 Coverage thresholds live in `vitest.config.ts` and are deliberately set just
 **below** current numbers, so they act as ratchets rather than aspirations.
@@ -864,8 +865,7 @@ See [FRAMEWORK_ANALYSIS.md](FRAMEWORK_ANALYSIS.md) for a detailed comparison wit
 |----------|------|-------|
 | P1 | `example-05` movement bypasses `MovementComponent` | `ClickMover` mutates `position` directly; only the Plains scene has a `TileCollider` at all, so Lake/DeepSea heroes are bounds-clamped but not collision-aware |
 | P1 | `example-05` sky draw functions (400+ lines) inline in `main.ts` | Split to `environment/*.ts` |
-| P1 | WebGL golden captures are not compared against a baseline | CI only asserts colour-histogram heuristics; the 1.5% pixel-diff gate in [ACCEPTANCE.md](webgl-next/ACCEPTANCE.md) is not active |
-| P1 | Playwright suite runs the Vite **dev** server, not the build | `playwright.webgl.config.ts` starts `npm run dev`, so the production bundle is never exercised |
+| P2 | Six of nine WebGL fixtures are not baseline-gated | `day-ne` / `low-angle` / `night-lanterns` compare against committed baselines at 1.5%; extending the set means adding IDs to `PIXEL_GATED_FIXTURES` and regenerating |
 | P2 | `ParticleSystem` (47%) is the largest remaining coverage gap | Its preset factories also ignore their options argument — see the API notes |
 | P2 | `SceneManager` does not auto-clear `AssetLoader` on scene exit | Add `assetLoader?` to `ManagedScene` |
 | P2 | Custom prop serialization requires application code | Add serializer registry paired with `registerProp()` |

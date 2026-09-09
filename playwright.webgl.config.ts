@@ -11,7 +11,16 @@ export default defineConfig({
   // runner. Zero retries turned any such hiccup into a red build.
   retries: process.env.CI ? 2 : 0,
   timeout: 30_000,
-  expect: { timeout: 10_000 },
+  expect: {
+    timeout: 10_000,
+    // The approved-baseline gate from webgl-next/ACCEPTANCE.md.
+    toHaveScreenshot: { maxDiffPixelRatio: 0.015 },
+  },
+  // One baseline set, not one per OS/project. The runner is pinned
+  // (Chromium/SwiftShader, 1280x720, DPR 1) and baselines are produced only by
+  // CI via the `webgl-baselines` workflow, so a platform suffix would just invite
+  // a second, conflicting set from a developer machine.
+  snapshotPathTemplate: '{testDir}/__screenshots__/{arg}{ext}',
   reporter: 'list',
   use: {
     baseURL: 'http://127.0.0.1:4173',
@@ -36,12 +45,10 @@ export default defineConfig({
     },
   }],
   webServer: {
-    // Dev server, not `vite preview`: lifecycle.pw.ts imports
-    // /webgl-next/src/renderer/WebGLRenderer.ts at runtime, which only resolves
-    // through Vite's dev module graph. Consequence: these tests do NOT cover the
-    // production bundle. Moving fixture captures onto a preview-server project
-    // is tracked as a P1 in the repo roadmap.
-    command: 'npm run dev -- --host 127.0.0.1 --port 4173 --strictPort',
+    // `vite preview` serves dist/, so this suite exercises the production bundle
+    // — the artifact we actually ship. `npm run test:webgl` builds first, which
+    // is why the build is part of that script rather than a separate CI step.
+    command: 'npm run preview -- --host 127.0.0.1 --port 4173 --strictPort',
     url: 'http://127.0.0.1:4173/webgl-next/',
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,

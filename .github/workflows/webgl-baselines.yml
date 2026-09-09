@@ -1,0 +1,54 @@
+name: WebGL Baselines
+
+# Manual only. Produces the approved-baseline candidates for the pixel-diff gate
+# and uploads them as an artifact; a human reviews the images and commits them to
+# webgl-next/e2e/__screenshots__/. Nothing here writes to the repository.
+#
+# Baselines must come from this workflow rather than a developer machine: the
+# gate compares against a single set captured on pinned Chromium/SwiftShader at
+# 1280x720 DPR 1, and Linux vs Windows rasterisation differs more than the 1.5%
+# threshold allows.
+on:
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Why are the baselines being regenerated?'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  regenerate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - run: echo "Reason: ${{ inputs.reason }}"
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      # `--update-snapshots` rewrites the baselines instead of comparing.
+      - run: npm run test:webgl:update
+      - name: Upload baseline candidates for review
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: webgl-baselines-${{ github.sha }}
+          path: webgl-next/e2e/__screenshots__/**/*.png
+          if-no-files-found: error
+          retention-days: 14
+      - name: Upload full capture set for context
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: webgl-captures-${{ github.sha }}
+          path: |
+            test-results/webgl-next/**/*.png
+            test-results/webgl-next/**/*.json
+          if-no-files-found: warn
+          retention-days: 14
