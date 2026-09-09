@@ -24,8 +24,19 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - run: echo "Reason: ${{ inputs.reason }}"
+      # The stated reason goes through the environment rather than being
+      # interpolated into the command. Two reasons: `${{ }}` expanded straight
+      # into a `run` script is a shell-injection vector for arbitrary user input,
+      # and an unquoted YAML scalar cannot contain `: ` — `run: echo "Reason:
+      # ${{ inputs.reason }}"` is what made this whole file fail to parse, which
+      # is why the workflow could not be dispatched at all.
+      - name: Log the stated reason
+        env:
+          REASON: ${{ inputs.reason }}
+        run: |
+          echo "Reason: $REASON"
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22
