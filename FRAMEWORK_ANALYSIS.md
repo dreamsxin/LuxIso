@@ -1,7 +1,7 @@
 # LuxIso 架构分析报告 v5
 
 > 更新日期：2026-09-09
-> 基线：Canvas 2D 默认 + WebGL2 预览，382 个 Vitest 测试 / 44 个测试文件（含 v8 覆盖率阈值），11 个 Playwright WebGL 测试
+> 基线：Canvas 2D 默认 + WebGL2 预览，410 个 Vitest 测试 / 45 个测试文件（含 v8 覆盖率阈值），11 个 Playwright WebGL 测试
 
 ## 执行摘要
 
@@ -121,7 +121,7 @@ const bus = new EventBus<GameEvents>();
 | P1 | example-05 天空绘制函数仍集中在 main.ts | 拆到 environment 模块 |
 | P1 | 自定义 prop 没有配套 serializer registry | 为注册表增加 serialize 回调或独立注册 API |
 | P2 | 9 个 WebGL fixture 中有 6 个未接入基线比对 | `day-ne` / `low-angle` / `night-lanterns` 已按 1.5% 门槛比对committed 基线；扩展只需往 `PIXEL_GATED_FIXTURES` 加 ID 并重新生成 |
-| P2 | `ParticleSystem` 47% 覆盖率偏低 | 其 preset 工厂同时存在忽略入参的问题，见 README API 说明 |
+| P2 | `src/elements/**` 57% / `src/core/**` 59% 是当前最低的两块 | 主体是 canvas 绘制代码，未覆盖分支集中在绘制路径；再往上需要给 `Engine` / `Scene` 搭 canvas 测试夹具 |
 | P2 | System 每次调度扫描所有 Entity × System | 达到千级实体后引入 query/archetype 缓存 |
 | P2 | 稠密深度桶仍可能 O(n²) | 基准验证后考虑 sweep-and-prune 或分层 chunk |
 | P2 | WebGL context-loss 尚未覆盖完整浏览器矩阵 | Chromium/SwiftShader 自动化已完成；Phase 5 扩展到 Firefox、Safari 和真实 GPU |
@@ -173,6 +173,14 @@ const bus = new EventBus<GameEvents>();
   `Z_UNITS_PER_PX` 与 `legacyPixelsToWorldZ` 一并删除，`projectIso` 与 `project()`
   在多组 tileW/tileH 下逐点等价（有测试钉住）。`depthSort` 的隐含「1 单位」兜底改为
   导出的 `MIN_Z_EXTENT_PX = 16`。
+- 补测 `ParticleSystem`（47%→85%）暴露三处：`onExhausted` 在发射器空闲的每一帧都会
+  重复触发（回调被当成「粒子归零」的边沿事件写文档，实现里却是电平判断），所以任何
+  挂在上面的清理逻辑都会被反复执行；`_pool` 静态回收池没有上限，一次大爆发之后
+  内存不再归还；`sparkBurst`/`dustPuff` 等 preset 工厂声明了 `{ color, count }` 入参
+  却整个忽略——README 承诺的用法从来没生效过。现在 `onExhausted` 由 `spawn()` 重新
+  武装的闩锁保证「每轮爆发恰好一次」，池上限为 `ParticleSystem.poolLimit = 512`
+  （配套 `poolSize` / `clearPool()`），preset 入参经 `burstPreset()` 真正生效。
+
 
 
 
@@ -186,14 +194,16 @@ const bus = new EventBus<GameEvents>();
 | 类型安全 | 9/10 | ComponentCtor 与 EventMap 覆盖核心扩展面；`tsc` 现已覆盖 examples 与 e2e |
 | 可扩展性 | 8/10 | 加载注册表与自定义事件良好；序列化注册表待补 |
 | 文档质量 | 8/10 | README 与本报告已同步当前实现 |
-| 测试覆盖 | 8/10 | 382 个单测 + 11 个浏览器测试；已接入 v8 覆盖率与分模块阈值（整体 61.6% 语句 / 56.2% 分支），仍无 approved golden 门槛 |
+| 测试覆盖 | 8/10 | 410 个单测 + 11 个浏览器测试；已接入 v8 覆盖率与分模块阈值（整体 62.7% 语句 / 59.2% 分支），三个 fixture 已按 1.5% 门槛比对基线 |
 | 综合 | 8.3/10 | 架构短板已大幅收敛，下一阶段应由 profiling 驱动 |
 
 测试数量不等于覆盖率。`vitest.config.ts` 现已按模块设定阈值（math/physics/lighting
-90% 语句、ecs 82%、audio 67%、animation 62%、core 59%、elements 57%，整体 61%），
+90% 语句、ecs 82%、animation 81%、audio 67%、core 59%、elements 57%，整体 62%），
 并在 CI 中作为门禁。阈值一律设在当前值略下方，只能随新测试上调，不允许为了让构建
 通过而下调。
 
 补测的实际收益是找 bug，而不是把百分比推高：`AudioManager`（0%→68%）、`ObjectPool`
 （0%→100%）、`InputMap`（0%→98%）、`AssetLoader`（20%→98%）、`DirectionalAnimator`
-（0%→99%）这五轮，每一轮都在原本无人覆盖的分支里发现了缺陷。
+（0%→99%）、`ParticleSystem`（47%→85%）这六轮，每一轮都在原本无人覆盖的分支里发现了
+缺陷。规律已经很稳定：**文档写得越完整、测试却是零的模块，实现几乎必然已经和文档
+分叉**——上面六个模块的 README 段落都写得像已经验证过。

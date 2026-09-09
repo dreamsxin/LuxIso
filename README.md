@@ -92,7 +92,7 @@ npm run test:webgl # builds, then runs 9 deterministic captures + lifecycle test
 
 | Layer | Command | Scope |
 |---|---|---|
-| Unit | `npm test` | 382 tests across 44 files (Vitest 4) |
+| Unit | `npm test` | 410 tests across 45 files (Vitest 4) |
 | Coverage | `npm run test:coverage` | v8 provider + per-module ratchets |
 | Browser | `npm run test:webgl` | 9 fixture captures + 2 context-lifecycle tests (Chromium/SwiftShader) against the built bundle |
 
@@ -107,10 +107,10 @@ Correctness-critical modules carry their own floors:
 | `src/lighting/**` | 90% | 84% |
 | `src/ecs/**` | 82% | 78% |
 | `src/audio/**` | 67% | 55% |
-| `src/animation/**` | 62% | 43% |
+| `src/animation/**` | 81% | 75% |
 | `src/core/**` | 59% | 49% |
 | `src/elements/**` | 57% | 53% |
-| Whole project | 61% | 56% |
+| Whole project | 62% | 59% |
 
 Raise a floor when you add tests; never lower one to make a build pass. Test
 count is not coverage — every P0/P1 defect found in the last audit sat in a
@@ -602,22 +602,31 @@ ps.addEmitter(config: EmitterConfig): void
 ps.burst(count?: number, randomness?: number): void
 ps.spawn(opts: ParticleOptions): void
 ps.particleCount: number
-ps.onExhausted: (() => void) | null   // called when the last particle dies
+ps.forEachParticle(visitor): void     // allocation-free read-only view
+ps.onExhausted: (() => void) | null   // fires once when the last particle dies
 
 // Preset emitter configs. Pass the result to addEmitter():
 //   ps.addEmitter(ParticleSystem.presets.sparkBurst());
-ParticleSystem.presets.sparkBurst()
-ParticleSystem.presets.dustPuff()
-ParticleSystem.presets.crystalShatter()
-ParticleSystem.presets.coinSpill()
+ParticleSystem.presets.sparkBurst({ color?, count? })
+ParticleSystem.presets.dustPuff({ color?, count? })
+ParticleSystem.presets.crystalShatter({ color?, count? })
+ParticleSystem.presets.coinSpill({ color?, count? })
 ParticleSystem.presets.ambientDrift({ color?, count?, speed?, size?, alpha?, blend?, shape? })
 ParticleSystem.presets.FIRE     // plain config object, not a function
 ParticleSystem.presets.SMOKE    // plain config object, not a function
+
+// Shared recycle pool (particles migrate between systems; reset() overwrites all
+// fields, so this is safe):
+ParticleSystem.poolLimit = 512   // cap; excess dead particles are dropped
+ParticleSystem.poolSize          // current pooled count
+ParticleSystem.clearPool()       // drop everything, e.g. between scenes
 ```
 
-Only `ambientDrift` reads its options argument; the other factories currently
-ignore any argument and return a fixed config. There is no `autoRemove` field —
-remove an exhausted system yourself, e.g. from `onExhausted`.
+For the burst presets, `color` overrides the palette and `count` becomes
+`maxParticles` (a cap on simultaneously live particles). There is no
+`autoRemove` field — remove an exhausted system yourself, typically from
+`onExhausted`, which fires exactly once per burst.
+
 
 
 ### `Pathfinder` / `PathCache`
@@ -853,8 +862,8 @@ requireComponent<T>(entity: Entity, ctor: ComponentCtor<T>): T  // throws if mis
 | EventBus event maps | Event names and payload types are coupled; custom maps supported |
 | Scene.toJSON(): runtime state + built-in prop serialization | Environment, camera, view, light IDs/options, collider, built-ins |
 | Lib build: ESM + CJS dual output + .d.ts (npm run build:lib) | |
-| Unit tests: 382 tests across 44 files (Vitest 4, Node ≥ 22) | |
-| Coverage ratchets per module (`npm run test:coverage`) | v8 provider; per-glob floors on math/physics/lighting/ecs/elements/audio |
+| Unit tests: 410 tests across 45 files (Vitest 4, Node ≥ 22) | |
+| Coverage ratchets per module (`npm run test:coverage`) | v8 provider; per-glob floors on math/physics/lighting/ecs/animation/elements/audio/core |
 | Examples: 9 progressive demos + tools gallery | |
 
 ## Known Limitations & Roadmap (Next)
@@ -866,7 +875,7 @@ See [FRAMEWORK_ANALYSIS.md](FRAMEWORK_ANALYSIS.md) for a detailed comparison wit
 | P1 | `example-05` movement bypasses `MovementComponent` | `ClickMover` mutates `position` directly; only the Plains scene has a `TileCollider` at all, so Lake/DeepSea heroes are bounds-clamped but not collision-aware |
 | P1 | `example-05` sky draw functions (400+ lines) inline in `main.ts` | Split to `environment/*.ts` |
 | P2 | Six of nine WebGL fixtures are not baseline-gated | `day-ne` / `low-angle` / `night-lanterns` compare against committed baselines at 1.5%; extending the set means adding IDs to `PIXEL_GATED_FIXTURES` and regenerating |
-| P2 | `ParticleSystem` (47%) is the largest remaining coverage gap | Its preset factories also ignore their options argument — see the API notes |
+| P2 | `src/elements/**` (57%) and `src/core/**` (59%) are the lowest-covered modules | Both are dominated by canvas draw code; the uncovered branches are painting paths, not logic. `Engine` / `Scene` need a canvas harness to go much higher |
 | P2 | `SceneManager` does not auto-clear `AssetLoader` on scene exit | Add `assetLoader?` to `ManagedScene` |
 | P2 | Custom prop serialization requires application code | Add serializer registry paired with `registerProp()` |
 | P2 | `EditorRenderer` rebuilds the whole scene on every state change | Debounce to one rebuild per frame, or mutate objects in place for transform-only edits |
@@ -875,7 +884,7 @@ See [FRAMEWORK_ANALYSIS.md](FRAMEWORK_ANALYSIS.md) for a detailed comparison wit
 | P3 | Spatial audio `spatialVolume()` helper is a manual falloff calc | `playSfx({ spatial })` already uses a `PannerNode` + HRTF; the static helper is the legacy path |
 | P3 | Editor: snap/grid toggle for fine-grained object placement | Sub-tile precision mode |
 | P3 | Sprite editor: multi-sheet support, frame-range trimming | Advanced animation authoring |
-| P3 | Dual Z-unit convention is a public API cost | Unify world height units in a new major; keep explicit converters for the old API |
+
 
 
 ## License

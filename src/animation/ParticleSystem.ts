@@ -35,6 +35,52 @@ export interface EmitterConfig {
   particleShape?: string;
 }
 
+/** Options accepted by the one-shot burst presets. */
+export interface BurstPresetOptions {
+  /** Override the particle colour, or a palette to pick from per particle. */
+  color?: string | string[];
+  /** Cap on simultaneously live particles from this emitter. */
+  count?: number;
+}
+
+/** Options accepted by `presets.ambientDrift`. */
+export interface AmbientDriftOptions {
+  color?: string | string[];
+  /** Spawn rate per second. */
+  count?: number;
+  speed?: [number, number];
+  size?: [number, number];
+  alpha?: number;
+  blend?: ParticleBlend | string;
+  shape?: string;
+}
+
+export interface ParticlePresets {
+  crystalShatter(opts?: BurstPresetOptions): EmitterConfig;
+  dustPuff(opts?: BurstPresetOptions): EmitterConfig;
+  coinSpill(opts?: BurstPresetOptions): EmitterConfig;
+  sparkBurst(opts?: BurstPresetOptions): EmitterConfig;
+  ambientDrift(opts?: AmbientDriftOptions): EmitterConfig;
+  readonly FIRE: EmitterConfig;
+  readonly SMOKE: EmitterConfig;
+}
+
+/**
+ * Apply `BurstPresetOptions` on top of a preset's base config.
+ *
+ * The four burst factories used to be typed `(_o?: any)` and dropped their
+ * argument entirely, so `sparkBurst({ color: 'red' })` silently produced the
+ * default cyan-white palette. They now honour it.
+ */
+function burstPreset(base: EmitterConfig, opts?: BurstPresetOptions): EmitterConfig {
+  if (!opts) return base;
+  return {
+    ...base,
+    ...(opts.color !== undefined ? { color: opts.color } : {}),
+    ...(opts.count !== undefined ? { maxParticles: opts.count } : {}),
+  };
+}
+
 export interface ParticleOptions {
   x: number; y: number; z: number;
   vx: number; vy: number; vz: number;
@@ -71,41 +117,60 @@ export interface ParticleRenderState {
 export class ParticleSystem extends IsoObject {
   private particles: Particle[] = [];
   private static _pool: Particle[] = [];
+  /**
+   * Cap on the shared recycle pool. It is static (particles migrate between
+   * systems, which is safe because `reset()` overwrites every field) and was
+   * previously unbounded: one large burst left every allocated particle resident
+   * for the lifetime of the page.
+   */
+  static poolLimit = 512;
   private _emitters: { config: EmitterConfig, accumulator: number }[] = [];
   onExhausted: (() => void) | null = null;
   private _lastTs = 0;
+  private _sawParticles = false;
+  private _exhaustedFired = false;
 
-  static presets: any = {
-    crystalShatter: (_o?: any) => ({ rate: 0, life: [0.4, 0.8], speed: [2, 5], size: [4, 8], color: ['#00ffff', '#ffffff'], gravity: 10 }),
-    dustPuff:       (_o?: any) => ({ rate: 0, life: [0.6, 1.0], speed: [0.5, 2], size: [8, 20], color: ['#887766'], gravity: 0 }),
-    coinSpill:      (_o?: any) => ({ rate: 0, life: [0.8, 1.5], speed: [1, 4], size: [5, 10], color: ['#ffff00', '#ffd700'], gravity: 12 }),
-    sparkBurst:     (_o?: any) => ({ rate: 0, life: [0.3, 0.6], speed: [4, 8], size: [2, 5], color: ['#ffffff', '#ffffcc'], gravity: 5 }),
+  /** Number of particles currently held in the shared recycle pool. */
+  static get poolSize(): number { return ParticleSystem._pool.length; }
+
+  /** Drop every pooled particle. Useful between scenes or in tests. */
+  static clearPool(): void { ParticleSystem._pool.length = 0; }
+
+  private static _recycle(p: Particle): void {
+    if (ParticleSystem._pool.length < ParticleSystem.poolLimit) {
+      ParticleSystem._pool.push(p);
+    }
+  }
+
+
+  static presets: ParticlePresets = {
+    crystalShatter: (o) => burstPreset(
+      { rate: 0, life: [0.4, 0.8], speed: [2, 5], size: [4, 8], color: ['#00ffff', '#ffffff'], gravity: 10 }, o),
+    dustPuff: (o) => burstPreset(
+      { rate: 0, life: [0.6, 1.0], speed: [0.5, 2], size: [8, 20], color: ['#887766'], gravity: 0 }, o),
+    coinSpill: (o) => burstPreset(
+      { rate: 0, life: [0.8, 1.5], speed: [1, 4], size: [5, 10], color: ['#ffff00', '#ffd700'], gravity: 12 }, o),
+    sparkBurst: (o) => burstPreset(
+      { rate: 0, life: [0.3, 0.6], speed: [4, 8], size: [2, 5], color: ['#ffffff', '#ffffcc'], gravity: 5 }, o),
     /** Ambient floating dust/motes that drift slowly across the scene. */
-    ambientDrift: (o?: {
-      color?: string | string[];
-      count?: number;
-      speed?: [number, number];
-      size?: [number, number];
-      alpha?: number;
-      blend?: string;
-      shape?: string;
-    }) => ({
+    ambientDrift: (o) => ({
       rate:  o?.count ?? 40,
-      life:  [2.0, 5.0] as [number, number],
-      speed: o?.speed ?? [0.05, 0.25] as [number, number],
-      angle: [0, Math.PI * 2] as [number, number],
-      vz:    [0.02, 0.10] as [number, number],
-      size:  o?.size  ?? [2, 6] as [number, number],
+      life:  [2.0, 5.0],
+      speed: o?.speed ?? [0.05, 0.25],
+      angle: [0, Math.PI * 2],
+      vz:    [0.02, 0.10],
+      size:  o?.size  ?? [2, 6],
       color: o?.color ?? ['#d4b060', '#e8c880', '#c09840'],
       gravity: -0.05,
       alphaStart: o?.alpha ?? 0.35,
       alphaEnd:   0,
       blend: o?.blend ?? 'screen',
-      shape: o?.shape ?? 'circle',
+      particleShape: o?.shape ?? 'circle',
     }),
     FIRE:   { rate: 40, life: [0.5, 1.2], speed: [0.5, 1.5], size: [4, 12], color: ['#ff4400', '#ffaa00'], gravity: 2 },
     SMOKE:  { rate: 10, life: [1.5, 3.0], speed: [0.2, 0.6], size: [10, 30], color: ['#333', '#666'], gravity: -1 },
   };
+
 
   constructor(id: string, x: number, y: number, z: number) {
     super(id, x, y, z);
@@ -128,6 +193,11 @@ export class ParticleSystem extends IsoObject {
     let p = ParticleSystem._pool.pop();
     if (p) p.reset(opts); else p = new Particle(opts);
     this.particles.push(p);
+    // Re-arm onExhausted here rather than in update(): a particle can be spawned
+    // and expire inside the same update() call, which would otherwise leave the
+    // latch set and swallow the callback for a re-used effect system.
+    this._sawParticles = true;
+    this._exhaustedFired = false;
   }
 
   burst(count = 20, randomness = 0.5): void {
@@ -172,10 +242,21 @@ export class ParticleSystem extends IsoObject {
       const p = this.particles[i];
       if (!p.update(dt)) {
         this.particles.splice(i, 1);
-        ParticleSystem._pool.push(p);
+        ParticleSystem._recycle(p);
       }
     }
-    if (this.particles.length === 0 && this._emitters.every(e => e.config.rate <= 0)) {
+
+    // Fire once, on the transition to "no particles left" with every emitter
+    // idle. Without the latch this ran on every subsequent update — and on the
+    // very first update of a burst-only system, before anything had been spawned
+    // at all — so any callback with side effects fired forever.
+    if (
+      this.particles.length === 0 &&
+      this._sawParticles &&
+      !this._exhaustedFired &&
+      this._emitters.every(e => e.config.rate <= 0)
+    ) {
+      this._exhaustedFired = true;
       this.onExhausted?.();
     }
   }
