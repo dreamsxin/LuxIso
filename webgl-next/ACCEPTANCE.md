@@ -52,8 +52,10 @@ Chromium/SwiftShader at 1280×720 and DPR 1. What it asserts:
   candidate PNG + JSON metadata is emitted and uploaded by CI for 14 days.
 - **`day-ne`, `low-angle`, `night-lanterns`:** additionally compared against a
   committed baseline in `webgl-next/e2e/__screenshots__/` with
-  `maxDiffPixelRatio: 0.015`. Those three cover day lighting, a low sun with long
-  projected shadows, and practical local lights at low ambient.
+  `maxDiffPixelRatio: 0.015`, **once that directory is populated** — as of this
+  writing it is empty, so the comparison is wired but dormant. Those three cover
+  day lighting, a low sun with long projected shadows, and practical local lights
+  at low ambient.
 - The remaining six fixtures are **not** baseline-gated: a regression there that
   keeps the colour histogram plausible will still pass. Extending the set is a
   matter of adding IDs to `PIXEL_GATED_FIXTURES` and regenerating.
@@ -63,6 +65,23 @@ the suite with `--update-snapshots` and uploads the PNGs as an artifact for huma
 review; nothing commits them automatically. The comparison is CI-only by design —
 Linux and Windows rasterisation differ by more than 1.5%, so allowing a developer
 machine to write baselines would create a second, conflicting set.
+
+That rule is enforced, not just documented: `npm run test:webgl:update` refuses to
+run outside CI (`scripts/guard-baseline-update.mjs`), because the captures it
+writes land in the very directory the gate reads from. Set
+`LUXISO_ALLOW_LOCAL_BASELINES=1` to override while iterating on the fixtures
+themselves — the run then prints a warning, and the output must not be committed.
+
+To adopt a fresh set:
+
+```bash
+gh workflow run webgl-baselines.yml -f reason="<why>"
+gh run download <run-id> -n webgl-baselines-<sha> -D webgl-next/e2e/__screenshots__
+```
+
+Review every PNG before committing. Until the three baselines exist in the repo,
+the pixel gate is inert: `toHaveScreenshot` has nothing to compare against.
+
 
 The lifecycle layer additionally forces `WEBGL_lose_context`, requires recovery
 within two seconds, waits for textures to be restored, compares the recovered

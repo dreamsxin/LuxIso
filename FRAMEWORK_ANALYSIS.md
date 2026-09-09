@@ -199,6 +199,15 @@ const bus = new EventBus<GameEvents>();
   而此时场景已经出栈，那是最后一次机会；改成 `finally`。顺带修掉两处文档与实现相反
   的说法：`replace()` 注释写「bottom to top」而循环是自顶向下；`register()` 说工厂
   「first pushed 时调用」，实现是每次 push 都调用、从不缓存。
+- 像素基线的「只能由 CI 生成」这条规则此前只写在注释里，没有任何强制。
+  `playwright.webgl.config.ts` 有意只用一套无平台后缀的基线目录，于是开发机上一次
+  `npm run test:webgl:update` 写出的 PNG 正好落在 CI 读取的路径上——提交上去要么让门禁
+  变红，要么把真实回归悄悄重新基线化。现在 `test:webgl:update` 在 CI 之外直接拒绝运行
+  （`scripts/guard-baseline-update.mjs`），并打印正确的 `gh workflow run` 步骤；调 fixture
+  时可用 `LUXISO_ALLOW_LOCAL_BASELINES=1` 绕过，但会打印警告。同时把 README 与
+  ACCEPTANCE 里「已比对 committed 基线」改为实情：`__screenshots__/` 目前是空的，
+  比对已接线但处于休眠状态，等人跑一次手动 workflow 并提交审核过的 PNG。
+
 
 
 
