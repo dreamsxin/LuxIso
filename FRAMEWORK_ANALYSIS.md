@@ -1,7 +1,7 @@
 # LuxIso 架构分析报告 v5
 
 > 更新日期：2026-09-09
-> 基线：Canvas 2D 默认 + WebGL2 预览，698 个 Vitest 测试 / 59 个测试文件（含 v8 覆盖率阈值），11 个 Playwright WebGL 测试
+> 基线：Canvas 2D 默认 + WebGL2 预览，715 个 Vitest 测试 / 60 个测试文件（含 v8 覆盖率阈值），11 个 Playwright WebGL 测试
 
 ## 执行摘要
 
@@ -374,6 +374,21 @@ const bus = new EventBus<GameEvents>();
   固定步长物理在那一帧完全不推进。另外 `rawDt` 没有下限，时间戳回退会把 `_accumulator`
   推成负数，**接下来好几帧都在还这笔债**（物理停摆）而不只是这一帧不动。
   两处都改成 `null` 哨兵 + [0, 0.1] 钳制，并补了 5 个直接驱动 rAF 回调的测试。
+- ARPG 的关卡/结算切换用到 `SceneTransition`，它是 `src/` 里体量最大的 0% 覆盖模块
+  （89 条语句、文档写得最全），照旧分叉了四处：
+  - `Phase` 联合类型里声明了 `'hold'`，**代码从来没有进入过这个状态**。`playIn` 完成即
+    回到 `idle`，`draw()` 随之停止绘制——于是 `between()` 里 `await onCovered()`
+    加载新场景的那几十帧，屏幕露出的是**旧场景**，加载完再硬切。现在 `in` 完成后转入
+    `hold` 并持续按满覆盖绘制，只有 `out` 才回到 `idle`。
+  - `playIn`/`playOut` 直接覆盖 `_resolve`：在上一次过渡尚未结束时再触发一次，
+    前一个 Promise **永远不会 settle**，`await` 就此挂死。现在开始新过渡前先结算旧的。
+  - `circle-wipe` 的洞是 `maxR * p`，**随覆盖度一起变大**：p=1 时整块画布被擦掉，
+    本该全黑的时刻反而全透明。改为 `maxR * (1 - p)`。
+  - `duration: 0` 时 `elapsed / duration` 是 `0 / 0 = NaN`，`NaN >= 1` 为假，
+    过渡永久挂起且 `progress` 报 NaN；负 duration 同理。现在非正数按「瞬时完成」处理，
+    `raw` 双端钳到 [0, 1]（时钟回拨也不会把进度推成负数）。
+  类注释里的 `await transition.play('fade', 400)` 是双重错误——`play()` 这个方法不存在，
+  第二个参数也是 options 而非毫秒数，照抄必定 TypeError。已改为真实用法。
 
 
 
@@ -402,7 +417,7 @@ const bus = new EventBus<GameEvents>();
 | 类型安全 | 9/10 | ComponentCtor 与 EventMap 覆盖核心扩展面；`tsc` 现已覆盖 examples 与 e2e |
 | 可扩展性 | 9/10 | 加载注册表、自定义事件、WebGL extractor 注册表均已就绪；序列化注册表待补 |
 | 文档质量 | 8/10 | README 与本报告已同步当前实现 |
-| 测试覆盖 | 8/10 | 698 个单测 + 11 个浏览器测试；已接入 v8 覆盖率与分模块阈值（整体 69.9% 语句 / 68.5% 分支），三个 fixture 已按 1.5% 门槛比对基线 |
+| 测试覆盖 | 8/10 | 715 个单测 + 11 个浏览器测试；已接入 v8 覆盖率与分模块阈值（整体 71.3% 语句 / 69.8% 分支），三个 fixture 已按 1.5% 门槛比对基线 |
 | 综合 | 8.3/10 | 架构短板已大幅收敛，下一阶段应由 profiling 驱动 |
 
 测试数量不等于覆盖率。`vitest.config.ts` 现已按模块设定阈值（math/physics/lighting

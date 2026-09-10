@@ -122,7 +122,7 @@ npm run test:webgl # builds, then runs 9 deterministic captures + lifecycle test
 
 | Layer | Command | Scope |
 |---|---|---|
-| Unit | `npm test` | 698 tests across 59 files (Vitest 4) |
+| Unit | `npm test` | 715 tests across 60 files (Vitest 4) |
 | Coverage | `npm run test:coverage` | v8 provider + per-module ratchets |
 | Browser | `npm run test:webgl` | 9 fixture captures + 2 context-lifecycle tests (Chromium/SwiftShader) against the built bundle |
 
@@ -138,9 +138,9 @@ Correctness-critical modules carry their own floors:
 | `src/ecs/**` | 92% | 88% |
 | `src/audio/**` | 78% | 71% |
 | `src/animation/**` | 88% | 80% |
-| `src/core/**` | 76% | 69% |
+| `src/core/**` | 81% | 72% |
 | `src/elements/**` | 57% | 53% |
-| Whole project | 69.8% | 68.4% |
+| Whole project | 71.2% | 69.7% |
 
 Raise a floor when you add tests; never lower one to make a build pass. Test
 count is not coverage — every P0/P1 defect found in the last audit sat in a
@@ -337,7 +337,7 @@ src/
 │   ├── SceneRenderer.ts         # Culling; sorting; shadows; lightmap; object rendering
 │   ├── SceneSerializer.ts       # Built-in scene JSON serialization
 │   ├── SceneManager.ts          # Named scene stack; push/pop/replace/goto; lifecycle hooks
-│   ├── SceneTransition.ts       # Canvas transition effects: fade, slide, circle-wipe; playIn/playOut/between
+│   ├── SceneTransition.ts       # Canvas transition effects: fade, slide, circle-wipe; playIn/playOut/between; stays covered between phases
 │   └── Validator.ts             # validateSceneJson(); validateComponents(); requireComponent()
 ├── elements/
 │   ├── IsoObject.ts             # Abstract base: id, position (IsoVec3), aabb, draw, update
@@ -977,7 +977,7 @@ requireComponent<T>(entity: Entity, ctor: ComponentCtor<T>): T  // throws if mis
 | EventBus event maps | Event names and payload types are coupled; custom maps supported |
 | Scene.toJSON(): runtime state + built-in prop serialization | Environment, camera, view, light IDs/options, collider, built-ins |
 | Lib build: ESM + CJS dual output + .d.ts (npm run build:lib) | |
-| Unit tests: 698 tests across 59 files (Vitest 4, Node ≥ 22) | |
+| Unit tests: 715 tests across 60 files (Vitest 4, Node ≥ 22) | |
 | Coverage ratchets per module (`npm run test:coverage`) | v8 provider; per-glob floors on math/physics/lighting/ecs/animation/elements/audio/core |
 | Examples: 9 progressive demos + tools gallery | |
 
