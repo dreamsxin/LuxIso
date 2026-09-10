@@ -171,6 +171,7 @@
     .bg-07   { background: linear-gradient(135deg, #1a0e04 0%, #3a2008 50%, #1a0a00 100%); }
     .bg-08   { background: linear-gradient(135deg, #0d0503 0%, #2a0a04 50%, #4a1a08 100%); }
     .bg-09   { background: linear-gradient(135deg, #081408 0%, #142814 50%, #0a1e0a 100%); }
+    .bg-10   { background: linear-gradient(135deg, #07090d 0%, #16202c 50%, #2a1420 100%); }
     .bg-main { background: linear-gradient(135deg, #0a0a0f 0%, #141428 100%); }
     .bg-scene-editor  { background: linear-gradient(135deg, #080810 0%, #10102a 50%, #0a0a1a 100%); }
     .bg-sprite-editor { background: linear-gradient(135deg, #080c10 0%, #0c1828 50%, #080c18 100%); }
@@ -311,6 +312,12 @@
           num: '09', emoji: '🏔️', title: 'Slopes & Terrain Height',
           desc: 'HeightMap with per-corner heights, sloped floor rendering with cliff faces, smooth voxel hills, and character Z following terrain via bilinear interpolation.',
           tags: ['HeightMap', 'Slopes', 'Terrain', 'Bilinear'],
+        },
+        {
+          href: '/examples/10-arpg/', bg: 'bg-10', dotsId: 'dots-10',
+          num: '10', emoji: '⚔️', title: 'ARPG Arena',
+          desc: 'WebGL2 上的完整一局：三波小怪 + Boss + 结算。自定义 Entity 通过 SceneExtractor 注册表参与 GL 渲染，HudLayer 由 HudOverlayRenderer 叠在 GL 画布上，键盘与 TouchStick 共用同一条移动轴。',
+          tags: ['WebGL2', 'ECS', 'HUD', 'Touch'],
         },
       ],
     },
