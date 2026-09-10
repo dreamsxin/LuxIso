@@ -94,7 +94,7 @@ npm run test:webgl # builds, then runs 9 deterministic captures + lifecycle test
 
 | Layer | Command | Scope |
 |---|---|---|
-| Unit | `npm test` | 516 tests across 49 files (Vitest 4) |
+| Unit | `npm test` | 535 tests across 50 files (Vitest 4) |
 | Coverage | `npm run test:coverage` | v8 provider + per-module ratchets |
 | Browser | `npm run test:webgl` | 9 fixture captures + 2 context-lifecycle tests (Chromium/SwiftShader) against the built bundle |
 
@@ -110,9 +110,9 @@ Correctness-critical modules carry their own floors:
 | `src/ecs/**` | 82% | 78% |
 | `src/audio/**` | 78% | 71% |
 | `src/animation/**` | 81% | 75% |
-| `src/core/**` | 72% | 60% |
+| `src/core/**` | 74% | 67% |
 | `src/elements/**` | 57% | 53% |
-| Whole project | 66% | 62% |
+| Whole project | 67% | 65% |
 
 Raise a floor when you add tests; never lower one to make a build pass. Test
 count is not coverage — every P0/P1 defect found in the last audit sat in a
@@ -841,9 +841,15 @@ hud.addPanel({ id, x, y, w, h, bgColor?, borderColor?, radius? }): HudPanel
 hud.get<T>(id: string): T | undefined
 hud.remove(id: string): void
 hud.clear(): void
-hud.draw(ctx, canvasW?, canvasH?): void       // call in postFrame; resets transform to screen space
-hud.handleClick(x, y): boolean               // returns true if a button was hit
+hud.draw(ctx, canvasW?, canvasH?): void       // call in postFrame; pins the transform to screen space
+hud.pixelRatio: number | (() => number)      // reset scale for draw(); () => engine.appliedPixelRatio on high-DPI
+hud.update(input, isTaken?): readonly number[]  // frame-driven mouse + touch; fires on release inside
+hud.hitTest(x, y): HudElement | null         // topmost non-label element at the point
+hud.minHitSize: number                       // expand undersized targets (0 = as drawn, 44 = touch guideline)
+hud.resetInput(): void                       // drop in-flight presses, e.g. on scene change
+hud.handleClick(x, y): boolean               // immediate-fire path for a mouse `click`
 hud.handleMove(x, y): void                   // update button hover states
+
 
 // Mutate elements directly after creation:
 const bar = hud.addBar({ id: 'hp', ... });
@@ -937,7 +943,7 @@ requireComponent<T>(entity: Entity, ctor: ComponentCtor<T>): T  // throws if mis
 | EventBus event maps | Event names and payload types are coupled; custom maps supported |
 | Scene.toJSON(): runtime state + built-in prop serialization | Environment, camera, view, light IDs/options, collider, built-ins |
 | Lib build: ESM + CJS dual output + .d.ts (npm run build:lib) | |
-| Unit tests: 516 tests across 49 files (Vitest 4, Node ≥ 22) | |
+| Unit tests: 535 tests across 50 files (Vitest 4, Node ≥ 22) | |
 | Coverage ratchets per module (`npm run test:coverage`) | v8 provider; per-glob floors on math/physics/lighting/ecs/animation/elements/audio/core |
 | Examples: 9 progressive demos + tools gallery | |
 
@@ -948,7 +954,6 @@ See [FRAMEWORK_ANALYSIS.md](FRAMEWORK_ANALYSIS.md) for a detailed comparison wit
 | Priority | Item | Notes |
 |----------|------|-------|
 | P1 | `example-05` sky draw functions (400+ lines) inline in `main.ts` | Split to `environment/*.ts` |
-| P2 | `HudLayer` is desktop-shaped | Only `type: 'button'` is hit-tested, `handleClick` is never auto-wired (the docs suggest a `click` listener, which is the wrong event on touch), `_hovered` sticks after a tap, and default targets are far below 44×44 |
 | P2 | `webgl-next` renders only 12 built-in types | `SceneExtractor._extractObject` is a closed `instanceof` chain; any other `IsoObject` becomes a magenta diagnostic diamond. There is no extractor-registration API and no canvas-to-texture fallback, so every custom class in `examples/` is unrenderable on the WebGL path |
 | P2 | `webgl-next` has no HUD path | `HudLayer` is Canvas-only; the WebGL preview draws UI as DOM overlays (`DomOverlayRenderer`, `MinimapRenderer`). A game on that backend must build its own overlay layer |
 | P2 | The pixel-diff gate has no baselines committed yet | `day-ne` / `low-angle` / `night-lanterns` are wired to compare at 1.5%, but `webgl-next/e2e/__screenshots__/` is empty, so the spec skips the assertion with a `pixel-gate-skipped` annotation. Run the manual `webgl-baselines` workflow, review the PNGs, commit them — that alone arms the gate |

@@ -20,7 +20,7 @@ export type { ClickMoverOptions } from './core/ClickMover';
 export { DebugRenderer } from './core/DebugRenderer';
 export type { DebugRendererOptions } from './core/DebugRenderer';
 export { HudLayer } from './core/HudLayer';
-export type { HudLabel, HudBar, HudButton, HudPanel, LabelOptions, BarOptions, ButtonOptions, PanelOptions } from './core/HudLayer';
+export type { HudLabel, HudBar, HudButton, HudPanel, HudElement, HudInputSource, LabelOptions, BarOptions, ButtonOptions, PanelOptions } from './core/HudLayer';
 export { InputMap } from './core/InputMap';
 export type { AxisSource } from './core/InputMap';
 export { TouchStick } from './core/TouchStick';

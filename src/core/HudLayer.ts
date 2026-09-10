@@ -94,6 +94,19 @@ export interface HudPanel {
 
 export type HudElement = HudLabel | HudBar | HudButton | HudPanel;
 
+/**
+ * The slice of `InputManager` that `HudLayer.update()` reads. Declared
+ * structurally so the HUD does not depend on the input module.
+ */
+export interface HudInputSource {
+  readonly pointer: { x: number; y: number; down: boolean };
+  readonly touches: readonly { id: number; x: number; y: number }[];
+}
+
+/** Reserved contact id for the mouse, which has no `Touch.identifier`. */
+const MOUSE_CONTACT = -1;
+
+
 // ── Option types ───────────────────────────────────────────────────────────
 
 export interface LabelOptions {
@@ -156,6 +169,32 @@ export interface PanelOptions {
 export class HudLayer {
   private _elements: HudElement[] = [];
   private _map = new Map<string, HudElement>();
+
+  /**
+   * Backing-store scale the HUD resets the context to before drawing.
+   *
+   * `draw()` pins the transform so the HUD is always in screen space, but the
+   * identity it used to reset to threw away the base transform
+   * `Engine.resize()` installs for high-DPI output — the HUD then rendered at
+   * `1/ratio` of its intended size. Pass a function to track a ratio that can
+   * change: `hud.pixelRatio = () => engine.appliedPixelRatio`.
+   */
+  pixelRatio: number | (() => number) = 1;
+
+  /**
+   * Minimum hit-target edge in logical pixels, expanded symmetrically around a
+   * smaller element. 0 (the default) keeps hit areas exactly as drawn; 44 is the
+   * usual touch guideline. Leave it at 0 when targets sit close together, or
+   * neighbours will start stealing each other's taps.
+   */
+  minHitSize = 0;
+
+  /** contact id → element it was pressed on. -1 is the mouse. */
+  private _pressedOn = new Map<number, HudElement>();
+  private _lastX = new Map<number, number>();
+  private _lastY = new Map<number, number>();
+
+
 
   // ── Add elements ───────────────────────────────────────────────────────────
 
@@ -254,13 +293,29 @@ export class HudLayer {
   // ── Input handling ─────────────────────────────────────────────────────────
 
   /**
+   * Topmost visible element whose hit box contains the point, or null.
+   *
+   * Later-added elements win, matching the draw order. Labels have no extent so
+   * they never hit; every other kind does, which is what makes inventory slots
+   * and tappable bars possible — only buttons used to be considered at all.
+   */
+  hitTest(x: number, y: number): HudElement | null {
+    for (let i = this._elements.length - 1; i >= 0; i--) {
+      const el = this._elements[i];
+      if (!el.visible || el.type === 'label') continue;
+      if (this._contains(el, x, y)) return el;
+    }
+    return null;
+  }
+
+  /**
    * Call with canvas-space pointer coordinates each frame (or on mousemove)
    * to update button hover states.
    */
   handleMove(x: number, y: number): void {
     for (const el of this._elements) {
       if (el.type === 'button' && el.visible) {
-        el._hovered = x >= el.x && x <= el.x + el.w && y >= el.y && y <= el.y + el.h;
+        el._hovered = this._contains(el, x, y);
       }
     }
   }
@@ -268,18 +323,102 @@ export class HudLayer {
   /**
    * Call with canvas-space click coordinates to trigger button callbacks.
    * Returns true if any button was clicked.
+   *
+   * This is the immediate-fire path for a mouse `click`. On touch prefer
+   * `update()`, which fires on release inside the same button the way a real
+   * button behaves — and does not carry the legacy 300 ms `click` delay.
    */
   handleClick(x: number, y: number): boolean {
-    for (const el of this._elements) {
-      if (el.type === 'button' && el.visible) {
-        if (x >= el.x && x <= el.x + el.w && y >= el.y && y <= el.y + el.h) {
-          el.onClick();
-          return true;
+    const hit = this.hitTest(x, y);
+    if (hit?.type !== 'button') return false;
+    hit.onClick();
+    return true;
+  }
+
+  /**
+   * Frame-driven input for mouse and touch.
+   *
+   * Tracks press and release per contact, so a button fires only when the
+   * finger lifts inside the same button it went down on, and highlights while
+   * held. Nothing here is wired automatically anywhere else: `handleClick` had
+   * to be hooked to a DOM listener by hand, and the documented `click` event is
+   * the wrong one on touch.
+   *
+   * @param isTaken contacts another widget owns — pass
+   *   `id => id === stick.touchId` so the movement stick and the skill buttons
+   *   do not fight over the same finger.
+   * @returns ids of the contacts this layer is currently holding.
+   */
+  update(input: HudInputSource, isTaken?: (id: number) => boolean): readonly number[] {
+    const live = new Set<number>();
+
+    // Touch: one press/release cycle per contact.
+    for (const touch of input.touches) {
+      if (isTaken?.(touch.id)) continue;
+      live.add(touch.id);
+      if (this._pressedOn.has(touch.id)) continue;
+      const hit = this.hitTest(touch.x, touch.y);
+      if (!hit) continue;
+      this._pressedOn.set(touch.id, hit);
+      if (hit.type === 'button') hit._hovered = true;
+    }
+
+    // Mouse shares the mechanism under a reserved id.
+    if (input.pointer.down && input.touches.length === 0) {
+      live.add(MOUSE_CONTACT);
+      if (!this._pressedOn.has(MOUSE_CONTACT)) {
+        const hit = this.hitTest(input.pointer.x, input.pointer.y);
+        if (hit) {
+          this._pressedOn.set(MOUSE_CONTACT, hit);
+          if (hit.type === 'button') hit._hovered = true;
         }
       }
     }
-    return false;
+
+    for (const [id, el] of [...this._pressedOn]) {
+      if (live.has(id)) continue;
+      // Released (or cancelled). Fire only if the contact ended on the element
+      // it started on — dragging off a button must not trigger it.
+      this._pressedOn.delete(id);
+      if (el.type === 'button') el._hovered = false;
+      const releaseX = id === MOUSE_CONTACT ? input.pointer.x : this._lastX.get(id);
+      const releaseY = id === MOUSE_CONTACT ? input.pointer.y : this._lastY.get(id);
+      this._lastX.delete(id);
+      this._lastY.delete(id);
+      if (releaseX === undefined || releaseY === undefined) continue;
+      if (el.type === 'button' && el.visible && this._contains(el, releaseX, releaseY)) {
+        el.onClick();
+      }
+    }
+
+    // Remember where each live contact is, so the release above can be tested
+    // against a position the event itself no longer carries.
+    for (const touch of input.touches) {
+      this._lastX.set(touch.id, touch.x);
+      this._lastY.set(touch.id, touch.y);
+    }
+
+    return [...this._pressedOn.keys()];
   }
+
+  /** Drop any in-flight press state, e.g. when switching scenes. */
+  resetInput(): void {
+    for (const el of this._pressedOn.values()) {
+      if (el.type === 'button') el._hovered = false;
+    }
+    this._pressedOn.clear();
+    this._lastX.clear();
+    this._lastY.clear();
+  }
+
+  private _contains(el: HudElement, x: number, y: number): boolean {
+    if (el.type === 'label') return false;
+    const padX = Math.max(0, (this.minHitSize - el.w) / 2);
+    const padY = Math.max(0, (this.minHitSize - el.h) / 2);
+    return x >= el.x - padX && x <= el.x + el.w + padX
+        && y >= el.y - padY && y <= el.y + el.h + padY;
+  }
+
 
   // ── Draw ───────────────────────────────────────────────────────────────────
 
@@ -289,8 +428,13 @@ export class HudLayer {
    */
   draw(ctx: CanvasRenderingContext2D, _canvasW?: number, _canvasH?: number): void {
     ctx.save();
-    // Reset transform — HUD is always in screen space
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    // Pin to screen space, but at the backing-store scale rather than identity:
+    // resetting to identity would discard the high-DPI base transform and draw
+    // the whole HUD at 1/ratio size in the corner.
+    const ratio = typeof this.pixelRatio === 'function' ? this.pixelRatio() : this.pixelRatio;
+    const safe = ratio > 0 ? ratio : 1;
+    ctx.setTransform(safe, 0, 0, safe, 0, 0);
+
 
     for (const el of this._elements) {
       if (!el.visible) continue;

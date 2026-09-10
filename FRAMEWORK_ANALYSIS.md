@@ -1,7 +1,7 @@
 # LuxIso 架构分析报告 v5
 
 > 更新日期：2026-09-09
-> 基线：Canvas 2D 默认 + WebGL2 预览，516 个 Vitest 测试 / 49 个测试文件（含 v8 覆盖率阈值），11 个 Playwright WebGL 测试
+> 基线：Canvas 2D 默认 + WebGL2 预览，535 个 Vitest 测试 / 50 个测试文件（含 v8 覆盖率阈值），11 个 Playwright WebGL 测试
 
 ## 执行摘要
 
@@ -118,7 +118,6 @@ const bus = new EventBus<GameEvents>();
 | 优先级 | 问题 | 建议 |
 |---|---|---|
 | P1 | example-05 天空绘制函数仍集中在 main.ts | 拆到 environment 模块 |
-| P2 | `HudLayer` 是桌面形状 | 只有 `type: 'button'` 参与命中测试，`handleClick` 从不自动接线（文档建议的 `click` 在触屏是错的事件），`_hovered` 点击后不消失，默认命中区远小于 44×44 |
 | P2 | `webgl-next` 只认 12 个内置类型 | `SceneExtractor._extractObject` 是封闭 `instanceof` 链，其余 `IsoObject` 一律画成洋红诊断菱形；无注册 API、无 canvas-to-texture 兜底，`examples/` 里所有自定义类在 WebGL 路径上都渲染不出来 |
 | P2 | `webgl-next` 没有 HUD 路径 | `HudLayer` 仅 Canvas；WebGL 预览的 UI 走 DOM 覆盖层（`DomOverlayRenderer` / `MinimapRenderer`），基于该后端的游戏必须自建覆盖层 |
 | P1 | 自定义 prop 没有配套 serializer registry | 为注册表增加 serialize 回调或独立注册 API |
@@ -266,6 +265,18 @@ const bus = new EventBus<GameEvents>();
   顺带修掉 `ClickMover` 的一处：它把 `map.axis()` 的结果按向量长度归一化，会把摇杆的
   40% 推程重新放大成满速，等于把模拟摇杆退化为一个开关。改成 `Math.max(1, len)` 截断——
   数字对角本来长度就是 1，键盘行为不变。
+- `HudLayer` 是桌面形状，同时藏着一个我上一次 DPR 改动留下的真实缺陷：`draw()` 为了
+  「HUD 永远在屏幕空间」会 `setTransform(1,0,0,1,0,0)`，这正好把 `Engine.resize()`
+  装上的高 DPI 基础变换抹掉——DPR=2 时整个 HUD 会以一半尺寸画在左上角。现在改为重置到
+  `pixelRatio` 对应的缩放（同样支持传函数，与 `InputManager` 一致的写法）。
+  其余三处：命中测试只认 `type: 'button'`，panel / bar 一律不可点，背包格子无从实现；
+  `handleClick` 从不自动接线，文档建议挂 `click`，而触屏上那是错的事件（有 300ms 延迟
+  且被 `touchstart` 前置）；`_hovered` 在触屏点完不消失，因为触摸不产生「移出」事件。
+  现在 `hitTest()` 覆盖所有有尺寸的元素并返回最上层，新增 `update(input, isTaken?)`
+  做帧驱动的按下/抬起：按下高亮、在同一个按钮上抬起才触发（滑出去不算）、按 contact id
+  逐个跟踪，配合 `TouchStick.touchId` 就不会和摇杆抢手指。`minHitSize` 可把过小的目标
+  对称扩到 44×44（默认 0，保持原行为，因为相邻按钮会互相抢点击）。
+
 
 
 
@@ -289,7 +300,7 @@ const bus = new EventBus<GameEvents>();
 | 类型安全 | 9/10 | ComponentCtor 与 EventMap 覆盖核心扩展面；`tsc` 现已覆盖 examples 与 e2e |
 | 可扩展性 | 8/10 | 加载注册表与自定义事件良好；序列化注册表待补 |
 | 文档质量 | 8/10 | README 与本报告已同步当前实现 |
-| 测试覆盖 | 8/10 | 516 个单测 + 11 个浏览器测试；已接入 v8 覆盖率与分模块阈值（整体 66.8% 语句 / 62.9% 分支），三个 fixture 已按 1.5% 门槛比对基线 |
+| 测试覆盖 | 8/10 | 535 个单测 + 11 个浏览器测试；已接入 v8 覆盖率与分模块阈值（整体 67.4% 语句 / 65.3% 分支），三个 fixture 已按 1.5% 门槛比对基线 |
 | 综合 | 8.3/10 | 架构短板已大幅收敛，下一阶段应由 profiling 驱动 |
 
 测试数量不等于覆盖率。`vitest.config.ts` 现已按模块设定阈值（math/physics/lighting
