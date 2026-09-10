@@ -40,7 +40,7 @@ export default defineConfig({
       thresholds: {
         statements: 68,
         branches: 66,
-        functions: 73,
+        functions: 74,
         lines: 69,
         // Isometric projection, depth sort, colour math — fully unit-testable.
         'src/math/**':     { statements: 90, branches: 88, functions: 92, lines: 92 },

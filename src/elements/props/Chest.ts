@@ -36,6 +36,8 @@ export class Chest extends Entity {
   private _lidOpen   = false;
   private _lidAngle  = 0;    // 0 = closed → 1 = fully open
   private _glowPulse = 0;
+  private _lastTs: number | null = null;
+
 
   constructor(id: string, x: number, y: number, color = '#a05c18') {
     super(id, x, y, 0);
@@ -51,6 +53,19 @@ export class Chest extends Entity {
   close():  void { this._lidOpen = false; }
   toggle(): void { this._lidOpen = !this._lidOpen; }
   get isOpen(): boolean { return this._lidOpen; }
+
+  /** Lid animation progress, 0 = closed → 1 = fully open. */
+  get lidAngle(): number { return this._lidAngle; }
+
+  /**
+   * Lid smoothing per frame **at 60 FPS**, 0–1. Higher snaps faster.
+   *
+   * `update()` converts this to a frame-rate-independent factor the same way
+   * `Camera.lerpFactor` does, so the lid takes the same wall-clock time to open
+   * on a 144 Hz display as on a 60 Hz one.
+   */
+  lidLerpFactor = 0.10;
+
 
   get aabb(): AABB {
     // Chest body is ~tileH*1.1 px tall + lid ~tileH*0.5 px. The constructor
@@ -70,10 +85,32 @@ export class Chest extends Entity {
 
   update(ts?: number): void {
     super.update(ts);
+
+    // Frame-rate-independent lid animation. The old `+= (target - angle) * 0.10`
+    // applied a fixed fraction per frame, so the lid opened 2.4x faster on a
+    // 144 Hz display than at 60 Hz even though `ts` was already being passed in
+    // (it was only used for the glow pulse).
+    const dt = this._frameDelta(ts);
+    const f = Math.max(0, Math.min(1, this.lidLerpFactor));
+    const t = f >= 1 ? 1 : 1 - Math.pow(1 - f, dt * 60);
     const target = this._lidOpen ? 1 : 0;
-    this._lidAngle += (target - this._lidAngle) * 0.10;
+    this._lidAngle += (target - this._lidAngle) * t;
     if (this._lidOpen) this._glowPulse = (ts ?? 0) * 0.003;
   }
+
+  /**
+   * Seconds since the previous update, clamped so a stalled tab cannot slam the
+   * lid open in one step. Returns 0 for the first call — a `null` sentinel
+   * rather than 0, which would collide with a legitimate timestamp of 0.
+   */
+  private _frameDelta(ts?: number): number {
+    if (ts === undefined) return 1 / 60;
+    const previous = this._lastTs;
+    this._lastTs = ts;
+    if (previous === null) return 0;
+    return Math.min(Math.max(0, (ts - previous) / 1000), 0.1);
+  }
+
 
   draw(dc: DrawContext): void {
     const { ctx, tileW, tileH, originX, originY, omniLights } = dc;

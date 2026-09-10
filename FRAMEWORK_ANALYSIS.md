@@ -1,7 +1,7 @@
 # LuxIso 架构分析报告 v5
 
 > 更新日期：2026-09-09
-> 基线：Canvas 2D 默认 + WebGL2 预览，572 个 Vitest 测试 / 52 个测试文件（含 v8 覆盖率阈值），11 个 Playwright WebGL 测试
+> 基线：Canvas 2D 默认 + WebGL2 预览，586 个 Vitest 测试 / 53 个测试文件（含 v8 覆盖率阈值），11 个 Playwright WebGL 测试
 
 ## 执行摘要
 
@@ -299,6 +299,13 @@ const bus = new EventBus<GameEvents>();
   的位置」比较，并把结果缓存进 `_moved`，这样同一帧内多次读 `isMoving` 答案一致。
   同时 `isMoving` 由「有 MovementComponent 就只信它」改为两个信号取或——否则
   example-05 那种「挂了组件但用 ClickMover 驱动」的组合会被组件一票否决。
+- 补测 `Chest`（分支 3.8%→41%）发现盖子开合是第三处帧率依赖的插值：
+  `_lidAngle += (target - _lidAngle) * 0.10` 每帧固定推进一成，144Hz 屏上开盖速度是
+  60Hz 的 2.4 倍——而 `ts` 其实一直传进来了，只被用来算发光脉冲。现在按
+  `Camera.lerpFactor` 同一个公式 `1 - (1 - f)^(dt*60)` 转成帧率无关，60FPS 下手感不变；
+  `lidLerpFactor` 可调并做了 [0,1] 钳制（避免负底数开分数次幂产生 NaN），
+  长帧 dt 截到 100ms，首帧不推进，时间戳回退不推进，另外补了 `lidAngle` 只读访问器。
+
 
 
 
@@ -326,7 +333,7 @@ const bus = new EventBus<GameEvents>();
 | 类型安全 | 9/10 | ComponentCtor 与 EventMap 覆盖核心扩展面；`tsc` 现已覆盖 examples 与 e2e |
 | 可扩展性 | 9/10 | 加载注册表、自定义事件、WebGL extractor 注册表均已就绪；序列化注册表待补 |
 | 文档质量 | 8/10 | README 与本报告已同步当前实现 |
-| 测试覆盖 | 8/10 | 572 个单测 + 11 个浏览器测试；已接入 v8 覆盖率与分模块阈值（整体 68.1% 语句 / 66.3% 分支），三个 fixture 已按 1.5% 门槛比对基线 |
+| 测试覆盖 | 8/10 | 586 个单测 + 11 个浏览器测试；已接入 v8 覆盖率与分模块阈值（整体 68.3% 语句 / 66.6% 分支），三个 fixture 已按 1.5% 门槛比对基线 |
 | 综合 | 8.3/10 | 架构短板已大幅收敛，下一阶段应由 profiling 驱动 |
 
 测试数量不等于覆盖率。`vitest.config.ts` 现已按模块设定阈值（math/physics/lighting
