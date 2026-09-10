@@ -1,7 +1,7 @@
 # LuxIso 架构分析报告 v5
 
 > 更新日期：2026-09-09
-> 基线：Canvas 2D 默认 + WebGL2 预览，656 个 Vitest 测试 / 57 个测试文件（含 v8 覆盖率阈值），11 个 Playwright WebGL 测试
+> 基线：Canvas 2D 默认 + WebGL2 预览，679 个 Vitest 测试 / 58 个测试文件（含 v8 覆盖率阈值），11 个 Playwright WebGL 测试
 
 ## 执行摘要
 
@@ -346,6 +346,20 @@ const bus = new EventBus<GameEvents>();
   README 里写的「circle enter/exit」才是对的。另外 `insideIds` 返回的是会被下一次
   `update()` 交换并清空的实时 Set，这一点原先完全没有说明，现在写进了注释。
   记一笔反例：**「文档完整但零测试必然分叉」这条规律有例外，这里分叉的是文档本身。**
+- 技能冷却与伤害数值这两条 ARPG 主干各查出问题（ecs 分支 87%→87.4%，新增 23 个用例）。
+  `TimerComponent`：
+  - 每帧只判一次 `if (_elapsed >= duration)`，**周期比帧长短时会永久欠账**。50ms 的冷却
+    落在 200ms 的帧上只触发一次而不是四次，`_elapsed` 的余额每帧净增，实际频率被压到帧率。
+    现在按 `while` 补齐（并守住 `duration <= 0` 不进死循环）。
+  - `pause()` 不清 `_lastTs`，暂停十秒再 `start()`，恢复后的第一帧会把被 dt 上限截到的
+    0.5 秒直接计入——暂停偷走了半秒冷却。现在 `pause()` 与 `restart()` 一样重置基准。
+  - `_lastTs === 0` 是第七处哨兵冲突；时间戳回退也不再让计时器倒退。
+  `HealthComponent`：
+  - `takeDamage(负数)` 会**治疗并越过 max**（`heal()` 里的钳制在这条路径上不存在），
+    `heal(负数)` 则会把 hp 打成负数，而 `heal()` 没有死亡分支——`isDead` 变成 true，
+    但 `death` 事件和 `onDeath` 回调都不触发。两侧现在都钳到 0。
+  - `setMax(0)` 会让 `fraction` 变成 Infinity/NaN 且 hp 归零（同样静默地「死亡」），
+    现在非正数直接忽略。
 
 
 
@@ -374,7 +388,7 @@ const bus = new EventBus<GameEvents>();
 | 类型安全 | 9/10 | ComponentCtor 与 EventMap 覆盖核心扩展面；`tsc` 现已覆盖 examples 与 e2e |
 | 可扩展性 | 9/10 | 加载注册表、自定义事件、WebGL extractor 注册表均已就绪；序列化注册表待补 |
 | 文档质量 | 8/10 | README 与本报告已同步当前实现 |
-| 测试覆盖 | 8/10 | 656 个单测 + 11 个浏览器测试；已接入 v8 覆盖率与分模块阈值（整体 69.5% 语句 / 68.2% 分支），三个 fixture 已按 1.5% 门槛比对基线 |
+| 测试覆盖 | 8/10 | 679 个单测 + 11 个浏览器测试；已接入 v8 覆盖率与分模块阈值（整体 69.6% 语句 / 68.3% 分支），三个 fixture 已按 1.5% 门槛比对基线 |
 | 综合 | 8.3/10 | 架构短板已大幅收敛，下一阶段应由 profiling 驱动 |
 
 测试数量不等于覆盖率。`vitest.config.ts` 现已按模块设定阈值（math/physics/lighting

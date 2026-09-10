@@ -79,12 +79,18 @@ export class HealthComponent implements Component {
 
   // ── Mutations ─────────────────────────────────────────────────────────────
 
+  /**
+   * Apply damage. Negative amounts are treated as 0 rather than as healing —
+   * a sign error in a damage formula used to push hp above `max` through this
+   * path, bypassing the clamp `heal()` applies.
+   */
   takeDamage(amount: number, sourceId?: string): void {
     if (this.isDead) return;
-    this._current = Math.max(0, this._current - amount);
+    const damage = Math.max(0, amount);
+    this._current = Math.max(0, this._current - damage);
     // Emit damage event before callbacks so bus listeners see the correct hp.
     this._bus?.emit('damage', {
-      amount,
+      amount: damage,
       targetId: this._owner?.id,
       sourceId,
     });
@@ -95,13 +101,24 @@ export class HealthComponent implements Component {
     }
   }
 
+  /**
+   * Restore hp, clamped to `max`. Negative amounts are treated as 0: this path
+   * has no death handling, so a negative heal used to drive hp below zero with
+   * no `death` event and no `onDeath` callback. Use `takeDamage()` to hurt.
+   */
   heal(amount: number): void {
     if (this.isDead) return;
-    this._current = Math.min(this._max, this._current + amount);
+    this._current = Math.min(this._max, this._current + Math.max(0, amount));
     this._notify();
   }
 
+  /**
+   * Change the maximum hp. A non-positive `max` is ignored: `fraction` would
+   * become Infinity or NaN, and current hp would be forced to 0, leaving the
+   * entity reading as dead without any death event ever firing.
+   */
   setMax(max: number, scaleCurrentHp = false): void {
+    if (!(max > 0)) return;
     const ratio = scaleCurrentHp ? this._current / this._max : 1;
     this._max = max;
     this._current = scaleCurrentHp ? Math.round(max * ratio) : Math.min(this._current, max);

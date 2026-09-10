@@ -122,7 +122,7 @@ npm run test:webgl # builds, then runs 9 deterministic captures + lifecycle test
 
 | Layer | Command | Scope |
 |---|---|---|
-| Unit | `npm test` | 656 tests across 57 files (Vitest 4) |
+| Unit | `npm test` | 679 tests across 58 files (Vitest 4) |
 | Coverage | `npm run test:coverage` | v8 provider + per-module ratchets |
 | Browser | `npm run test:webgl` | 9 fixture captures + 2 context-lifecycle tests (Chromium/SwiftShader) against the built bundle |
 
@@ -135,12 +135,12 @@ Correctness-critical modules carry their own floors:
 | `src/math/**` | 90% | 88% |
 | `src/physics/**` | 90% | 85% |
 | `src/lighting/**` | 90% | 84% |
-| `src/ecs/**` | 88% | 86% |
+| `src/ecs/**` | 89% | 87% |
 | `src/audio/**` | 78% | 71% |
 | `src/animation/**` | 88% | 80% |
 | `src/core/**` | 76% | 69% |
 | `src/elements/**` | 57% | 53% |
-| Whole project | 69.4% | 68.1% |
+| Whole project | 69.6% | 68.2% |
 
 Raise a floor when you add tests; never lower one to make a build pass. Test
 count is not coverage — every P0/P1 defect found in the last audit sat in a
@@ -624,9 +624,9 @@ bus.emit('score', { value: 10 });
 ```ts
 new HealthComponent({ max, current?, onDeath?, onChange? })
 hp.hp: number; hp.maxHp: number; hp.fraction: number; hp.isDead: boolean
-hp.takeDamage(amount): void
-hp.heal(amount): void
-hp.setMax(max, scaleCurrentHp?): void
+hp.takeDamage(amount): void   // negative amounts clamp to 0; they do not heal
+hp.heal(amount): void         // negative amounts clamp to 0; they cannot kill
+hp.setMax(max, scaleCurrentHp?): void   // a non-positive max is ignored
 ```
 
 ### `MovementComponent`
@@ -680,9 +680,12 @@ new TimerComponent({ duration, repeat?, onTick?, onComplete?, autoStart? })
 // duration: seconds; repeat: loop; onTick: fires each cycle; onComplete: fires when non-repeating timer finishes
 timer.start(): void; timer.pause(): void; timer.restart(): void; timer.reset(): void
 // There is no resume(): call start() to un-pause (it keeps the elapsed time).
+// Time spent paused is not credited — the clock re-baselines on the first frame back.
 timer.elapsed: number   // seconds elapsed in current cycle
 timer.fraction: number  // 0–1 progress through current cycle
 timer.isDone: boolean; timer.isRunning: boolean
+// A repeating timer catches up: if one frame spans several periods, onTick
+// fires once per period rather than once per frame.
 ```
 
 ### `TriggerZoneComponent`
@@ -974,7 +977,7 @@ requireComponent<T>(entity: Entity, ctor: ComponentCtor<T>): T  // throws if mis
 | EventBus event maps | Event names and payload types are coupled; custom maps supported |
 | Scene.toJSON(): runtime state + built-in prop serialization | Environment, camera, view, light IDs/options, collider, built-ins |
 | Lib build: ESM + CJS dual output + .d.ts (npm run build:lib) | |
-| Unit tests: 656 tests across 57 files (Vitest 4, Node ≥ 22) | |
+| Unit tests: 679 tests across 58 files (Vitest 4, Node ≥ 22) | |
 | Coverage ratchets per module (`npm run test:coverage`) | v8 provider; per-glob floors on math/physics/lighting/ecs/animation/elements/audio/core |
 | Examples: 9 progressive demos + tools gallery | |
 
