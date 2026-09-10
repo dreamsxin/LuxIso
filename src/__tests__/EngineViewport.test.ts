@@ -263,4 +263,87 @@ describe('Engine — pause while the tab is hidden', () => {
   });
 });
 
+describe('Engine — frame delta', () => {
+  /** Records what the loop hands to the scene, without drawing anything. */
+  class Probe extends Scene {
+    readonly fixedDts: number[] = [];
+    readonly updates: Array<number | undefined> = [];
+    override fixedUpdate(dt: number): void { this.fixedDts.push(dt); }
+    override update(ts?: number): void { this.updates.push(ts); }
+    override draw(): void {}
+  }
+
+  function driver(): { engine: Engine; scene: Probe; frame(ts: number): void } {
+    setDpr(1);
+    const { canvas } = makeCanvas();
+    const engine = new Engine({ canvas });
+    const scene = new Probe();
+    engine.setScene(scene);
+
+    let next: ((ts: number) => void) | null = null;
+    (globalThis as any).requestAnimationFrame = (cb: (ts: number) => void) => { next = cb; return 1; };
+    (globalThis as any).cancelAnimationFrame = vi.fn();
+    engine.start();
+
+    return {
+      engine,
+      scene,
+      frame: (ts: number) => { const cb = next; next = null; cb?.(ts); },
+    };
+  }
+
+  afterEach(() => {
+    delete (globalThis as any).window;
+    delete (globalThis as any).requestAnimationFrame;
+    delete (globalThis as any).cancelAnimationFrame;
+  });
+
+  it('does not step physics on the very first frame', () => {
+    const d = driver();
+    d.frame(1000);
+    expect(d.scene.fixedDts).toEqual([]);
+    expect(d.scene.updates).toEqual([1000]);
+    d.engine.stop();
+  });
+
+  it('does not drop the frame after timestamp 0', () => {
+    const d = driver();
+    d.frame(0);
+    // 100 ms at a 1/60 fixed step owes six physics steps. The old
+    // `_lastTs === 0` sentinel was still armed after a legitimate timestamp of
+    // 0, so this frame produced none.
+    d.frame(100);
+    expect(d.scene.fixedDts.length).toBe(6);
+    d.engine.stop();
+  });
+
+  it('clamps a long stall to 100 ms', () => {
+    const d = driver();
+    d.frame(1000);
+    d.frame(61_000);
+    expect(d.scene.fixedDts.length).toBe(6);
+    d.engine.stop();
+  });
+
+  it('never steps physics backwards', () => {
+    const d = driver();
+    d.frame(1000);
+    d.frame(600);
+    expect(d.scene.fixedDts).toEqual([]);
+    d.engine.stop();
+  });
+
+  it('a backwards timestamp does not stall physics afterwards', () => {
+    const d = driver();
+    d.frame(1000);
+    d.frame(600);
+    // Without the [0, 0.1] clamp the accumulator went to -0.4 s, and the next
+    // several frames were spent paying that debt off instead of stepping.
+    d.frame(700);
+    d.frame(800);
+    expect(d.scene.fixedDts.length).toBe(12);
+    d.engine.stop();
+  });
+});
+
 
