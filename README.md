@@ -122,7 +122,7 @@ npm run test:webgl # builds, then runs 9 deterministic captures + lifecycle test
 
 | Layer | Command | Scope |
 |---|---|---|
-| Unit | `npm test` | 816 tests across 66 files (Vitest 4) |
+| Unit | `npm test` | 857 tests across 68 files (Vitest 4) |
 | Coverage | `npm run test:coverage` | v8 provider + per-module ratchets |
 | Workflows | `npm run lint:workflows` | GitHub Actions YAML: unquoted colons, tab indentation, `run:` expression injection |
 | Browser | `npm run test:webgl` | 9 fixture captures + 2 context-lifecycle tests (Chromium/SwiftShader) against the built bundle |
@@ -417,7 +417,11 @@ examples/
 ├── 06-voxel-lake/               # Voxel wave simulation, seabed decor
 ├── 07-desert-ruins/             # Procedural terrain, interactive props, portals
 ├── 08-volcano/                  # Lava terrain, particle FX, burn damage, click-to-move
-└── 09-slopes/                   # Height-map terrain, bilinear interpolation, smooth voxel hills
+├── 09-slopes/                   # Height-map terrain, bilinear interpolation, smooth voxel hills
+└── 10-arpg/                     # WebGL2 arena: 3 waves + boss + result; custom Entity via SceneExtractor.register, HudLayer over GL, keyboard + TouchStick
+    ├── WaveDirector.ts          # Run structure (phases, waves, boss, result) — no Scene/Engine/DOM, unit-tested
+    ├── Combatant.ts             # Hero / grunt / boss: Entity + HealthComponent + MovementComponent
+    └── CombatantExtractor.ts    # The SceneExtractor registration that makes it renderable on the GL path
 
 public/
 └── scenes/
@@ -1020,7 +1024,7 @@ object is unreachable and both disappear together.
 | EventBus event maps | Event names and payload types are coupled; custom maps supported |
 | Scene.toJSON(): runtime state + built-in prop serialization | Environment, camera, view, light IDs/options, collider, built-ins |
 | Lib build: ESM + CJS dual output + .d.ts (npm run build:lib) | |
-| Unit tests: 816 tests across 66 files (Vitest 4, Node ≥ 22) | |
+| Unit tests: 857 tests across 68 files (Vitest 4, Node ≥ 22) | |
 | Coverage ratchets per module (`npm run test:coverage`) | v8 provider; per-glob floors on math/physics/lighting/ecs/animation/elements/audio/core |
 | Examples: 9 progressive demos + tools gallery | |
 
@@ -1031,7 +1035,7 @@ See [FRAMEWORK_ANALYSIS.md](FRAMEWORK_ANALYSIS.md) for a detailed comparison wit
 | Priority | Item | Notes |
 |----------|------|-------|
 | P1 | `example-05` sky draw functions (400+ lines) inline in `main.ts` | Split to `environment/*.ts` |
-| P2 | `webgl-next` HUD is a stacked 2D canvas, not GL geometry | `HudOverlayRenderer` mounts the tested `HudLayer` on a transparent canvas above the GL one (DPR-aware, `pointer-events: none`). Fine for bars/buttons/labels; a HUD that needs to blend with the 3D scene still wants a GL path |
+| P2 | `webgl-next` HUD is a stacked 2D canvas, not GL geometry | `HudOverlayRenderer` mounts the tested `HudLayer` on a transparent canvas above the GL one (DPR-aware, `pointer-events: none`), and its `paint` hook hosts widgets that draw themselves such as `TouchStick`. Fine for bars/buttons/labels; a HUD that needs to blend with the 3D scene still wants a GL path |
 | P2 | Six of nine WebGL fixtures are not baseline-gated | `day-ne` / `low-angle` / `night-lanterns` compare against committed baselines at 1.5%; extending the set means adding IDs to `PIXEL_GATED_FIXTURES` and regenerating through the `webgl-baselines` workflow |
 | P2 | `src/elements/**` (57% branches 53%) is the lowest-covered module | Mostly canvas draw code; the uncovered branches are painting paths, not logic. `Engine` / `Scene` also need a canvas harness to go much higher |
 | P2 | Custom serialization needs one registration per direction | `Engine.registerProp()` / `registerLight()` load, `SceneSerializer.register()` / `registerLight()` save. Registering only one side is a silent half-round-trip (the save side warns once per type) |

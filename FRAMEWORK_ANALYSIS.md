@@ -483,6 +483,24 @@ const bus = new EventBus<GameEvents>();
   自身扩到 `.github/workflows/**`，并在 `npm ci` 之后跑这道门禁——工作流语法错误从此
   是一次失败的 CI，而不是一条没人看见的 annotation。14 个用例覆盖规则本身，其中一个
   直接断言仓库现有工作流全部通过。
+- 把 ARPG 从"审计镜头"变成真正跑起来的一局（`examples/10-arpg`），暴露的问题和补测
+  暴露的不是一类——都是**集成缝**，单模块测试永远碰不到：
+  - `examples/09-slopes` 从落地起就在 `examples/index.html` 里有链接，却从来没被登记进
+    `vite.config.ts` 的多页 `input`。`npm run dev` 从磁盘解析文件，所以本地一切正常；
+    只有部署出去的站点上那个链接是 404。这类"只在构建产物里存在"的缺陷没有任何测试会
+    发现，**新增示例页必须同时改 `vite.config.ts` 和 gallery**。
+  - `HudLayer` 有 label / bar / button / panel，却没有"自己会画"的控件类型，而
+    `TouchStick` 正是这种。WebGL2 路径上唯一的 2D 画布归 `HudOverlayRenderer` 所有，
+    于是游戏想画摇杆只能绕到它背后 `getContext('2d')` 并自行重推 DPR 变换——正好是
+    上一轮刚修掉的那类错误的温床。现在 `HudOverlayOptions.paint` 在 HUD 之后、
+    save/restore 之内、装好 backing-store 变换的前提下回调，逻辑像素与 HUD 一致。
+  - 一局的结构（三波 → Boss → 结算）写成不碰 Scene / Engine / DOM 的 `WaveDirector`，
+    18 个纯单测就能跑完整局。它自己的第一版也踩了这轮反复出现的时间坑：把中场休息的
+    溢出时间递归喂回 `update(overshoot)`，导致同一帧的时间被计了两次（一帧 5 秒跨过
+    2 秒中场，`elapsed` 报 8 秒）。**溢出只该用来结束倒计时，不该再次累加。**
+  - 自定义 `Entity` 想在 GL 路径上出现，必须走 `SceneExtractor.register`；不注册就是
+    洋红诊断菱形。测试同时钉住注册前后两种结果，避免以后有人"顺手"把注册表去掉。
+
 
 
 
@@ -511,7 +529,7 @@ const bus = new EventBus<GameEvents>();
 | 类型安全 | 9/10 | ComponentCtor 与 EventMap 覆盖核心扩展面；`tsc` 现已覆盖 examples 与 e2e |
 | 可扩展性 | 9/10 | 加载注册表、自定义事件、WebGL extractor 注册表均已就绪；序列化注册表待补 |
 | 文档质量 | 8/10 | README 与本报告已同步当前实现 |
-| 测试覆盖 | 8/10 | 816 个单测 + 11 个浏览器测试；已接入 v8 覆盖率与分模块阈值（整体 77.1% 语句 / 75.0% 分支），三个 fixture 已按 1.5% 门槛比对基线 |
+| 测试覆盖 | 8/10 | 857 个单测 + 11 个浏览器测试；已接入 v8 覆盖率与分模块阈值（整体 77.1% 语句 / 75.0% 分支），三个 fixture 已按 1.5% 门槛比对基线 |
 | 综合 | 8.3/10 | 架构短板已大幅收敛，下一阶段应由 profiling 驱动 |
 
 测试数量不等于覆盖率。`vitest.config.ts` 现已按模块设定阈值（math/physics/lighting
