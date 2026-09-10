@@ -1,7 +1,7 @@
 # LuxIso 架构分析报告 v5
 
 > 更新日期：2026-09-09
-> 基线：Canvas 2D 默认 + WebGL2 预览，599 个 Vitest 测试 / 54 个测试文件（含 v8 覆盖率阈值），11 个 Playwright WebGL 测试
+> 基线：Canvas 2D 默认 + WebGL2 预览，621 个 Vitest 测试 / 55 个测试文件（含 v8 覆盖率阈值），11 个 Playwright WebGL 测试
 
 ## 执行摘要
 
@@ -314,6 +314,21 @@ const bus = new EventBus<GameEvents>();
   倒退）。同一个 `_lastTs === 0` 缺陷这样已经出现四次（`FloatingText`、`Chest`、`Scene`，
   加上 `ClickMover` 的帧率依赖）：**新写的时间累积代码应当一律用 `null` 做首帧哨兵，
   并复用 `Camera` 的 `1 - (1 - f)^(dt*60)` 做平滑。**
+- 以 ARPG 的动作需求（冲刺、击退、怪物寻路）为镜头补测 `MovementComponent`
+  （ecs 分支 78%→83%），发现四处缺陷，其中三处是**穿墙**：
+  - 到达判定分支 `if (dist <= step)` 直接 `pos = target` 赋值，完全绕过碰撞。任何一帧
+    能覆盖剩余距离的移动都会瞬移过去——冲刺速度（speed 30 × 钳制后的 100ms 帧 = 3 格步长）
+    必然触发。现在落地位移同样过碰撞，被挡住就停下而不是穿过去。
+  - `nudge()` 文档写着「with collision resolution」，但 `TileCollider.resolveMove()`
+    只测终点脚印，不测路径。击退这种大位移（ARPG 里最常见的用法）直接跨过一格厚的墙。
+    现在位移超过脚印半径就走 `sweepMove()` 连续检测，短位移仍走 `resolveMove()`
+    以保留贴墙滑行。`_integrate()` 的常规步长共用同一条 `_resolve()`。
+  - 正面撞墙时「放弃」的判断带了 `&& this._waypoints.length > 0`，只有寻路才生效。
+    用 `moveTo()` 直接走向墙的对象会永远保持 `isMoving === true`、永远不触发 `arrival`，
+    并且每帧都在原地发一次 `move` 事件。现在两条路径一致处理。
+  - `_lastTs === 0` 哨兵（第五处）：`update(0)` 之后紧接着的那一帧被整帧丢弃。
+  另外 `followPath([])` 过去会把空数组 `shift()` 出 `undefined` 并保留上一个目标，
+  对象继续走向旧终点；现在空路径等于取消移动。
 
 
 
@@ -342,11 +357,11 @@ const bus = new EventBus<GameEvents>();
 | 类型安全 | 9/10 | ComponentCtor 与 EventMap 覆盖核心扩展面；`tsc` 现已覆盖 examples 与 e2e |
 | 可扩展性 | 9/10 | 加载注册表、自定义事件、WebGL extractor 注册表均已就绪；序列化注册表待补 |
 | 文档质量 | 8/10 | README 与本报告已同步当前实现 |
-| 测试覆盖 | 8/10 | 599 个单测 + 11 个浏览器测试；已接入 v8 覆盖率与分模块阈值（整体 68.7% 语句 / 67.1% 分支），三个 fixture 已按 1.5% 门槛比对基线 |
+| 测试覆盖 | 8/10 | 621 个单测 + 11 个浏览器测试；已接入 v8 覆盖率与分模块阈值（整体 68.9% 语句 / 67.5% 分支），三个 fixture 已按 1.5% 门槛比对基线 |
 | 综合 | 8.3/10 | 架构短板已大幅收敛，下一阶段应由 profiling 驱动 |
 
 测试数量不等于覆盖率。`vitest.config.ts` 现已按模块设定阈值（math/physics/lighting
-90% 语句、ecs 82%、animation 81%、audio 78%、core 76%、elements 57%，整体 68.5%），
+90% 语句、ecs 86%、animation 81%、audio 78%、core 76%、elements 57%，整体 68.9%），
 并在 CI 中作为门禁。阈值一律设在当前值略下方，只能随新测试上调，不允许为了让构建
 通过而下调。
 

@@ -122,7 +122,7 @@ npm run test:webgl # builds, then runs 9 deterministic captures + lifecycle test
 
 | Layer | Command | Scope |
 |---|---|---|
-| Unit | `npm test` | 599 tests across 54 files (Vitest 4) |
+| Unit | `npm test` | 621 tests across 55 files (Vitest 4) |
 | Coverage | `npm run test:coverage` | v8 provider + per-module ratchets |
 | Browser | `npm run test:webgl` | 9 fixture captures + 2 context-lifecycle tests (Chromium/SwiftShader) against the built bundle |
 
@@ -135,12 +135,12 @@ Correctness-critical modules carry their own floors:
 | `src/math/**` | 90% | 88% |
 | `src/physics/**` | 90% | 85% |
 | `src/lighting/**` | 90% | 84% |
-| `src/ecs/**` | 82% | 78% |
+| `src/ecs/**` | 86% | 83% |
 | `src/audio/**` | 78% | 71% |
 | `src/animation/**` | 81% | 75% |
 | `src/core/**` | 76% | 69% |
 | `src/elements/**` | 57% | 53% |
-| Whole project | 68.5% | 67% |
+| Whole project | 68.9% | 67.4% |
 
 Raise a floor when you add tests; never lower one to make a build pass. Test
 count is not coverage — every P0/P1 defect found in the last audit sat in a
@@ -632,13 +632,16 @@ hp.setMax(max, scaleCurrentHp?): void
 ### `MovementComponent`
 
 ```ts
-new MovementComponent({ speed?, collider?, bus? })
+new MovementComponent({ speed?, radius?, collider?, bus? })
 mv.moveTo(x, y, z?): void
 mv.pathTo(x, y, z?): boolean     // A* via attached collider; false = unreachable
-mv.followPath(waypoints, z?): void
+mv.followPath(waypoints, z?): void   // empty array cancels the current move
+mv.nudge(dx, dy): void           // swept when longer than `radius`, so knockback cannot clip a wall
 mv.stopMoving(): void
 mv.isMoving: boolean
-// Emits EventBus: 'move' each frame, 'arrival' on destination reached
+// Emits EventBus: 'move' each frame, 'arrival' on destination reached.
+// With a collider attached, a move that ends up fully blocked stops instead of
+// pushing into the wall: `isMoving` goes false and no 'arrival' is emitted.
 ```
 
 ### `TweenComponent`
@@ -971,7 +974,7 @@ requireComponent<T>(entity: Entity, ctor: ComponentCtor<T>): T  // throws if mis
 | EventBus event maps | Event names and payload types are coupled; custom maps supported |
 | Scene.toJSON(): runtime state + built-in prop serialization | Environment, camera, view, light IDs/options, collider, built-ins |
 | Lib build: ESM + CJS dual output + .d.ts (npm run build:lib) | |
-| Unit tests: 599 tests across 54 files (Vitest 4, Node ≥ 22) | |
+| Unit tests: 621 tests across 55 files (Vitest 4, Node ≥ 22) | |
 | Coverage ratchets per module (`npm run test:coverage`) | v8 provider; per-glob floors on math/physics/lighting/ecs/animation/elements/audio/core |
 | Examples: 9 progressive demos + tools gallery | |
 
