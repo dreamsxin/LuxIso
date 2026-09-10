@@ -38,7 +38,9 @@ export class Character extends Entity {
 
   private _prevX: number;
   private _prevY: number;
+  private _moved = false;
   private _anim: AnimationComponent | null = null;
+
 
   constructor(opts: CharacterOptions) {
     super(opts.id, opts.x, opts.y, opts.z ?? 0);
@@ -83,15 +85,20 @@ export class Character extends Entity {
   }
 
   /**
-   * Returns true if the character moved significantly since the last update.
+   * True if the character is moving this frame.
+   *
+   * Either signal counts: a `MovementComponent` that reports movement, or a
+   * position delta measured across frames. Preferring the component outright
+   * would report "still" for a character driven by `ClickMover` — which mutates
+   * `position` directly, as its documented usage prescribes — whenever an unused
+   * `MovementComponent` happened to be attached.
    */
   get isMoving(): boolean {
     const mv = this.getComponent(MovementComponent);
-    if (mv) return mv.isMoving;
-    
-    // Fallback: check position delta
-    return Math.hypot(this.position.x - this._prevX, this.position.y - this._prevY) > 0.001;
+    if (mv?.isMoving) return true;
+    return this._moved;
   }
+
 
   // ── AABB ──────────────────────────────────────────────────────────────────
 
@@ -115,10 +122,21 @@ export class Character extends Entity {
   // ── Per-frame update ──────────────────────────────────────────────────────
 
   update(ts?: number): void {
+    super.update(ts); // drive components (including MovementComponent)
+
+    // Measure against the position at the end of the *previous* frame.
+    //
+    // This used to snapshot `_prevX/_prevY` before `super.update()`, which made
+    // any movement applied from outside `update()` invisible: the documented
+    // ClickMover flow is `hero.position.x += mover.velX` between frames, so the
+    // snapshot already equalled the new position and the delta was always zero.
+    // A sprite-animated character driven that way never played its walk clip.
+    this._moved = Math.hypot(
+      this.position.x - this._prevX,
+      this.position.y - this._prevY,
+    ) > 0.001;
     this._prevX = this.position.x;
     this._prevY = this.position.y;
-
-    super.update(ts); // drive components (including MovementComponent)
 
     // Drive animation state (walk/idle) based on movement
     if (this._anim) {
@@ -134,6 +152,7 @@ export class Character extends Entity {
       }
     }
   }
+
 
   // ── Draw ──────────────────────────────────────────────────────────────────
 

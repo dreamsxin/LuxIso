@@ -38,8 +38,8 @@ export default defineConfig({
        * reporter, which only counts files sitting directly in the folder.
        */
       thresholds: {
-        statements: 67,
-        branches: 65,
+        statements: 68,
+        branches: 66,
         functions: 73,
         lines: 69,
         // Isometric projection, depth sort, colour math — fully unit-testable.

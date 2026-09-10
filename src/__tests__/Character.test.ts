@@ -2,12 +2,26 @@ import { describe, it, expect } from 'vitest';
 import { Character } from '../elements/Character';
 import { MovementComponent } from '../ecs/components/MovementComponent';
 import { TileCollider } from '../physics/TileCollider';
+import { SpriteSheet } from '../animation/SpriteSheet';
 
 function makeCollider(cols: number, rows: number, blocked: [number, number][] = []): TileCollider {
   const c = new TileCollider(cols, rows);
   for (const [col, row] of blocked) c.setWalkable(col, row, false);
   return c;
 }
+
+function frames(count: number) {
+  return Array.from({ length: count }, (_, i) => ({ x: i * 16, y: 0, w: 16, h: 24 }));
+}
+
+/** Sheet with idle + walk, enough for the state machine in Character.update(). */
+function makeSheet(clips = ['idle', 'walk']): SpriteSheet {
+  return new SpriteSheet({
+    url: '/sprites/hero.png',
+    clips: clips.map(name => ({ name, frames: frames(2), fps: 8 })),
+  });
+}
+
 
 describe('MovementComponent direct movement', () => {
   it('starts moving and arrives at target', () => {
@@ -111,3 +125,110 @@ describe('MovementComponent.followPath()', () => {
     expect(ch.isMoving).toBe(false);
   });
 });
+
+describe('Character — externally driven movement', () => {
+  it('detects position changes applied outside update()', () => {
+    // The documented ClickMover flow: `hero.position.x += mover.velX` between
+    // frames. The previous code snapshotted the position at the top of update(),
+    // so this delta was always measured as zero.
+    const ch = new Character({ id: 'p', x: 1, y: 1 });
+    ch.update(0);
+    expect(ch.isMoving).toBe(false);
+
+    ch.position.x += 0.05;
+    ch.update(16);
+    expect(ch.isMoving).toBe(true);
+  });
+
+  it('goes still again once the external movement stops', () => {
+    const ch = new Character({ id: 'p', x: 1, y: 1 });
+    ch.position.x += 0.05;
+    ch.update(0);
+    ch.update(16);
+    expect(ch.isMoving).toBe(false);
+  });
+
+  it('ignores sub-threshold jitter', () => {
+    const ch = new Character({ id: 'p', x: 1, y: 1 });
+    ch.update(0);
+    ch.position.x += 0.0001;
+    ch.update(16);
+    expect(ch.isMoving).toBe(false);
+  });
+
+  it('keeps the same answer when isMoving is read twice in a frame', () => {
+    const ch = new Character({ id: 'p', x: 1, y: 1 });
+    ch.update(0);
+    ch.position.y += 0.5;
+    ch.update(16);
+    expect(ch.isMoving).toBe(true);
+    expect(ch.isMoving).toBe(true);
+  });
+
+  it('reports movement from an idle MovementComponent plus a direct nudge', () => {
+    // An attached-but-unused component used to veto the position delta, which is
+    // exactly the ClickMover-plus-component combination example-05 sets up.
+    const ch = new Character({ id: 'p', x: 1, y: 1 });
+    ch.addComponent(new MovementComponent({ speed: 4 }));
+    ch.update(0);
+
+    ch.position.x += 0.2;
+    ch.update(16);
+    expect(ch.isMoving).toBe(true);
+  });
+});
+
+describe('Character — animation state machine', () => {
+  it('switches to walk when moved externally and back to idle', () => {
+    const ch = new Character({ id: 'p', x: 1, y: 1, spriteSheet: makeSheet() });
+    ch.update(0);
+    expect(ch.anim!.currentClip.name).toBe('idle');
+
+    ch.position.x += 0.1;
+    ch.update(16);
+    expect(ch.anim!.currentClip.name).toBe('walk');
+
+    ch.update(32);
+    expect(ch.anim!.currentClip.name).toBe('idle');
+  });
+
+  it('stays on walk while movement continues', () => {
+    const ch = new Character({ id: 'p', x: 1, y: 1, spriteSheet: makeSheet() });
+    let ts = 0;
+    for (let i = 0; i < 4; i++) {
+      ch.position.x += 0.1;
+      ch.update(ts += 16);
+    }
+    expect(ch.anim!.currentClip.name).toBe('walk');
+  });
+
+  it('stays put when the sheet has no walk clip', () => {
+    const ch = new Character({ id: 'p', x: 1, y: 1, spriteSheet: makeSheet(['idle']) });
+    ch.position.x += 0.1;
+    ch.update(16);
+    expect(ch.anim!.currentClip.name).toBe('idle');
+  });
+
+  it('playAnimation ignores an unknown clip', () => {
+    const ch = new Character({ id: 'p', x: 1, y: 1, spriteSheet: makeSheet() });
+    ch.playAnimation('cast');
+    expect(ch.anim!.currentClip.name).toBe('idle');
+    ch.playAnimation('walk');
+    expect(ch.anim!.currentClip.name).toBe('walk');
+  });
+
+  it('has no controller without a sprite sheet, and playAnimation is inert', () => {
+    const ch = new Character({ id: 'p', x: 1, y: 1 });
+    expect(ch.anim).toBeNull();
+    expect(() => ch.playAnimation('walk')).not.toThrow();
+  });
+
+  it('setSpriteSheet replaces the previous controller', () => {
+    const ch = new Character({ id: 'p', x: 1, y: 1, spriteSheet: makeSheet() });
+    const first = ch.anim;
+    ch.setSpriteSheet(makeSheet(), 'walk');
+    expect(ch.anim).not.toBe(first);
+    expect(ch.anim!.currentClip.name).toBe('walk');
+  });
+});
+

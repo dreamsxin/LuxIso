@@ -1,7 +1,7 @@
 # LuxIso 架构分析报告 v5
 
 > 更新日期：2026-09-09
-> 基线：Canvas 2D 默认 + WebGL2 预览，561 个 Vitest 测试 / 52 个测试文件（含 v8 覆盖率阈值），11 个 Playwright WebGL 测试
+> 基线：Canvas 2D 默认 + WebGL2 预览，572 个 Vitest 测试 / 52 个测试文件（含 v8 覆盖率阈值），11 个 Playwright WebGL 测试
 
 ## 执行摘要
 
@@ -291,6 +291,15 @@ const bus = new EventBus<GameEvents>();
   「第一帧」，文字永远不升、不淡出、不过期，`Scene` 也就永远不会移除它；改为 `null`。
   首帧 dt 也从凭空的 0.016 改为 0，与 `Engine` / `ClickMover` / `DirectionalAnimator` 一致，
   此前文字在被画出来之前就已经淡掉一帧。
+- 补测 `Character`（分支 46%→85%）发现 `isMoving` 侦测不到「从 `update()` 外部施加的
+  位移」。`update()` 在调 `super.update()` **之前**就把 `_prevX/_prevY` 快照成当前位置，
+  而 `ClickMover` 文档规定的用法正是在帧与帧之间 `hero.position.x += mover.velX`——
+  于是快照永远等于新位置，位移差恒为 0。后果是**用 ClickMover 驱动的带 sprite 角色
+  永远不播 walk 动画**，一直停在 idle。现在改为在 `super.update()` 之后与「上一帧结束时
+  的位置」比较，并把结果缓存进 `_moved`，这样同一帧内多次读 `isMoving` 答案一致。
+  同时 `isMoving` 由「有 MovementComponent 就只信它」改为两个信号取或——否则
+  example-05 那种「挂了组件但用 ClickMover 驱动」的组合会被组件一票否决。
+
 
 
 
@@ -317,7 +326,7 @@ const bus = new EventBus<GameEvents>();
 | 类型安全 | 9/10 | ComponentCtor 与 EventMap 覆盖核心扩展面；`tsc` 现已覆盖 examples 与 e2e |
 | 可扩展性 | 9/10 | 加载注册表、自定义事件、WebGL extractor 注册表均已就绪；序列化注册表待补 |
 | 文档质量 | 8/10 | README 与本报告已同步当前实现 |
-| 测试覆盖 | 8/10 | 561 个单测 + 11 个浏览器测试；已接入 v8 覆盖率与分模块阈值（整体 67.8% 语句 / 65.7% 分支），三个 fixture 已按 1.5% 门槛比对基线 |
+| 测试覆盖 | 8/10 | 572 个单测 + 11 个浏览器测试；已接入 v8 覆盖率与分模块阈值（整体 68.1% 语句 / 66.3% 分支），三个 fixture 已按 1.5% 门槛比对基线 |
 | 综合 | 8.3/10 | 架构短板已大幅收敛，下一阶段应由 profiling 驱动 |
 
 测试数量不等于覆盖率。`vitest.config.ts` 现已按模块设定阈值（math/physics/lighting
