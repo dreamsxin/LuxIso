@@ -270,5 +270,139 @@ describe('AudioManager.spatialVolume', () => {
   });
 });
 
+/** Event-target stub that records listeners so tests can fire them. */
+function listenerBag() {
+  const map = new Map<string, Set<EventListener>>();
+  return {
+    target: {
+      addEventListener(type: string, cb: EventListener) {
+        if (!map.has(type)) map.set(type, new Set());
+        map.get(type)!.add(cb);
+      },
+      removeEventListener(type: string, cb: EventListener) {
+        map.get(type)?.delete(cb);
+      },
+    } as unknown as EventTarget,
+    fire(type: string) {
+      for (const cb of map.get(type) ?? []) cb({ type } as Event);
+    },
+    count(type: string) { return map.get(type)?.size ?? 0; },
+  };
+}
+
+describe('AudioManager — preload without a gesture', () => {
+  it('decodes before resume() is ever called', async () => {
+    // An AudioContext may be constructed without a gesture; it just starts
+    // suspended, and decodeAudioData works there. The old path polled for a
+    // context and rejected after 5 s, so every preload issued at boot failed.
+    const audio = new AudioManager();
+    await audio.preload('/sfx/hit.wav');
+    expect(latest().decodeCalls).toBe(1);
+    audio.dispose();
+  });
+
+  it('reuses the same context for a later resume()', () => {
+    const audio = new AudioManager();
+    void audio.preload('/sfx/hit.wav');
+    audio.resume();
+    expect(contexts.length).toBe(1);
+    audio.dispose();
+  });
+});
+
+describe('AudioManager — page lifecycle binding', () => {
+  it('unlocks on the first gesture and then detaches', () => {
+    const gestures = listenerBag();
+    const audio = new AudioManager();
+    audio.bindPageLifecycle({ target: gestures.target, suspendWhileHidden: false });
+
+    expect(gestures.count('pointerdown')).toBe(1);
+    gestures.fire('pointerdown');
+    expect(contexts.length).toBe(1);
+    // One shot: a resumed context stays resumed.
+    expect(gestures.count('pointerdown')).toBe(0);
+    expect(gestures.count('touchend')).toBe(0);
+    audio.dispose();
+  });
+
+  it('accepts touchend as the unlocking gesture', () => {
+    const gestures = listenerBag();
+    const audio = new AudioManager();
+    audio.bindPageLifecycle({ target: gestures.target, suspendWhileHidden: false });
+    gestures.fire('touchend');
+    expect(contexts.length).toBe(1);
+    audio.dispose();
+  });
+
+  it('suspends while the page is hidden and resumes on return', () => {
+    const docBag = listenerBag();
+    const hidden = { value: false };
+    vi.stubGlobal('document', {
+      addEventListener: (t: string, cb: EventListener) => docBag.target.addEventListener(t, cb),
+      removeEventListener: (t: string, cb: EventListener) => docBag.target.removeEventListener(t, cb),
+      get hidden() { return hidden.value; },
+    });
+
+    const audio = new AudioManager();
+    audio.resume();
+    audio.bindPageLifecycle({ unlockOnGesture: false });
+    expect(latest().state).toBe('running');
+
+    hidden.value = true;
+    docBag.fire('visibilitychange');
+    expect(latest().state).toBe('suspended');
+
+    hidden.value = false;
+    docBag.fire('visibilitychange');
+    expect(latest().state).toBe('running');
+    audio.dispose();
+  });
+
+  it('does nothing on visibility changes before a context exists', () => {
+    const docBag = listenerBag();
+    vi.stubGlobal('document', {
+      addEventListener: (t: string, cb: EventListener) => docBag.target.addEventListener(t, cb),
+      removeEventListener: (t: string, cb: EventListener) => docBag.target.removeEventListener(t, cb),
+      hidden: true,
+    });
+    const audio = new AudioManager();
+    audio.bindPageLifecycle({ unlockOnGesture: false });
+    docBag.fire('visibilitychange');
+    expect(contexts.length).toBe(0);
+    audio.dispose();
+  });
+
+  it('the returned detach removes the gesture listeners', () => {
+    const gestures = listenerBag();
+    const audio = new AudioManager();
+    const detach = audio.bindPageLifecycle({ target: gestures.target, suspendWhileHidden: false });
+    detach();
+    gestures.fire('pointerdown');
+    expect(contexts.length).toBe(0);
+    audio.dispose();
+  });
+
+  it('re-binding replaces the previous binding instead of stacking', () => {
+    const first = listenerBag();
+    const second = listenerBag();
+    const audio = new AudioManager();
+    audio.bindPageLifecycle({ target: first.target, suspendWhileHidden: false });
+    audio.bindPageLifecycle({ target: second.target, suspendWhileHidden: false });
+
+    expect(first.count('pointerdown')).toBe(0);
+    expect(second.count('pointerdown')).toBe(1);
+    audio.dispose();
+  });
+
+  it('dispose() detaches the lifecycle listeners', () => {
+    const gestures = listenerBag();
+    const audio = new AudioManager();
+    audio.bindPageLifecycle({ target: gestures.target, suspendWhileHidden: false });
+    audio.dispose();
+    expect(gestures.count('pointerdown')).toBe(0);
+  });
+});
+
+
 
 

@@ -93,7 +93,7 @@ npm run test:webgl # builds, then runs 9 deterministic captures + lifecycle test
 
 | Layer | Command | Scope |
 |---|---|---|
-| Unit | `npm test` | 474 tests across 48 files (Vitest 4) |
+| Unit | `npm test` | 489 tests across 48 files (Vitest 4) |
 | Coverage | `npm run test:coverage` | v8 provider + per-module ratchets |
 | Browser | `npm run test:webgl` | 9 fixture captures + 2 context-lifecycle tests (Chromium/SwiftShader) against the built bundle |
 
@@ -107,11 +107,11 @@ Correctness-critical modules carry their own floors:
 | `src/physics/**` | 90% | 85% |
 | `src/lighting/**` | 90% | 84% |
 | `src/ecs/**` | 82% | 78% |
-| `src/audio/**` | 67% | 55% |
+| `src/audio/**` | 78% | 71% |
 | `src/animation/**` | 81% | 75% |
-| `src/core/**` | 70% | 58% |
+| `src/core/**` | 70% | 59% |
 | `src/elements/**` | 57% | 53% |
-| Whole project | 65% | 61% |
+| Whole project | 66% | 62% |
 
 Raise a floor when you add tests; never lower one to make a build pass. Test
 count is not coverage — every P0/P1 defect found in the last audit sat in a
@@ -166,10 +166,11 @@ scene.addObject(crystal);
 
 // Spatial audio
 const audio = new AudioManager();
-document.addEventListener('click', () => audio.resume(), { once: true });
+audio.bindPageLifecycle();   // unlock on the first gesture; suspend while hidden
 audio.playSfx('/sfx/hit.ogg', {
   volume: AudioManager.spatialVolume({ x: 3, y: 4, listenerX: 5, listenerY: 5 }),
 });
+
 
 engine.start(
   (ts) => { /* postFrame: HUD, overlays */ },
@@ -410,6 +411,9 @@ engine.buildScene(json: object): Scene          // synchronous, no fetch
 engine.setScene(scene: Scene): void
 engine.start(postFrame?, preFrame?): void       // postFrame runs after draw; preFrame before draw
 engine.stop(): void
+engine.destroy(): void                           // stop + drop the visibility listener
+engine.pauseOnHide: boolean                      // default true
+engine.paused: boolean                           // true while suspended because the tab is hidden
 engine.ctx: CanvasRenderingContext2D
 engine.canvas: HTMLCanvasElement
 ```
@@ -724,7 +728,9 @@ export const MIN_Z_EXTENT_PX = 16;
 
 ```ts
 const audio = new AudioManager()
+audio.bindPageLifecycle({ unlockOnGesture?, suspendWhileHidden?, target? }): () => void
 audio.resume()
+
 audio.masterVolume = 0.8
 audio.sfxVolume = 1
 audio.bgmVolume = 0.6
@@ -893,7 +899,7 @@ requireComponent<T>(entity: Entity, ctor: ComponentCtor<T>): T  // throws if mis
 | EventBus event maps | Event names and payload types are coupled; custom maps supported |
 | Scene.toJSON(): runtime state + built-in prop serialization | Environment, camera, view, light IDs/options, collider, built-ins |
 | Lib build: ESM + CJS dual output + .d.ts (npm run build:lib) | |
-| Unit tests: 474 tests across 48 files (Vitest 4, Node ≥ 22) | |
+| Unit tests: 489 tests across 48 files (Vitest 4, Node ≥ 22) | |
 | Coverage ratchets per module (`npm run test:coverage`) | v8 provider; per-glob floors on math/physics/lighting/ecs/animation/elements/audio/core |
 | Examples: 9 progressive demos + tools gallery | |
 
@@ -903,8 +909,6 @@ See [FRAMEWORK_ANALYSIS.md](FRAMEWORK_ANALYSIS.md) for a detailed comparison wit
 
 | Priority | Item | Notes |
 |----------|------|-------|
-| P1 | Nothing pauses on tab-hide | `Engine` has no `visibilitychange` handling, so backgrounded time is silently dropped (`dt` is clamped to 100 ms per frame) and `AudioManager.suspend()` — which exists — is never called |
-| P1 | Web Audio needs a first-gesture unlock, and nothing wires one | `AudioManager.resume()` is a correct unlock primitive but the framework never binds it. Worse, `_loadBuffer`'s `waitForContext` rejects after 5 s, so preloads fail outright if no gesture happens in that window |
 | P1 | `example-05` sky draw functions (400+ lines) inline in `main.ts` | Split to `environment/*.ts` |
 | P2 | `InputMap.axis()` is discrete ±1 only | An on-screen joystick produces analog magnitudes that the action layer cannot express; a virtual-joystick/on-screen-button widget does not exist either |
 | P2 | `HudLayer` is desktop-shaped | Only `type: 'button'` is hit-tested, `handleClick` is never auto-wired (the docs suggest a `click` listener, which is the wrong event on touch), `_hovered` sticks after a tap, and default targets are far below 44×44 |

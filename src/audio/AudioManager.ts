@@ -55,11 +55,18 @@ export class AudioManager {
   private _sfxVol    = 1;
   private _bgmVol    = 0.6;
 
-  resume(): void {
-    if (this._ctx) {
-      if (this._ctx.state === 'suspended') this._ctx.resume();
-      return;
-    }
+  private _detachLifecycle: (() => void) | null = null;
+
+  /**
+   * Build the AudioContext and mixer graph if they do not exist yet.
+   *
+   * Constructing an `AudioContext` needs no user gesture — it simply starts in
+   * the `suspended` state, and `decodeAudioData` works there. Only starting
+   * playback requires a gesture. That distinction is why preloading no longer
+   * waits for `resume()`.
+   */
+  private _ensureContext(): AudioContext {
+    if (this._ctx) return this._ctx;
     this._ctx = new AudioContext();
     this._masterGain = this._ctx.createGain();
     this._sfxGain    = this._ctx.createGain();
@@ -80,9 +87,79 @@ export class AudioManager {
     } else {
       (l as any).setOrientation(0, -1, -1, 0, 1, 0);
     }
+    return this._ctx;
+  }
+
+  /**
+   * Create the context if needed and take it out of the suspended state.
+   *
+   * Browsers only honour this inside a user-gesture handler — call it from one,
+   * or let `bindPageLifecycle()` do it for you.
+   */
+  resume(): void {
+    const ctx = this._ensureContext();
+    if (ctx.state === 'suspended') void ctx.resume();
   }
 
   suspend(): void { this._ctx?.suspend(); }
+
+  /**
+   * Wire the two things every browser game needs and nothing in this framework
+   * used to do:
+   *
+   * - **Unlock on the first gesture.** Autoplay policy leaves a fresh context
+   *   suspended; the first pointer/touch/key event resumes it, then the
+   *   listeners detach. `pointerdown` and `touchend` are both bound because iOS
+   *   Safari has historically been unreliable about which one counts.
+   * - **Suspend while hidden.** Otherwise music keeps playing over whatever the
+   *   player switched to. `suspend()` existed but had no caller anywhere.
+   *
+   * Returns a detach function; calling `bindPageLifecycle` twice replaces the
+   * previous binding rather than stacking listeners.
+   */
+  bindPageLifecycle(opts: {
+    unlockOnGesture?: boolean;
+    suspendWhileHidden?: boolean;
+    target?: EventTarget;
+  } = {}): () => void {
+    this._detachLifecycle?.();
+    const unlock = opts.unlockOnGesture ?? true;
+    const suspendHidden = opts.suspendWhileHidden ?? true;
+    const target = opts.target ?? (typeof window !== 'undefined' ? window : undefined);
+    const cleanups: Array<() => void> = [];
+
+    if (unlock && target) {
+      const onGesture = (): void => {
+        this.resume();
+        // One shot: a resumed context stays resumed until suspend() or hide.
+        for (const off of gestureOffs) off();
+      };
+      const gestureOffs: Array<() => void> = [];
+      for (const type of ['pointerdown', 'touchend', 'keydown', 'mousedown']) {
+        target.addEventListener(type, onGesture);
+        gestureOffs.push(() => target.removeEventListener(type, onGesture));
+      }
+      cleanups.push(() => { for (const off of gestureOffs) off(); });
+    }
+
+    if (suspendHidden && typeof document !== 'undefined') {
+      const onVisibility = (): void => {
+        if (!this._ctx) return;
+        if (document.hidden) this.suspend();
+        else if (this._ctx.state === 'suspended') void this._ctx.resume();
+      };
+      document.addEventListener('visibilitychange', onVisibility);
+      cleanups.push(() => document.removeEventListener('visibilitychange', onVisibility));
+    }
+
+    const detach = (): void => {
+      for (const off of cleanups) off();
+      if (this._detachLifecycle === detach) this._detachLifecycle = null;
+    };
+    this._detachLifecycle = detach;
+    return detach;
+  }
+
 
   updateListener(x: number, y: number, z = 0): void {
     if (!this._ctx) return;
@@ -198,8 +275,11 @@ export class AudioManager {
     if (inFlight) return inFlight;
     const promise = (async () => {
       try {
-        if (!this._ctx) await waitForContext(() => this._ctx);
-        const ctx = this._ctx!;
+        // Decoding does not need a resumed context, only an existing one — so
+        // preloading no longer depends on the player having tapped yet. The old
+        // path polled for a context and rejected after 5 s, which meant every
+        // preload issued before the first gesture failed outright.
+        const ctx = this._ensureContext();
         const res = await fetch(url);
         if (!res.ok) throw new Error(`AudioManager: failed to fetch "${url}" (${res.status})`);
         const arrayBuffer = await res.arrayBuffer();
@@ -263,6 +343,7 @@ export class AudioManager {
    * afterwards by calling `resume()` again.
    */
   dispose(): void {
+    this._detachLifecycle?.();
     if (this._bgmSource) {
       try { this._bgmSource.stop(); } catch { /* already stopped */ }
       try { this._bgmSource.disconnect(); } catch { /* already detached */ }
@@ -278,14 +359,4 @@ export class AudioManager {
 }
 
 function clamp01(v: number): number { return Math.max(0, Math.min(1, v)); }
-function waitForContext(getter: () => AudioContext | null): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const start = Date.now();
-    const check = () => {
-      if (getter()) { resolve(); return; }
-      if (Date.now() - start > 5000) { reject(new Error('AudioManager: context never initialised')); return; }
-      setTimeout(check, 50);
-    };
-    check();
-  });
-}
+

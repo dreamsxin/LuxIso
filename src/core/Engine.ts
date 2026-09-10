@@ -174,6 +174,15 @@ export class Engine {
   fixedDeltaTime = 1 / 60;
   private _preFrame: ((ts: number) => void) | null = null;
 
+  /**
+   * Suspend the render loop while the document is hidden. Default true.
+   * Set false for a game that must keep simulating in a background tab.
+   */
+  pauseOnHide = true;
+  private _visibilityListener: (() => void) | null = null;
+  private _autoPaused = false;
+
+
   // Logical (CSS pixel) drawing surface. The backing store may be larger by
   // `pixelRatio`; everything the game touches — origins, `Scene.draw` extents,
   // pointer coordinates, HUD hit boxes — is in these units.
@@ -469,23 +478,83 @@ export class Engine {
     this._onFrame = onFrame ?? null;
     this._preFrame = preFrame ?? null;
     this._running = true;
+    this._attachVisibility();
+    this._scheduleLoop();
+  }
+
+  stop(): void {
+    this._running = false;
+    this._autoPaused = false;
+    this._cancelLoop();
+    this._detachVisibility();
+  }
+
+  /** True while the loop is suspended because the tab is hidden. */
+  get paused(): boolean { return this._autoPaused; }
+
+  /**
+   * Stop the loop and drop the visibility listener. Call when discarding the
+   * engine; `start()` can be used again afterwards.
+   */
+  destroy(): void {
+    this.stop();
+  }
+
+  private _scheduleLoop(): void {
+    if (this._rafId !== null) return;
     const loop = (ts: number): void => {
+      this._rafId = null;
       this._tick(ts);
       // A frame callback may have called stop(); without this guard the loop
       // would immediately reschedule itself and become unstoppable.
-      if (!this._running) return;
+      if (!this._running || this._autoPaused) return;
       this._rafId = requestAnimationFrame(loop);
     };
     this._rafId = requestAnimationFrame(loop);
   }
 
-  stop(): void {
-    this._running = false;
-    if (this._rafId !== null) {
-      cancelAnimationFrame(this._rafId);
-      this._rafId = null;
-    }
+  private _cancelLoop(): void {
+    if (this._rafId === null) return;
+    cancelAnimationFrame(this._rafId);
+    this._rafId = null;
   }
+
+  /**
+   * Suspend the loop while the tab is hidden.
+   *
+   * The browser throttles or stops `requestAnimationFrame` in a background tab,
+   * and `_tick` clamps `rawDt` to 100 ms, so the elapsed wall-clock time was
+   * silently discarded: come back after a minute and the game had advanced by
+   * one frame, with no hook to notice. Stopping deliberately and resetting
+   * `_lastTs` on return makes the gap explicit rather than a slow drift.
+   */
+  private _attachVisibility(): void {
+    if (this._visibilityListener || typeof document === 'undefined') return;
+    const onChange = (): void => {
+      if (!this.pauseOnHide) return;
+      if (document.hidden) {
+        if (!this._running || this._autoPaused) return;
+        this._autoPaused = true;
+        this._cancelLoop();
+        return;
+      }
+      if (!this._autoPaused) return;
+      this._autoPaused = false;
+      // Discard the hidden interval instead of integrating it in one lump.
+      this._lastTs = 0;
+      this._accumulator = 0;
+      if (this._running) this._scheduleLoop();
+    };
+    document.addEventListener('visibilitychange', onChange);
+    this._visibilityListener = onChange;
+  }
+
+  private _detachVisibility(): void {
+    if (!this._visibilityListener || typeof document === 'undefined') return;
+    document.removeEventListener('visibilitychange', this._visibilityListener);
+    this._visibilityListener = null;
+  }
+
 
   private _tick(ts: number): void {
     if (!this._scene) return;

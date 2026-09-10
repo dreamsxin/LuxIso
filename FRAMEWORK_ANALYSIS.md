@@ -1,7 +1,7 @@
 # LuxIso 架构分析报告 v5
 
 > 更新日期：2026-09-09
-> 基线：Canvas 2D 默认 + WebGL2 预览，474 个 Vitest 测试 / 48 个测试文件（含 v8 覆盖率阈值），11 个 Playwright WebGL 测试
+> 基线：Canvas 2D 默认 + WebGL2 预览，489 个 Vitest 测试 / 48 个测试文件（含 v8 覆盖率阈值），11 个 Playwright WebGL 测试
 
 ## 执行摘要
 
@@ -117,8 +117,6 @@ const bus = new EventBus<GameEvents>();
 
 | 优先级 | 问题 | 建议 |
 |---|---|---|
-| P1 | 切后台无暂停 | `Engine` 无 `visibilitychange`，后台时间被静默丢弃（`dt` 每帧截到 100ms），且 `AudioManager.suspend()` 存在但从无调用者 |
-| P1 | Web Audio 首次手势解锁未接线 | `AudioManager.resume()` 本身正确，但框架从不绑定任何手势；`_loadBuffer` 的 `waitForContext` 5 秒超时，开局无手势则预加载直接 reject |
 | P1 | example-05 天空绘制函数仍集中在 main.ts | 拆到 environment 模块 |
 | P2 | `InputMap.axis()` 只有离散 ±1 | 屏幕摇杆输出模拟量，action 层表达不了；虚拟摇杆/屏幕按键控件也不存在 |
 | P2 | `HudLayer` 是桌面形状 | 只有 `type: 'button'` 参与命中测试，`handleClick` 从不自动接线（文档建议的 `click` 在触屏是错的事件），`_hovered` 点击后不消失，默认命中区远小于 44×44 |
@@ -245,6 +243,21 @@ const bus = new EventBus<GameEvents>();
   不变，直到显式调用 `resize()` 才切换。配套给 `InputManager` 加了 `pixelRatio` 选项
   （可传函数，跨屏拖窗口时能跟着变）：否则指针会以 backing 像素上报，而 HUD 的命中
   框是逻辑像素，两边永远对不上。
+- 页面生命周期。`Engine` 没有任何 `visibilitychange` 处理：浏览器在后台标签页里节流或
+  停掉 rAF，而 `_tick` 把 `rawDt` 截到 100ms，于是后台经过的真实时间被静默丢弃——切走
+  一分钟回来，游戏只前进了一帧，且没有任何钩子能察觉。现在 `start()` 挂上监听，隐藏时
+  取消 rAF 并置 `paused`，回来时清 `_lastTs` / `_accumulator` 再续跑，把这段空档变成
+  显式的暂停而不是缓慢漂移；`stop()` / `destroy()` 负责摘掉监听，不留泄漏。
+- 音频解锁。`AudioManager.resume()` 一直是个正确的解锁原语，但框架从不绑定任何手势，
+  README 里那句 `document.addEventListener('click', ...)` 是唯一的说明。更糟的是
+  `_loadBuffer` 会轮询等待 context 出现并在 5 秒后 reject——**开局预加载的音频只要在
+  首次手势之前发起就必然失败**。根因是把「构造 AudioContext」和「resume」混为一谈：
+  构造不需要手势，只是初始状态为 suspended，而 `decodeAudioData` 在 suspended 上照样
+  工作。现在拆出 `_ensureContext()`，`waitForContext` 连同那个 5 秒超时一起删除；
+  新增 `bindPageLifecycle()` 一次性接好两件事：首次 pointerdown/touchend/keydown/mousedown
+  解锁后自摘监听（iOS Safari 对哪个事件算手势历来不稳，所以全绑），以及隐藏时
+  `suspend()`、回来时 resume——`suspend()` 此前在整个仓库中没有任何调用者。
+
 
 
 
@@ -266,11 +279,11 @@ const bus = new EventBus<GameEvents>();
 | 类型安全 | 9/10 | ComponentCtor 与 EventMap 覆盖核心扩展面；`tsc` 现已覆盖 examples 与 e2e |
 | 可扩展性 | 8/10 | 加载注册表与自定义事件良好；序列化注册表待补 |
 | 文档质量 | 8/10 | README 与本报告已同步当前实现 |
-| 测试覆盖 | 8/10 | 474 个单测 + 11 个浏览器测试；已接入 v8 覆盖率与分模块阈值（整体 65.7% 语句 / 61.8% 分支），三个 fixture 已按 1.5% 门槛比对基线 |
+| 测试覆盖 | 8/10 | 489 个单测 + 11 个浏览器测试；已接入 v8 覆盖率与分模块阈值（整体 66.3% 语句 / 62.5% 分支），三个 fixture 已按 1.5% 门槛比对基线 |
 | 综合 | 8.3/10 | 架构短板已大幅收敛，下一阶段应由 profiling 驱动 |
 
 测试数量不等于覆盖率。`vitest.config.ts` 现已按模块设定阈值（math/physics/lighting
-90% 语句、ecs 82%、animation 81%、audio 67%、core 70%、elements 57%，整体 65%），
+90% 语句、ecs 82%、animation 81%、audio 78%、core 70%、elements 57%，整体 66%），
 并在 CI 中作为门禁。阈值一律设在当前值略下方，只能随新测试上调，不允许为了让构建
 通过而下调。
 

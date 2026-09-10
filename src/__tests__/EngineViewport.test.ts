@@ -161,3 +161,106 @@ describe('Engine — logical size and pixel ratio', () => {
   });
 });
 
+describe('Engine — pause while the tab is hidden', () => {
+  interface Harness {
+    engine: Engine;
+    frames: Array<(ts: number) => void>;
+    cancelled: number[];
+    hide(): void;
+    show(): void;
+  }
+
+  function harness(): Harness {
+    setDpr(1);
+    const { canvas } = makeCanvas();
+    const listeners = new Set<EventListener>();
+    const state = { hidden: false };
+    (globalThis as any).document = {
+      addEventListener: (t: string, cb: EventListener) => { if (t === 'visibilitychange') listeners.add(cb); },
+      removeEventListener: (t: string, cb: EventListener) => { if (t === 'visibilitychange') listeners.delete(cb); },
+      get hidden() { return state.hidden; },
+    };
+
+    const frames: Array<(ts: number) => void> = [];
+    const cancelled: number[] = [];
+    (globalThis as any).requestAnimationFrame = (cb: (ts: number) => void) => {
+      frames.push(cb);
+      return frames.length;
+    };
+    (globalThis as any).cancelAnimationFrame = (id: number) => { cancelled.push(id); };
+
+    const engine = new Engine({ canvas });
+    engine.setScene(new Scene());
+    const fire = (): void => { for (const cb of [...listeners]) cb({ type: 'visibilitychange' } as Event); };
+    return {
+      engine, frames, cancelled,
+      hide: () => { state.hidden = true; fire(); },
+      show: () => { state.hidden = false; fire(); },
+    };
+  }
+
+  afterEach(() => {
+    delete (globalThis as any).document;
+    delete (globalThis as any).window;
+  });
+
+  it('cancels the loop when the page hides and resumes when it returns', () => {
+    const h = harness();
+    h.engine.start();
+    expect(h.engine.paused).toBe(false);
+    const scheduled = h.frames.length;
+
+    h.hide();
+    expect(h.engine.paused).toBe(true);
+    expect(h.cancelled.length).toBe(1);
+    expect(h.frames.length).toBe(scheduled);
+
+    h.show();
+    expect(h.engine.paused).toBe(false);
+    expect(h.frames.length).toBe(scheduled + 1);
+  });
+
+  it('ignores repeated hide events', () => {
+    const h = harness();
+    h.engine.start();
+    h.hide();
+    h.hide();
+    expect(h.cancelled.length).toBe(1);
+  });
+
+  it('does nothing when the loop was never started', () => {
+    const h = harness();
+    h.hide();
+    expect(h.engine.paused).toBe(false);
+    expect(h.cancelled.length).toBe(0);
+  });
+
+  it('keeps running when pauseOnHide is off', () => {
+    const h = harness();
+    h.engine.pauseOnHide = false;
+    h.engine.start();
+    h.hide();
+    expect(h.engine.paused).toBe(false);
+    expect(h.cancelled.length).toBe(0);
+  });
+
+  it('stop() detaches the listener so a later hide is inert', () => {
+    const h = harness();
+    h.engine.start();
+    h.engine.stop();
+    const cancelledAfterStop = h.cancelled.length;
+    h.hide();
+    expect(h.engine.paused).toBe(false);
+    expect(h.cancelled.length).toBe(cancelledAfterStop);
+  });
+
+  it('destroy() stops the loop', () => {
+    const h = harness();
+    h.engine.start();
+    h.engine.destroy();
+    h.hide();
+    expect(h.engine.paused).toBe(false);
+  });
+});
+
+
