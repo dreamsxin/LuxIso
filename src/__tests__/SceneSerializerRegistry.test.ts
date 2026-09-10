@@ -5,6 +5,8 @@ import { SceneSerializer } from '../core/SceneSerializer';
 import { Entity } from '../ecs/Entity';
 import { Chest } from '../elements/props/Chest';
 import { HealthComponent } from '../ecs/components/HealthComponent';
+import { BaseLight } from '../lighting/BaseLight';
+import { OmniLight } from '../lighting/OmniLight';
 import type { AABB } from '../math/depthSort';
 import type { DrawContext } from '../elements/IsoObject';
 
@@ -40,8 +42,20 @@ function canvas(): HTMLCanvasElement {
   return { width: 1, height: 1, getContext: () => ({}) } as unknown as HTMLCanvasElement;
 }
 
+/** A light type the engine knows nothing about — a boss aura, say. */
+class AuraLight extends BaseLight {
+  readonly type = 'aura';
+  constructor(color = '#ffffff', intensity = 1, public radius = 64) {
+    super(color, intensity);
+  }
+}
+
 function props(scene: Scene): Array<Record<string, unknown>> {
   return (scene.toJSON() as { props: Array<Record<string, unknown>> }).props;
+}
+
+function lights(scene: Scene): Array<Record<string, unknown>> {
+  return (scene.toJSON() as { lights: Array<Record<string, unknown>> }).lights;
 }
 
 let warn: ReturnType<typeof vi.spyOn>;
@@ -56,6 +70,7 @@ afterEach(() => {
   Engine.unregisterProp('mob');
   Engine.unregisterProp('boss');
   Engine.unregisterProp('portal');
+  Engine.unregisterLight('aura');
   warn.mockRestore();
 });
 
@@ -186,6 +201,101 @@ describe('SceneSerializer — built-ins keep priority', () => {
 
     expect(props(scene)).toEqual([]);
     expect(warn).not.toHaveBeenCalled();
+  });
+});
+
+describe('SceneSerializer — custom light registry', () => {
+  it('writes a registered custom light into lights[]', () => {
+    SceneSerializer.registerLight(AuraLight, (light) => ({ radius: light.radius }));
+
+    const scene = new Scene({ cols: 8, rows: 8 });
+    const aura = new AuraLight('#ff8844', 0.8, 120);
+    aura.id = 'boss-aura';
+    scene.addLight(aura);
+
+    expect(lights(scene)).toEqual([
+      { type: 'aura', id: 'boss-aura', enabled: true, color: '#ff8844', intensity: 0.8, radius: 120 },
+    ]);
+  });
+
+  it('defaults type to the light\'s own discriminator and carries enabled', () => {
+    SceneSerializer.registerLight(AuraLight, () => ({}));
+
+    const scene = new Scene({ cols: 8, rows: 8 });
+    const aura = new AuraLight();
+    aura.enabled = false;
+    scene.addLight(aura);
+
+    expect(lights(scene)).toEqual([
+      { type: 'aura', enabled: false, color: '#ffffff', intensity: 1 },
+    ]);
+  });
+
+  it('drops an unregistered light type, warning once', () => {
+    const scene = new Scene({ cols: 8, rows: 8 });
+    scene.addLight(new AuraLight());
+    scene.addLight(new AuraLight());
+
+    expect(lights(scene)).toEqual([]);
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(String(warn.mock.calls[0][0])).toContain('AuraLight');
+  });
+
+  it('leaves the built-in lights to their own branches', () => {
+    const serialize = vi.fn(() => ({}));
+    SceneSerializer.registerLight(OmniLight, serialize);
+
+    const scene = new Scene({ cols: 8, rows: 8 });
+    scene.addLight(new OmniLight({ id: 'torch', x: 1, y: 2, z: 0, radius: 200 }));
+
+    expect(lights(scene).length).toBe(1);
+    expect(lights(scene)[0]).toMatchObject({ type: 'omni', id: 'torch', radius: 200 });
+    expect(serialize).not.toHaveBeenCalled();
+  });
+
+  it('a throwing light serializer costs one light', () => {
+    SceneSerializer.registerLight(AuraLight, (light) => {
+      if (light.id === 'bad') throw new Error('boom');
+      return {};
+    });
+    const scene = new Scene({ cols: 8, rows: 8 });
+    const bad = new AuraLight(); bad.id = 'bad';
+    const good = new AuraLight(); good.id = 'good';
+    scene.addLight(bad);
+    scene.addLight(good);
+
+    expect(lights(scene)).toEqual([
+      { type: 'aura', id: 'good', enabled: true, color: '#ffffff', intensity: 1 },
+    ]);
+  });
+
+  it('unregisterLight and clearSerializers take effect', () => {
+    SceneSerializer.registerLight(AuraLight, () => ({}));
+    expect(SceneSerializer.findLightSerializer(new AuraLight())).not.toBeNull();
+    expect(SceneSerializer.unregisterLight(AuraLight)).toBe(true);
+    expect(SceneSerializer.unregisterLight(AuraLight)).toBe(false);
+
+    SceneSerializer.registerLight(AuraLight, () => ({}));
+    SceneSerializer.clearSerializers();
+    expect(SceneSerializer.findLightSerializer(new AuraLight())).toBeNull();
+  });
+
+  it('a custom light survives toJSON -> buildScene', () => {
+    Engine.registerLight('aura', (j) => new AuraLight(j.color, j.intensity, j.radius));
+    SceneSerializer.registerLight(AuraLight, (light) => ({ radius: light.radius }));
+
+    const original = new Scene({ cols: 8, rows: 8 });
+    const aura = new AuraLight('#ff8844', 0.5, 90);
+    aura.id = 'boss-aura';
+    original.addLight(aura);
+
+    const restored = new Engine({ canvas: canvas() }).buildScene(original.toJSON());
+    const auras = restored.allLights.filter((l): l is AuraLight => l instanceof AuraLight);
+
+    expect(auras.length).toBe(1);
+    expect(auras[0].id).toBe('boss-aura');
+    expect(auras[0].radius).toBe(90);
+    expect(auras[0].color).toBe('#ff8844');
   });
 });
 

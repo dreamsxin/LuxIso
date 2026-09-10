@@ -1,7 +1,7 @@
 # LuxIso 架构分析报告 v5
 
 > 更新日期：2026-09-09
-> 基线：Canvas 2D 默认 + WebGL2 预览，789 个 Vitest 测试 / 65 个测试文件（含 v8 覆盖率阈值），11 个 Playwright WebGL 测试
+> 基线：Canvas 2D 默认 + WebGL2 预览，796 个 Vitest 测试 / 65 个测试文件（含 v8 覆盖率阈值），11 个 Playwright WebGL 测试
 
 ## 执行摘要
 
@@ -101,7 +101,7 @@ const bus = new EventBus<GameEvents>();
 - Floor、Wall、Character、Cloud、Crystal、Boulder、Chest
 - Health 最大值与 TileCollider walkable 网格
 
-自定义 prop/light 可通过 Engine 注册表反序列化；`SceneSerializer.register()` 现在补上了序列化方向（详见下方审计条目），自定义 light 的序列化仍待补。
+自定义 prop/light 可通过 Engine 注册表反序列化；`SceneSerializer.register()` / `registerLight()` 补上了序列化方向（详见下方审计条目），两个方向各注册一次即完成往返。
 
 ### 深度排序
 
@@ -435,7 +435,13 @@ const bus = new EventBus<GameEvents>();
   返回的条目缺 `type`（读不回来）则丢弃并告警；完全没有 serializer 的类型按构造函数名
   只告警一次——与 `Engine` 加载时对未知 prop type 的告警对称。
   `FloatingText` / `ParticleSystem` 是设计上的运行时对象，明确排除在告警之外。
-  自定义 **light** 的序列化仍未覆盖，已如实记进 README 路线图。
+  灯光侧是同一个缺陷的第二份：`toJSON` 只写 `OmniLight` / `DirectionalLight`，
+  用 `Engine.registerLight()` 加载的自定义灯（BOSS 光环之类）同样保存时消失。
+  `SceneSerializer.registerLight()` 补齐，并利用 `BaseLight` 已有的 `type` 字段
+  （恰好就是 `Engine.registerLight()` 的 key）做默认值，所以 serializer 通常只写额外字段。
+  写这条测试时抓到自己的一个设计陷阱：最初只默认填 `type` / `id` / `enabled`，
+  于是往返回来的灯是白色的——`color` / `intensity` 明明是 `BaseLight` 的公共字段，
+  却要每个 serializer 作者自己记得写。现在这两项也按内置分支的写法一并默认输出。
 - `webgl-baselines` 工作流曾连续几个提交无法被 dispatch，根因是一行不合法的 YAML
   （`- run: echo "Reason: ${{ inputs.reason }}"`——纯量里不能出现 `: `）。真正的问题不是
   那一行，而是**仓库里没有任何东西检查工作流语法**：GitHub 只把它写成某次 run 上的
@@ -475,7 +481,7 @@ const bus = new EventBus<GameEvents>();
 | 类型安全 | 9/10 | ComponentCtor 与 EventMap 覆盖核心扩展面；`tsc` 现已覆盖 examples 与 e2e |
 | 可扩展性 | 9/10 | 加载注册表、自定义事件、WebGL extractor 注册表均已就绪；序列化注册表待补 |
 | 文档质量 | 8/10 | README 与本报告已同步当前实现 |
-| 测试覆盖 | 8/10 | 789 个单测 + 11 个浏览器测试；已接入 v8 覆盖率与分模块阈值（整体 76.6% 语句 / 74.1% 分支），三个 fixture 已按 1.5% 门槛比对基线 |
+| 测试覆盖 | 8/10 | 796 个单测 + 11 个浏览器测试；已接入 v8 覆盖率与分模块阈值（整体 76.7% 语句 / 74.1% 分支），三个 fixture 已按 1.5% 门槛比对基线 |
 | 综合 | 8.3/10 | 架构短板已大幅收敛，下一阶段应由 profiling 驱动 |
 
 测试数量不等于覆盖率。`vitest.config.ts` 现已按模块设定阈值（math/physics/lighting

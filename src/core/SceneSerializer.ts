@@ -11,6 +11,7 @@ import { FlowerPatch } from '../elements/props/FlowerPatch';
 import { Lantern } from '../elements/props/Lantern';
 import { OmniLight } from '../lighting/OmniLight';
 import { DirectionalLight } from '../lighting/DirectionalLight';
+import type { BaseLight } from '../lighting/BaseLight';
 import { HealthComponent } from '../ecs/components/HealthComponent';
 import { FloatingText } from '../elements/props/FloatingText';
 import { ParticleSystem } from '../animation/ParticleSystem';
@@ -29,6 +30,20 @@ export type IsoObjectCtor = abstract new (...args: never[]) => IsoObject;
  */
 export type PropSerializer<T extends IsoObject = IsoObject> =
   (object: T) => Record<string, unknown> | null | undefined;
+
+/** Constructor of a light, abstract classes included. */
+export type BaseLightCtor = abstract new (...args: never[]) => BaseLight;
+
+/**
+ * Turns a custom light into a `lights[]` entry.
+ *
+ * `type` defaults to the light's own `type` field — the same string
+ * `Engine.registerLight()` is keyed by — and `id` / `enabled` are filled in from
+ * the instance, so a serializer usually only lists its extra fields. Return
+ * `null` to skip the light deliberately.
+ */
+export type LightSerializer<T extends BaseLight = BaseLight> =
+  (light: T) => Record<string, unknown> | null | undefined;
 
 /** Built-in object types `toJSON` already knows how to write. */
 const BUILT_IN_TYPES: readonly IsoObjectCtor[] = [
@@ -52,6 +67,18 @@ export class SceneSerializer {
   private static _serializers: Array<{
     ctor: IsoObjectCtor;
     serialize: PropSerializer<never>;
+  }> = [];
+
+  /**
+   * Custom light serializers, in registration order.
+   *
+   * Same gap as `_serializers`, other collection: `toJSON` wrote only
+   * `OmniLight` and `DirectionalLight`, so a light type loaded through
+   * `Engine.registerLight()` disappeared on save.
+   */
+  private static _lightSerializers: Array<{
+    ctor: BaseLightCtor;
+    serialize: LightSerializer<never>;
   }> = [];
 
   /** Constructor names already reported as unserializable, to warn once each. */
@@ -86,10 +113,48 @@ export class SceneSerializer {
     return SceneSerializer._serializers.length !== before;
   }
 
-  /** Drop all custom serializers. Useful between tests. */
+  /** Drop all custom serializers, props and lights alike. Useful between tests. */
   static clearSerializers(): void {
     SceneSerializer._serializers = [];
+    SceneSerializer._lightSerializers = [];
     SceneSerializer._reported.clear();
+  }
+
+  /**
+   * Register a serializer for a custom light type.
+   *
+   * Mirrors `register()`: later registrations win, and the two built-ins
+   * (`OmniLight`, `DirectionalLight`) are matched first.
+   *
+   * @example
+   *   Engine.registerLight('aura', (j) => new AuraLight({ ...j }));
+   *   SceneSerializer.registerLight(AuraLight, (l) => ({ radius: l.radius }));
+   */
+  static registerLight<T extends BaseLight>(
+    ctor: abstract new (...args: never[]) => T,
+    serialize: LightSerializer<T>,
+  ): void {
+    SceneSerializer._lightSerializers.push({
+      ctor,
+      serialize: serialize as LightSerializer<never>,
+    });
+  }
+
+  /** Remove every light serializer registered for `ctor`. */
+  static unregisterLight(ctor: BaseLightCtor): boolean {
+    const before = SceneSerializer._lightSerializers.length;
+    SceneSerializer._lightSerializers =
+      SceneSerializer._lightSerializers.filter((e) => e.ctor !== ctor);
+    return SceneSerializer._lightSerializers.length !== before;
+  }
+
+  /** The light serializer that would run for `light`, or null. */
+  static findLightSerializer(light: BaseLight): LightSerializer<never> | null {
+    for (let i = SceneSerializer._lightSerializers.length - 1; i >= 0; i--) {
+      const entry = SceneSerializer._lightSerializers[i];
+      if (light instanceof (entry.ctor as unknown as new () => BaseLight)) return entry.serialize;
+    }
+    return null;
   }
 
   /** The serializer that would run for `object`, or null. */
@@ -187,6 +252,7 @@ export class SceneSerializer {
           color: light.color,
           intensity: light.intensity,
         })),
+        ...SceneSerializer._customLights(scene.allLights),
       ],
 
       characters: characters.map((character) => ({
@@ -286,6 +352,63 @@ export class SceneSerializer {
 
   private static _isA(object: IsoObject, ctor: IsoObjectCtor): boolean {
     return object instanceof (ctor as unknown as new () => IsoObject);
+  }
+
+  /** Entries for lights neither built-in branch covers. */
+  private static _customLights(
+    lights: readonly BaseLight[],
+  ): Array<Record<string, unknown>> {
+    const entries: Array<Record<string, unknown>> = [];
+    for (const light of lights) {
+      if (light instanceof OmniLight || light instanceof DirectionalLight) continue;
+      const name = light.constructor?.name ?? 'anonymous';
+      const serialize = SceneSerializer.findLightSerializer(light);
+      if (!serialize) {
+        SceneSerializer._reportOnce(
+          name,
+          `SceneSerializer: no serializer for light "${name}"; it will not be saved. ` +
+          'Register one with SceneSerializer.registerLight().',
+        );
+        continue;
+      }
+
+      let entry: Record<string, unknown> | null | undefined;
+      try {
+        entry = (serialize as LightSerializer)(light);
+      } catch (error) {
+        SceneSerializer._reportOnce(
+          name,
+          `SceneSerializer: light serializer for "${name}" threw; skipping it. ${String(error)}`,
+        );
+        continue;
+      }
+      if (!entry) continue;
+
+      // `type` defaults to the light's own discriminator, which is the key
+      // `Engine.registerLight()` uses, and `color` / `intensity` / `enabled`
+      // live on `BaseLight`, so they are written for every light exactly as the
+      // built-in branches do. A serializer therefore only lists its extra
+      // fields — leaving `color` to the author was a trap: the light came back
+      // white with no hint why.
+      const merged = {
+        type: light.type,
+        ...(light.id ? { id: light.id } : {}),
+        enabled: light.enabled,
+        color: light.color,
+        intensity: light.intensity,
+        ...entry,
+      };
+      if (typeof merged.type !== 'string' || merged.type === '') {
+        SceneSerializer._reportOnce(
+          name,
+          `SceneSerializer: light "${name}" has no \`type\`; the entry could not be ` +
+          'loaded back and was dropped.',
+        );
+        continue;
+      }
+      entries.push(merged);
+    }
+    return entries;
   }
 
   /**
