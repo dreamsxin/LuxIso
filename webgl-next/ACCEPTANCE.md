@@ -50,18 +50,21 @@ Chromium/SwiftShader at 1280×720 and DPR 1. What it asserts:
   (unique-colour and luminance-deviation floors); two consecutive frames are
   byte-identical; fixture controls and enabled omni-light counts match; a
   `<fixture>-viewport.png` context capture + JSON metadata is emitted and
-  uploaded by CI for 14 days. That capture frames the whole `#viewport` (GL
-  canvas plus DOM overlays, minimap and caption) and is **not** a baseline
-  candidate — baselines are `#webgl-canvas` captures named `<fixture>.png`,
-  produced only by the `webgl-baselines` workflow.
+  uploaded by CI for 14 days. That capture frames the enclosing `#viewport` and
+  is **not** a baseline candidate — baselines frame `#webgl-canvas`, are named
+  `<fixture>.png`, and are produced only by the `webgl-baselines` workflow.
+  Both are element screenshots (the composited page cropped to the element box),
+  so the DOM overlays, minimap and `WebGL 2` label that sit over the canvas
+  appear in the baseline as well; the two sets differ in framing, not in whether
+  overlays are visible.
 - **`day-ne`, `low-angle`, `night-lanterns`:** additionally compared against a
   committed baseline in `webgl-next/e2e/__screenshots__/` with
-  `maxDiffPixelRatio: 0.015`, **once that directory is populated** — as of this
-  writing it is empty. The spec checks for the baseline file and, when it is
-  absent, records a `pixel-gate-skipped` annotation instead of asserting:
-  `toHaveScreenshot` treats a missing snapshot as a failure, so without that
-  check enabling the gate ahead of the baselines turned every CI run red rather
-  than leaving the check inert. Committing the PNGs is all it takes to arm it.
+  `maxDiffPixelRatio: 0.015`. The three PNGs are committed, so the gate is armed
+  in CI. The spec still checks for the baseline file and, when one is absent,
+  records a `pixel-gate-skipped` annotation instead of asserting:
+  `toHaveScreenshot` treats a missing snapshot as a failure, so adding an ID to
+  `PIXEL_GATED_FIXTURES` before its baseline exists would turn every CI run red
+  rather than leaving that one check inert.
   Those three cover day lighting, a low sun with long projected shadows, and
   practical local lights at low ambient.
 - The remaining six fixtures are **not** baseline-gated: a regression there that

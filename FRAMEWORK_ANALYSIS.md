@@ -34,7 +34,7 @@ math/                     投影、颜色、深度排序
 - WebGL2 已具备环境光、方向光、点光、全局光、解析阴影投影、GPU shadow mask 缓存、纹理、混合、ID picking、小地图和 DOM 文本桥接。
 - 预览场景支持固定步长 A* 点击移动，同时保留 Canvas2D 对照和 fallback。
 - 9 个 URL 夹具覆盖四向视图、低/高俯角、夜景、仅全局光和全部灯光禁用。
-- Playwright 使用固定 Chromium/SwiftShader、1280×720、DPR 1 验证非空像素和跨帧稳定性，并产出待审批截图；1.5% golden diff 尚未启用为阻断门槛。
+- Playwright 使用固定 Chromium/SwiftShader、1280×720、DPR 1 验证非空像素和跨帧稳定性；`day-ne` / `low-angle` / `night-lanterns` 三个 fixture 的基线已提交，1.5% golden diff 已作为阻断门禁生效，其余六个仍只有启发式断言。
 - 浏览器生命周期测试会强制丢失/恢复 WebGL context，校验 2 秒恢复门槛、场景状态和像素一致性，并循环验证 renderer dispose 后注册资源计数归零。
 
 ## v5 已完成
