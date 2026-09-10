@@ -6,8 +6,8 @@ type TriggerEventMap = Pick<LuxIsoEventMap, 'triggerEnter' | 'triggerExit'>;
 
 export interface TriggerZoneOptions {
   /**
-   * Half-size of the trigger zone in world units.
-   * The zone is a square centred on the owner's position.
+   * Radius of the trigger zone in world units.
+   * The zone is a circle centred on the owner's x/y; z is ignored.
    * Default 0.6.
    */
   radius?: number;
@@ -65,7 +65,13 @@ export class TriggerZoneComponent implements Component {
   onAttach(owner: IsoObject): void { this._owner = owner; }
   onDetach(): void                 { this._owner = null; this._inside.clear(); this._next.clear(); }
 
-  /** IDs of objects currently inside the zone. */
+  /**
+   * IDs of objects currently inside the zone.
+   *
+   * This is the live Set, not a copy — `update()` swaps and clears the two
+   * internal Sets to stay allocation-free, so the returned reference is only
+   * valid until the next `update()`. Copy it if you need to keep it.
+   */
   get insideIds(): ReadonlySet<string> { return this._inside; }
 
   /** Returns true if the given object is currently inside the zone. */

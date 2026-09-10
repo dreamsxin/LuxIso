@@ -1,7 +1,7 @@
 # LuxIso 架构分析报告 v5
 
 > 更新日期：2026-09-09
-> 基线：Canvas 2D 默认 + WebGL2 预览，639 个 Vitest 测试 / 56 个测试文件（含 v8 覆盖率阈值），11 个 Playwright WebGL 测试
+> 基线：Canvas 2D 默认 + WebGL2 预览，656 个 Vitest 测试 / 57 个测试文件（含 v8 覆盖率阈值），11 个 Playwright WebGL 测试
 
 ## 执行摘要
 
@@ -339,6 +339,13 @@ const bus = new EventBus<GameEvents>();
   规律再次成立：**同一个缺陷在孪生类里往往各有一份，修一处不等于修完。**
   `AnimationComponent` 的 `_lastTs === 0` 是第六处哨兵冲突，另外它把负 dt 直接喂给
   控制器，时间戳回退会让动画倒放；现在与其它模块一致钳到 [0, 0.1]。
+- 顺着 ARPG 的仇恨范围补测 `TriggerZoneComponent`（17 个用例，ecs 分支 84%→87%），
+  这一轮**没有发现实现缺陷**——enter/exit 各只触发一次、目标中途增删、跟随宿主移动、
+  运行时改半径、双 Set 交换全部正确。只有文档错了：选项注释写的是「Half-size ...
+  the zone is a square」，实现用的是 `Math.hypot(dx, dy) <= r`，即圆形；
+  README 里写的「circle enter/exit」才是对的。另外 `insideIds` 返回的是会被下一次
+  `update()` 交换并清空的实时 Set，这一点原先完全没有说明，现在写进了注释。
+  记一笔反例：**「文档完整但零测试必然分叉」这条规律有例外，这里分叉的是文档本身。**
 
 
 
@@ -367,7 +374,7 @@ const bus = new EventBus<GameEvents>();
 | 类型安全 | 9/10 | ComponentCtor 与 EventMap 覆盖核心扩展面；`tsc` 现已覆盖 examples 与 e2e |
 | 可扩展性 | 9/10 | 加载注册表、自定义事件、WebGL extractor 注册表均已就绪；序列化注册表待补 |
 | 文档质量 | 8/10 | README 与本报告已同步当前实现 |
-| 测试覆盖 | 8/10 | 639 个单测 + 11 个浏览器测试；已接入 v8 覆盖率与分模块阈值（整体 69.4% 语句 / 68.0% 分支），三个 fixture 已按 1.5% 门槛比对基线 |
+| 测试覆盖 | 8/10 | 656 个单测 + 11 个浏览器测试；已接入 v8 覆盖率与分模块阈值（整体 69.5% 语句 / 68.2% 分支），三个 fixture 已按 1.5% 门槛比对基线 |
 | 综合 | 8.3/10 | 架构短板已大幅收敛，下一阶段应由 profiling 驱动 |
 
 测试数量不等于覆盖率。`vitest.config.ts` 现已按模块设定阈值（math/physics/lighting
