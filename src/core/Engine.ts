@@ -174,11 +174,46 @@ export class Engine {
   fixedDeltaTime = 1 / 60;
   private _preFrame: ((ts: number) => void) | null = null;
 
-  get canvasW(): number { return this.canvas.width; }
-  get canvasH(): number { return this.canvas.height; }
+  // Logical (CSS pixel) drawing surface. The backing store may be larger by
+  // `pixelRatio`; everything the game touches — origins, `Scene.draw` extents,
+  // pointer coordinates, HUD hit boxes — is in these units.
+  private _cssW: number;
+  private _cssH: number;
+  private _appliedRatio = 1;
 
   /**
-   * Isometric origin in canvas pixels — the point where world (0,0,0) projects to.
+   * Upper bound on the auto-detected `devicePixelRatio`. A DPR-3 phone asks for
+   * 9× the fill rate of DPR 1, which Canvas 2D will not deliver at 60 FPS on
+   * mid-range hardware; 2 is the usual compromise between sharpness and cost.
+   */
+  maxPixelRatio = 2;
+  private _pixelRatioOverride: number | null = null;
+
+  /**
+   * Backing-store scale applied by `resize()`. Auto-detected from
+   * `devicePixelRatio`, clamped to `[1, maxPixelRatio]`, unless overridden.
+   * Assign a number to pin it, or `null` to return to auto.
+   */
+  get pixelRatio(): number {
+    if (this._pixelRatioOverride !== null) return this._pixelRatioOverride;
+    const dpr = typeof window !== 'undefined' ? (window.devicePixelRatio || 1) : 1;
+    return Math.max(1, Math.min(dpr, this.maxPixelRatio));
+  }
+
+  set pixelRatio(value: number | null) {
+    this._pixelRatioOverride = value === null ? null : Math.max(0.1, value);
+  }
+
+  /** The `pixelRatio` the current backing store was actually sized with. */
+  get appliedPixelRatio(): number { return this._appliedRatio; }
+
+  /** Logical width in CSS pixels — what `Scene.draw` is given. */
+  get canvasW(): number { return this._cssW; }
+  /** Logical height in CSS pixels. */
+  get canvasH(): number { return this._cssH; }
+
+  /**
+   * Isometric origin in logical (CSS) pixels — where world (0,0,0) projects to.
    * Defaults to (canvasW/2, canvasH/2); override after construction to match your layout.
    */
   originX: number;
@@ -194,9 +229,15 @@ export class Engine {
       );
     }
     this.ctx = ctx;
-    this.originX = this.canvas.width / 2;
-    this.originY = this.canvas.height / 2;
+    // Adopt whatever the caller already set up, at ratio 1. Applying DPR here
+    // instead would silently rescale every existing page that sizes its own
+    // canvas; `resize()` is the explicit opt-in.
+    this._cssW = this.canvas.width;
+    this._cssH = this.canvas.height;
+    this.originX = this._cssW / 2;
+    this.originY = this._cssH / 2;
   }
+
 
   // ── Scene loading ──────────────────────────────────────────────────────────
 
@@ -367,31 +408,54 @@ export class Engine {
   }
 
   /**
-   * Resize the canvas and update internal origins.
-   * If width/height are omitted, the canvas will fill its parent container.
+   * Resize the drawing surface. `width`/`height` are logical (CSS) pixels; omit
+   * both to fill the parent element.
+   *
+   * The backing store is sized `logical * pixelRatio` and the 2D context is
+   * given a matching base transform, so drawing code keeps working in logical
+   * units while the output is crisp on a high-DPI screen. Before this the
+   * backing store was sized in CSS pixels, which on a DPR-3 phone meant
+   * rendering at a third of the resolution and letting the compositor upscale.
    */
   resize(width?: number, height?: number): void {
     const { canvas } = this;
+    let cssW = this._cssW;
+    let cssH = this._cssH;
+
     if (width !== undefined && height !== undefined) {
-      canvas.width  = width;
-      canvas.height = height;
+      cssW = width;
+      cssH = height;
     } else {
       const parent = canvas.parentElement;
       if (parent) {
-        canvas.width  = parent.clientWidth;
-        canvas.height = parent.clientHeight;
+        cssW = parent.clientWidth;
+        cssH = parent.clientHeight;
       }
     }
 
-    // Default origin to center; user can override after resize()
-    this.originX = canvas.width / 2;
-    this.originY = canvas.height / 2;
+    const ratio = this.pixelRatio;
+    this._cssW = cssW;
+    this._cssH = cssH;
+    this._appliedRatio = ratio;
 
-    // Invalidate scene sorting if active
-    if (this._scene) {
-      // (We could trigger a redraw or sort here if needed)
+    canvas.width  = Math.max(1, Math.round(cssW * ratio));
+    canvas.height = Math.max(1, Math.round(cssH * ratio));
+    // Pin the CSS box, otherwise the browser lays the element out at the
+    // backing-store size and the page grows by the ratio.
+    if (canvas.style) {
+      canvas.style.width  = `${cssW}px`;
+      canvas.style.height = `${cssH}px`;
     }
+    // A base transform rather than a per-draw scale: nothing downstream needs
+    // to know. Anything that calls resetTransform() would drop it, which is why
+    // Camera.applyTransform composes inside save()/restore().
+    this.ctx.setTransform?.(ratio, 0, 0, ratio, 0, 0);
+
+    // Default origin to center; user can override after resize()
+    this.originX = cssW / 2;
+    this.originY = cssH / 2;
   }
+
 
   // ── Render loop ────────────────────────────────────────────────────────────
 
@@ -437,11 +501,11 @@ export class Engine {
 
     this._scene.update(ts);
 
-    const { ctx, canvas, originX, originY } = this;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const { ctx, originX, originY } = this;
+    ctx.clearRect(0, 0, this._cssW, this._cssH);
 
     this._preFrame?.(ts);
-    this._scene.draw(ctx, canvas.width, canvas.height, originX, originY);
+    this._scene.draw(ctx, this._cssW, this._cssH, originX, originY);
     this._onFrame?.(ts);
   }
 }

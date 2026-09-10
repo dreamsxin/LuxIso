@@ -93,7 +93,7 @@ npm run test:webgl # builds, then runs 9 deterministic captures + lifecycle test
 
 | Layer | Command | Scope |
 |---|---|---|
-| Unit | `npm test` | 462 tests across 47 files (Vitest 4) |
+| Unit | `npm test` | 474 tests across 48 files (Vitest 4) |
 | Coverage | `npm run test:coverage` | v8 provider + per-module ratchets |
 | Browser | `npm run test:webgl` | 9 fixture captures + 2 context-lifecycle tests (Chromium/SwiftShader) against the built bundle |
 
@@ -109,7 +109,7 @@ Correctness-critical modules carry their own floors:
 | `src/ecs/**` | 82% | 78% |
 | `src/audio/**` | 67% | 55% |
 | `src/animation/**` | 81% | 75% |
-| `src/core/**` | 68% | 56% |
+| `src/core/**` | 70% | 58% |
 | `src/elements/**` | 57% | 53% |
 | Whole project | 65% | 61% |
 
@@ -398,8 +398,13 @@ public/
 
 ```ts
 new Engine({ canvas: HTMLCanvasElement })
-engine.originX: number                          // iso origin X in canvas pixels
+engine.originX: number                          // iso origin X in logical (CSS) pixels
 engine.originY: number                          // iso origin Y
+engine.canvasW / canvasH: number                // logical drawing size
+engine.resize(w?, h?): void                     // logical size; omit both to fill the parent
+engine.pixelRatio: number                        // auto from devicePixelRatio, clamped to [1, maxPixelRatio]; assign to pin, null for auto
+engine.maxPixelRatio: number                     // default 2
+engine.appliedPixelRatio: number                 // ratio the current backing store was built with
 engine.loadScene(url: string): Promise<Scene>   // fetch + parse JSON; builds all objects + collider
 engine.buildScene(json: object): Scene          // synchronous, no fetch
 engine.setScene(scene: Scene): void
@@ -408,6 +413,22 @@ engine.stop(): void
 engine.ctx: CanvasRenderingContext2D
 engine.canvas: HTMLCanvasElement
 ```
+
+Everything the game touches is in **logical (CSS) pixels**. `resize()` sizes the
+backing store to `logical × pixelRatio` and gives the 2D context a matching base
+transform, so drawing code is unchanged but output is crisp on a high-DPI screen.
+The constructor deliberately does *not* apply the ratio — it adopts whatever size
+the page already set, so existing code keeps its exact behaviour until it opts in
+by calling `resize()`.
+
+When you do opt in, tell the input layer, or taps will be reported in backing
+pixels while the HUD lays out hit boxes in logical ones:
+
+```ts
+const input = new InputManager(canvas, { pixelRatio: () => engine.appliedPixelRatio });
+engine.resize(parent.clientWidth, parent.clientHeight);
+```
+
 
 ### `Scene`
 
@@ -872,7 +893,7 @@ requireComponent<T>(entity: Entity, ctor: ComponentCtor<T>): T  // throws if mis
 | EventBus event maps | Event names and payload types are coupled; custom maps supported |
 | Scene.toJSON(): runtime state + built-in prop serialization | Environment, camera, view, light IDs/options, collider, built-ins |
 | Lib build: ESM + CJS dual output + .d.ts (npm run build:lib) | |
-| Unit tests: 462 tests across 47 files (Vitest 4, Node ≥ 22) | |
+| Unit tests: 474 tests across 48 files (Vitest 4, Node ≥ 22) | |
 | Coverage ratchets per module (`npm run test:coverage`) | v8 provider; per-glob floors on math/physics/lighting/ecs/animation/elements/audio/core |
 | Examples: 9 progressive demos + tools gallery | |
 
@@ -882,7 +903,6 @@ See [FRAMEWORK_ANALYSIS.md](FRAMEWORK_ANALYSIS.md) for a detailed comparison wit
 
 | Priority | Item | Notes |
 |----------|------|-------|
-| P1 | `Engine.resize()` ignores `devicePixelRatio` | The backing store is sized in CSS pixels, so a DPR-3 phone renders at a third of the resolution and upscales. Nothing in `src/` reads `devicePixelRatio`; only `webgl-next/` does |
 | P1 | Nothing pauses on tab-hide | `Engine` has no `visibilitychange` handling, so backgrounded time is silently dropped (`dt` is clamped to 100 ms per frame) and `AudioManager.suspend()` — which exists — is never called |
 | P1 | Web Audio needs a first-gesture unlock, and nothing wires one | `AudioManager.resume()` is a correct unlock primitive but the framework never binds it. Worse, `_loadBuffer`'s `waitForContext` rejects after 5 s, so preloads fail outright if no gesture happens in that window |
 | P1 | `example-05` sky draw functions (400+ lines) inline in `main.ts` | Split to `environment/*.ts` |

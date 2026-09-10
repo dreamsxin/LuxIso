@@ -1,7 +1,7 @@
 # LuxIso 架构分析报告 v5
 
 > 更新日期：2026-09-09
-> 基线：Canvas 2D 默认 + WebGL2 预览，462 个 Vitest 测试 / 47 个测试文件（含 v8 覆盖率阈值），11 个 Playwright WebGL 测试
+> 基线：Canvas 2D 默认 + WebGL2 预览，474 个 Vitest 测试 / 48 个测试文件（含 v8 覆盖率阈值），11 个 Playwright WebGL 测试
 
 ## 执行摘要
 
@@ -117,7 +117,6 @@ const bus = new EventBus<GameEvents>();
 
 | 优先级 | 问题 | 建议 |
 |---|---|---|
-| P1 | `Engine.resize()` 不处理 `devicePixelRatio` | backing store 按 CSS 像素定尺，DPR=3 手机上是 1/3 分辨率放大。`src/` 内 `devicePixelRatio` 零命中，只有 `webgl-next/` 有 |
 | P1 | 切后台无暂停 | `Engine` 无 `visibilitychange`，后台时间被静默丢弃（`dt` 每帧截到 100ms），且 `AudioManager.suspend()` 存在但从无调用者 |
 | P1 | Web Audio 首次手势解锁未接线 | `AudioManager.resume()` 本身正确，但框架从不绑定任何手势；`_loadBuffer` 的 `waitForContext` 5 秒超时，开局无手势则预加载直接 reject |
 | P1 | example-05 天空绘制函数仍集中在 main.ts | 拆到 environment 模块 |
@@ -235,6 +234,18 @@ const bus = new EventBus<GameEvents>();
   全量释放：切走时不发 keyup，回来角色会继续走。默认对 canvas 触摸事件调
   `preventDefault`（可用 `preventTouchDefault: false` 关闭），否则手机上页面会滚动、
   双击缩放、弹长按菜单并带 300ms 点击延迟。
+- 高 DPI 适配。`Engine.resize()` 把 backing store 按 CSS 像素定尺，DPR=3 手机上等于
+  以 1/3 分辨率渲染再让合成器放大——`src/` 里 `devicePixelRatio` 原本零命中。现在确立
+  一条明确的契约：**游戏接触到的一切都是逻辑（CSS）像素**。`resize()` 按
+  `logical × pixelRatio` 设 backing store、钉住 CSS box 尺寸、给 2D context 一个同比例
+  的基础变换，绘制代码一行不改；`canvasW/H`、`originX/Y`、`Scene.draw` 的尺寸参数、
+  `clearRect` 全部改为逻辑像素。`pixelRatio` 由 `devicePixelRatio` 自动推导并按
+  `maxPixelRatio`（默认 2）截断——DPR=3 意味着 9 倍填充率，中端机上 Canvas 2D 给不出
+  60 帧。构造函数**故意不**应用比例，只沿用页面已设好的尺寸，因此所有既有页面行为
+  不变，直到显式调用 `resize()` 才切换。配套给 `InputManager` 加了 `pixelRatio` 选项
+  （可传函数，跨屏拖窗口时能跟着变）：否则指针会以 backing 像素上报，而 HUD 的命中
+  框是逻辑像素，两边永远对不上。
+
 
 
 
@@ -255,11 +266,11 @@ const bus = new EventBus<GameEvents>();
 | 类型安全 | 9/10 | ComponentCtor 与 EventMap 覆盖核心扩展面；`tsc` 现已覆盖 examples 与 e2e |
 | 可扩展性 | 8/10 | 加载注册表与自定义事件良好；序列化注册表待补 |
 | 文档质量 | 8/10 | README 与本报告已同步当前实现 |
-| 测试覆盖 | 8/10 | 462 个单测 + 11 个浏览器测试；已接入 v8 覆盖率与分模块阈值（整体 65.1% 语句 / 61.3% 分支），三个 fixture 已按 1.5% 门槛比对基线 |
+| 测试覆盖 | 8/10 | 474 个单测 + 11 个浏览器测试；已接入 v8 覆盖率与分模块阈值（整体 65.7% 语句 / 61.8% 分支），三个 fixture 已按 1.5% 门槛比对基线 |
 | 综合 | 8.3/10 | 架构短板已大幅收敛，下一阶段应由 profiling 驱动 |
 
 测试数量不等于覆盖率。`vitest.config.ts` 现已按模块设定阈值（math/physics/lighting
-90% 语句、ecs 82%、animation 81%、audio 67%、core 68%、elements 57%，整体 65%），
+90% 语句、ecs 82%、animation 81%、audio 67%、core 70%、elements 57%，整体 65%），
 并在 CI 中作为门禁。阈值一律设在当前值略下方，只能随新测试上调，不允许为了让构建
 通过而下调。
 

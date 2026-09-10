@@ -61,7 +61,19 @@ export interface InputManagerOptions {
    * the canvas is embedded in a scrollable document.
    */
   preventTouchDefault?: boolean;
+  /**
+   * Backing-store scale to divide out, so reported coordinates stay in the same
+   * logical (CSS pixel) space the game draws in. Default 1.
+   *
+   * Pass `() => engine.appliedPixelRatio` when the Engine sizes the canvas —
+   * `Engine.resize()` makes the backing store `logical * pixelRatio`, and
+   * without this the pointer would report backing pixels while the HUD lays out
+   * hit boxes in logical ones. A function is re-read per event, so it survives
+   * the ratio changing when a window moves between displays.
+   */
+  pixelRatio?: number | (() => number);
 }
+
 
 /** `MouseEvent.button` index → bindable key name. */
 const MOUSE_BUTTON_KEYS = ['MouseLeft', 'MouseMiddle', 'MouseRight'] as const;
@@ -69,6 +81,8 @@ const MOUSE_BUTTON_KEYS = ['MouseLeft', 'MouseMiddle', 'MouseRight'] as const;
 export class InputManager {
   private _canvas: HTMLCanvasElement;
   private _preventTouchDefault: boolean;
+  private _pixelRatio: number | (() => number);
+
 
   // Keyboard state
   private _held     = new Set<string>();
@@ -95,8 +109,10 @@ export class InputManager {
   constructor(canvas: HTMLCanvasElement, opts: InputManagerOptions = {}) {
     this._canvas = canvas;
     this._preventTouchDefault = opts.preventTouchDefault ?? true;
+    this._pixelRatio = opts.pixelRatio ?? 1;
     this._attach();
   }
+
 
 
   // ── Keyboard queries ──────────────────────────────────────────────────────
@@ -372,18 +388,28 @@ export class InputManager {
 
 
   private _canvasPos(e: MouseEvent): { x: number; y: number } {
-    const rect = this._canvas.getBoundingClientRect();
-    return {
-      x: (e.clientX - rect.left) * (this._canvas.width  / rect.width),
-      y: (e.clientY - rect.top)  * (this._canvas.height / rect.height),
-    };
+    return this._toCanvasSpace(e.clientX, e.clientY);
   }
 
   private _canvasPosTouch(t: Touch): { x: number; y: number } {
+    return this._toCanvasSpace(t.clientX, t.clientY);
+  }
+
+  /**
+   * Client coordinates → logical canvas space.
+   *
+   * `canvas.width / rect.width` corrects for a CSS-stretched canvas; dividing by
+   * the pixel ratio then undoes the high-DPI backing-store scale, leaving the
+   * same units the game draws in.
+   */
+  private _toCanvasSpace(clientX: number, clientY: number): { x: number; y: number } {
     const rect = this._canvas.getBoundingClientRect();
+    const ratio = typeof this._pixelRatio === 'function' ? this._pixelRatio() : this._pixelRatio;
+    const safe = ratio > 0 ? ratio : 1;
     return {
-      x: (t.clientX - rect.left) * (this._canvas.width  / rect.width),
-      y: (t.clientY - rect.top)  * (this._canvas.height / rect.height),
+      x: (clientX - rect.left) * (this._canvas.width  / rect.width)  / safe,
+      y: (clientY - rect.top)  * (this._canvas.height / rect.height) / safe,
     };
   }
 }
+

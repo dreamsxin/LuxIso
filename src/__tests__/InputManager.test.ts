@@ -288,7 +288,55 @@ describe('InputManager — focus loss', () => {
   });
 });
 
+describe('InputManager — high-DPI coordinates', () => {
+  it('reports logical pixels when a ratio is supplied', () => {
+    // Engine.resize() at ratio 2 leaves an 800-wide backing store in a 400-wide
+    // CSS box. Without dividing the ratio out, a tap at CSS (100, 50) would be
+    // reported as (200, 100) and every HUD hit box would miss.
+    const h = makeHarness({ pixelRatio: 2 });
+    (h.canvas as any).width = 1600;
+    (h.canvas as any).height = 1200;
+
+    h.fireCanvas({ type: 'mousemove', clientX: 100, clientY: 50 });
+    expect(h.input.pointerX).toBe(100);
+    expect(h.input.pointerY).toBe(50);
+    h.input.destroy();
+  });
+
+  it('re-reads a ratio supplied as a function', () => {
+    let ratio = 1;
+    const h = makeHarness({ pixelRatio: () => ratio });
+    (h.canvas as any).width = 1600;
+    (h.canvas as any).height = 1200;
+
+    h.fireCanvas({ type: 'mousemove', clientX: 100, clientY: 100 });
+    expect(h.input.pointerX).toBe(200);
+
+    // Dragging the window onto a retina display changes the ratio mid-session.
+    ratio = 2;
+    h.fireCanvas({ type: 'mousemove', clientX: 100, clientY: 100 });
+    expect(h.input.pointerX).toBe(100);
+    h.input.destroy();
+  });
+
+  it('still corrects for a CSS-stretched canvas at ratio 1', () => {
+    const h = makeHarness();
+    (h.canvas as any).width = 1600;
+    h.fireCanvas({ type: 'mousemove', clientX: 100, clientY: 0 });
+    expect(h.input.pointerX).toBe(200);
+    h.input.destroy();
+  });
+
+  it('treats a zero ratio as 1 rather than dividing by zero', () => {
+    const h = makeHarness({ pixelRatio: 0 });
+    h.fireCanvas({ type: 'mousemove', clientX: 100, clientY: 50 });
+    expect(h.input.pointerX).toBe(100);
+    h.input.destroy();
+  });
+});
+
 describe('InputManager — touch default prevention', () => {
+
   it('suppresses browser gestures by default', () => {
     const h = makeHarness();
     const ev = touchEvent('touchstart', [touch(1, 10, 10)]);
