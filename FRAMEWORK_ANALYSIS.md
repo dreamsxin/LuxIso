@@ -1,7 +1,7 @@
 # LuxIso 架构分析报告 v5
 
 > 更新日期：2026-09-09
-> 基线：Canvas 2D 默认 + WebGL2 预览，679 个 Vitest 测试 / 58 个测试文件（含 v8 覆盖率阈值），11 个 Playwright WebGL 测试
+> 基线：Canvas 2D 默认 + WebGL2 预览，693 个 Vitest 测试 / 59 个测试文件（含 v8 覆盖率阈值），11 个 Playwright WebGL 测试
 
 ## 执行摘要
 
@@ -360,6 +360,15 @@ const bus = new EventBus<GameEvents>();
     但 `death` 事件和 `onDeath` 回调都不触发。两侧现在都钳到 0。
   - `setMax(0)` 会让 `fraction` 变成 Infinity/NaN 且 hp 归零（同样静默地「死亡」），
     现在非正数直接忽略。
+- `TweenComponent` 是同一批时间账缺陷的第三处，而且它自己就有两套哨兵：字段初始值是
+  `-1`（正确，首帧只对表不推进），但 `restart()` 写回的是 **0**——于是重启后的下一帧
+  按「now - 0」算 delta 并被截到 0.5 秒上限，**补间瞬间跳到半秒后的位置**。
+  另外三处：`pause()` 不重置基准，暂停 19 秒再 `resume()` 会补上 0.5 秒；
+  `delay` 用完那一帧的剩余时间被直接丢弃（0.1 秒延迟碰上 0.3 秒的帧，白扔 0.2 秒）；
+  循环边界把 `_elapsed` 归零，跨界那帧的溢出同样丢掉，导致每次 repeat 都比 duration 慢。
+  现在延迟按消耗量结算并把余量交给补间，循环边界改成 `_elapsed -= duration`，
+  负 dt 一并钳掉。合计：**同一个「时间账要么被凭空发明、要么被悄悄丢弃」的模式，
+  在 8 个模块里各出现一次。**
 
 
 
@@ -388,7 +397,7 @@ const bus = new EventBus<GameEvents>();
 | 类型安全 | 9/10 | ComponentCtor 与 EventMap 覆盖核心扩展面；`tsc` 现已覆盖 examples 与 e2e |
 | 可扩展性 | 9/10 | 加载注册表、自定义事件、WebGL extractor 注册表均已就绪；序列化注册表待补 |
 | 文档质量 | 8/10 | README 与本报告已同步当前实现 |
-| 测试覆盖 | 8/10 | 679 个单测 + 11 个浏览器测试；已接入 v8 覆盖率与分模块阈值（整体 69.6% 语句 / 68.3% 分支），三个 fixture 已按 1.5% 门槛比对基线 |
+| 测试覆盖 | 8/10 | 693 个单测 + 11 个浏览器测试；已接入 v8 覆盖率与分模块阈值（整体 69.9% 语句 / 68.5% 分支），三个 fixture 已按 1.5% 门槛比对基线 |
 | 综合 | 8.3/10 | 架构短板已大幅收敛，下一阶段应由 profiling 驱动 |
 
 测试数量不等于覆盖率。`vitest.config.ts` 现已按模块设定阈值（math/physics/lighting

@@ -77,7 +77,7 @@ export class TweenComponent implements Component {
   private _iteration = 0;
   private _forward   = true;
   private _owner:    IsoObject | null = null;
-  private _lastTs    = -1;
+  private _lastTs: number | null = null;
 
   constructor(opts: TweenOptions) {
     this._opts  = opts;
@@ -91,25 +91,44 @@ export class TweenComponent implements Component {
   get isRunning(): boolean { return this._running; }
   get progress():  number  { return Math.min(1, this._elapsed / this._opts.duration); }
 
-  pause():   void { this._running = false; }
+  /**
+   * Stop advancing. The clock is re-baselined on `resume()`, so time spent
+   * paused is not credited — otherwise the first frame back jumped by up to the
+   * dt clamp (0.5 s).
+   */
+  pause():   void { this._running = false; this._lastTs = null; }
   resume():  void { this._running = true; }
-  restart(): void { this._elapsed = 0; this._done = false; this._running = true; this._iteration = 0; this._forward = true; this._lastTs = 0; }
+  restart(): void {
+    this._elapsed = 0;
+    this._done = false;
+    this._running = true;
+    this._iteration = 0;
+    this._forward = true;
+    this._delay = this._opts.delay ?? 0;
+    // `null`, not 0: with 0 the next frame's delta was measured against
+    // timestamp 0 and clamped to 0.5 s, so a restarted tween instantly leapt
+    // half a second in.
+    this._lastTs = null;
+  }
 
   update(ts?: number): void {
     if (!this._owner || !this._running || this._done) return;
 
     const now = ts ?? performance.now();
-    if (this._lastTs === -1) {
+    if (this._lastTs === null) {
       this._lastTs = now;
       return;
     }
-    const dt = Math.min((now - this._lastTs) / 1000, 0.5);
+    let dt = Math.min(Math.max(0, (now - this._lastTs) / 1000), 0.5);
     this._lastTs = now;
 
-    // Handle delay
+    // Handle delay, carrying whatever is left of this frame into the tween.
+    // Discarding the remainder made every delayed tween start a frame late.
     if (this._delay > 0) {
-      this._delay -= dt;
-      return;
+      const consumed = Math.min(this._delay, dt);
+      this._delay -= consumed;
+      dt -= consumed;
+      if (dt <= 0) return;
     }
 
     this._elapsed += dt;
@@ -129,7 +148,10 @@ export class TweenComponent implements Component {
       const yoyo   = this._opts.yoyo   ?? false;
 
       this._iteration++;
-      this._elapsed = 0;
+      // Carry the overshoot into the next cycle instead of zeroing it: a frame
+      // that spans a cycle boundary owes the remainder to the new cycle, and
+      // dropping it made every repeat run slower than its duration.
+      this._elapsed = Math.max(0, this._elapsed - this._opts.duration);
 
       const maxIter = repeat === -1 ? Infinity : repeat + 1;
       if (this._iteration >= maxIter) {
@@ -137,6 +159,7 @@ export class TweenComponent implements Component {
         for (const t of this._opts.targets) {
           pos[t.prop] = this._forward ? t.to : t.from;
         }
+        this._elapsed = 0;
         this._done    = true;
         this._running = false;
         this._opts.onComplete?.();
