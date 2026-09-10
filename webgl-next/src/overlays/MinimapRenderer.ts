@@ -12,7 +12,12 @@ export class MinimapRenderer {
   render(snapshot: RenderSnapshot): void {
     const source = snapshot.minimap;
     const rect = this._canvas.getBoundingClientRect();
-    const dpr = Math.max(1, Math.min(3, window.devicePixelRatio || 1));
+    // Nothing has laid the canvas out yet: a zero-size rect used to produce a
+    // 1x1 backing store and a full frame of drawing commands nobody could see.
+    if (rect.width <= 0 || rect.height <= 0) return;
+    const dpr = typeof window === 'undefined'
+      ? 1
+      : Math.max(1, Math.min(3, window.devicePixelRatio || 1));
     const width = Math.max(1, Math.round(rect.width * dpr));
     const height = Math.max(1, Math.round(rect.height * dpr));
     if (this._canvas.width !== width || this._canvas.height !== height) {

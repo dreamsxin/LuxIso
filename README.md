@@ -122,7 +122,7 @@ npm run test:webgl # builds, then runs 9 deterministic captures + lifecycle test
 
 | Layer | Command | Scope |
 |---|---|---|
-| Unit | `npm test` | 751 tests across 62 files (Vitest 4) |
+| Unit | `npm test` | 761 tests across 63 files (Vitest 4) |
 | Coverage | `npm run test:coverage` | v8 provider + per-module ratchets |
 | Browser | `npm run test:webgl` | 9 fixture captures + 2 context-lifecycle tests (Chromium/SwiftShader) against the built bundle |
 
@@ -140,7 +140,7 @@ Correctness-critical modules carry their own floors:
 | `src/animation/**` | 88% | 80% |
 | `src/core/**` | 94% | 82% |
 | `src/elements/**` | 57% | 53% |
-| Whole project | 75.2% | 73% |
+| Whole project | 76.2% | 73.7% |
 
 Raise a floor when you add tests; never lower one to make a build pass. Test
 count is not coverage — every P0/P1 defect found in the last audit sat in a
@@ -977,7 +977,7 @@ requireComponent<T>(entity: Entity, ctor: ComponentCtor<T>): T  // throws if mis
 | EventBus event maps | Event names and payload types are coupled; custom maps supported |
 | Scene.toJSON(): runtime state + built-in prop serialization | Environment, camera, view, light IDs/options, collider, built-ins |
 | Lib build: ESM + CJS dual output + .d.ts (npm run build:lib) | |
-| Unit tests: 751 tests across 62 files (Vitest 4, Node ≥ 22) | |
+| Unit tests: 761 tests across 63 files (Vitest 4, Node ≥ 22) | |
 | Coverage ratchets per module (`npm run test:coverage`) | v8 provider; per-glob floors on math/physics/lighting/ecs/animation/elements/audio/core |
 | Examples: 9 progressive demos + tools gallery | |
 

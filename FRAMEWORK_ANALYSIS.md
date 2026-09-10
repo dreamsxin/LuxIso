@@ -1,7 +1,7 @@
 # LuxIso 架构分析报告 v5
 
 > 更新日期：2026-09-09
-> 基线：Canvas 2D 默认 + WebGL2 预览，751 个 Vitest 测试 / 62 个测试文件（含 v8 覆盖率阈值），11 个 Playwright WebGL 测试
+> 基线：Canvas 2D 默认 + WebGL2 预览，761 个 Vitest 测试 / 63 个测试文件（含 v8 覆盖率阈值），11 个 Playwright WebGL 测试
 
 ## 执行摘要
 
@@ -415,6 +415,14 @@ const bus = new EventBus<GameEvents>();
   类注释的示例同样不可用：`new DebugRenderer(scene, engine)` 少了 originX/originY
   （engine 被当成 originX），`input.onAction` / `input.bindKey` 这两个方法在 `InputMap`
   上根本不存在（应为 `define` + `on`）。已全部改成真实 API。
+- `webgl-next` 的两个 overlay（`DomOverlayRenderer` / `MinimapRenderer`，都是 0% 覆盖）
+  是 WebGL2 路径上唯一的文字与小地图出口，而用户选定的 ARPG 渲染器正是 WebGL2：
+  - 文字 span 只靠预览页 CSS 里的 `pointer-events: none` 才不吃事件，但渲染器接受
+    任意 root。挂到自己的容器上就会得到**一堆吞掉点击的伤害数字**——触屏 ARPG 里
+    等于战斗中随机失灵。现在在代码里显式设置 `pointerEvents = 'none'`。
+  - `MinimapRenderer` 直接读 `window.devicePixelRatio`，无 `window` 的环境下直接抛
+    `ReferenceError`；画布尚未布局（rect 0×0）时会建出 1×1 的 backing store 并照常
+    发一整帧谁也看不见的绘制指令。现在 DPR 有回退、零尺寸直接跳过。
 
 
 
@@ -443,7 +451,7 @@ const bus = new EventBus<GameEvents>();
 | 类型安全 | 9/10 | ComponentCtor 与 EventMap 覆盖核心扩展面；`tsc` 现已覆盖 examples 与 e2e |
 | 可扩展性 | 9/10 | 加载注册表、自定义事件、WebGL extractor 注册表均已就绪；序列化注册表待补 |
 | 文档质量 | 8/10 | README 与本报告已同步当前实现 |
-| 测试覆盖 | 8/10 | 751 个单测 + 11 个浏览器测试；已接入 v8 覆盖率与分模块阈值（整体 75.3% 语句 / 73.1% 分支），三个 fixture 已按 1.5% 门槛比对基线 |
+| 测试覆盖 | 8/10 | 761 个单测 + 11 个浏览器测试；已接入 v8 覆盖率与分模块阈值（整体 76.3% 语句 / 73.8% 分支），三个 fixture 已按 1.5% 门槛比对基线 |
 | 综合 | 8.3/10 | 架构短板已大幅收敛，下一阶段应由 profiling 驱动 |
 
 测试数量不等于覆盖率。`vitest.config.ts` 现已按模块设定阈值（math/physics/lighting

@@ -16,6 +16,10 @@ export class DomOverlayRenderer {
         element = document.createElement('span');
         element.className = 'webgl-text-overlay';
         element.dataset.overlayId = label.id;
+        // Set in code, not only in the preview's stylesheet: the renderer takes
+        // any root element, and a label that accepts pointer events sits over
+        // the play area and swallows taps meant for the game.
+        element.style.pointerEvents = 'none';
         this._root.append(element);
         this._elements.set(label.id, element);
       }
