@@ -1,7 +1,7 @@
 # LuxIso 架构分析报告 v5
 
 > 更新日期：2026-09-09
-> 基线：Canvas 2D 默认 + WebGL2 预览，807 个 Vitest 测试 / 66 个测试文件（含 v8 覆盖率阈值），11 个 Playwright WebGL 测试
+> 基线：Canvas 2D 默认 + WebGL2 预览，816 个 Vitest 测试 / 66 个测试文件（含 v8 覆盖率阈值），11 个 Playwright WebGL 测试
 
 ## 执行摘要
 
@@ -454,6 +454,24 @@ const bus = new EventBus<GameEvents>();
   （`HudLayer` 那次 DPR 回归的教训）。清屏在设备像素下做，之后由 `HudLayer.draw` 装自己的
   变换，避免漏掉右下边缘。
   刻意**没有**接进预览页：三张像素基线刚刚生效，往夹具里加 HUD 会立刻让门禁变红。
+- 手写关卡文件（ARPG 的波次配置就是这种东西）会走 `validateSceneJson`，而它有一个更根本
+  的问题：**引擎里没有任何地方调用它**。`buildScene()` 拿到什么就装什么，未知 type 只在
+  加载时 `console.warn`。这不算缺陷（校验器本来更适合编辑器/流水线/CI），但文档从没说清，
+  所以先写明白。随后补了五处：
+  - 内置集合之外的 type 一律报 error，可校验器**根本无从知道**应用通过
+    `Engine.registerProp()` 注册了什么——注册了 `mob` 的 ARPG 关卡直接被判"无效"。
+    文件里那句关于 `tree` / `flowers` / `lantern` 曾经漏登记的注释，说明这个坑已经踩过一次。
+    现在未声明时降级为 warning；一旦调用方传了 `propTypes` / `lightTypes`（等于声明了全集），
+    未知 type 才升级为 error。**这是对外语义的变更**，原有那条测试相应改写。
+  - `lights[i]` 只校验了 omni 的 x/y/z，**directional 的 `angle` / `elevation` 完全没查**，
+    写成字符串也能通过校验，然后在运行时变成 NaN 变换。
+  - 全场景 id 重复检测（floor / walls / characters / props / lights 一起查）。
+    `Scene.removeById` 会过滤掉**所有**同名对象、`getById` 只返回第一个，所以重复 id 意味着
+    一个对象取不到、两个一起消失——手写波次文件最容易犯的错。
+  - `props[i].health` 会被 `Engine` 直接塞进 `new HealthComponent({ max })`，字符串或 0
+    造出的是「一出生就死」的对象；现在要求存在时必须是正数。
+  - 零长墙的 warning 原本在坐标缺失时也会触发（`undefined === undefined`），
+    于是四条坐标 error 之上再叠一条无意义的警告；现在仅在坐标确为数字时判断。
 - `webgl-baselines` 工作流曾连续几个提交无法被 dispatch，根因是一行不合法的 YAML
   （`- run: echo "Reason: ${{ inputs.reason }}"`——纯量里不能出现 `: `）。真正的问题不是
   那一行，而是**仓库里没有任何东西检查工作流语法**：GitHub 只把它写成某次 run 上的
@@ -493,7 +511,7 @@ const bus = new EventBus<GameEvents>();
 | 类型安全 | 9/10 | ComponentCtor 与 EventMap 覆盖核心扩展面；`tsc` 现已覆盖 examples 与 e2e |
 | 可扩展性 | 9/10 | 加载注册表、自定义事件、WebGL extractor 注册表均已就绪；序列化注册表待补 |
 | 文档质量 | 8/10 | README 与本报告已同步当前实现 |
-| 测试覆盖 | 8/10 | 807 个单测 + 11 个浏览器测试；已接入 v8 覆盖率与分模块阈值（整体 76.8% 语句 / 74.2% 分支），三个 fixture 已按 1.5% 门槛比对基线 |
+| 测试覆盖 | 8/10 | 816 个单测 + 11 个浏览器测试；已接入 v8 覆盖率与分模块阈值（整体 77.1% 语句 / 75.0% 分支），三个 fixture 已按 1.5% 门槛比对基线 |
 | 综合 | 8.3/10 | 架构短板已大幅收敛，下一阶段应由 profiling 驱动 |
 
 测试数量不等于覆盖率。`vitest.config.ts` 现已按模块设定阈值（math/physics/lighting

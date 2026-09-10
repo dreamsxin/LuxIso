@@ -6,6 +6,11 @@ import type { Component, ComponentCtor } from '../ecs/Component';
  * All methods return a `ValidationResult` with `ok`, `errors`, and `warnings`.
  * Errors are structural problems that will cause runtime failures.
  * Warnings are non-fatal issues that may produce unexpected behaviour.
+ *
+ * Nothing in the engine calls `validateSceneJson` — `Engine.buildScene()` loads
+ * whatever it is given and warns about unknown types as it goes. This is a tool
+ * for editors, asset pipelines and CI checks on hand-authored level files; run it
+ * yourself before shipping one.
  */
 
 export interface ValidationResult {
@@ -35,9 +40,17 @@ export interface SceneJsonLike {
 }
 
 export interface SceneValidationOptions {
-  /** Additional light registry keys accepted by this validation call. */
+  /**
+   * Light registry keys accepted in addition to the built-ins.
+   *
+   * Supplying either list switches unknown types from a warning to an error:
+   * the caller has declared the full set, so anything outside it is wrong.
+   * Without a list the validator cannot know what the application registered
+   * through `Engine.registerLight()` / `registerProp()`, and calling a custom
+   * type invalid would be a false negative.
+   */
   lightTypes?: Iterable<string>;
-  /** Additional prop registry keys accepted by this validation call. */
+  /** Prop registry keys accepted in addition to the built-ins. */
   propTypes?: Iterable<string>;
 }
 
@@ -52,8 +65,30 @@ export function validateSceneJson(
   // of Engine.ts. `tree`, `flowers` and `lantern` were missing here, so scenes
   // using those perfectly valid props were reported as invalid.
   const propTypes = new Set(['crystal', 'boulder', 'chest', 'tree', 'flowers', 'lantern']);
+  const declaredTypes = options.lightTypes !== undefined || options.propTypes !== undefined;
   for (const type of options.lightTypes ?? []) lightTypes.add(type);
   for (const type of options.propTypes ?? []) propTypes.add(type);
+  /** Every id seen, to catch the duplicates that break removeById/getById. */
+  const seenIds = new Map<string, string>();
+
+  const noteId = (id: unknown, where: string): void => {
+    if (typeof id !== 'string' || id === '') return;
+    const first = seenIds.get(id);
+    if (first !== undefined) {
+      // `Scene.removeById` filters *every* match and `getById` returns the
+      // first, so a duplicate id means one object cannot be addressed and the
+      // other disappears with it.
+      errors.push(`Duplicate id "${id}" used by ${first} and ${where}`);
+      return;
+    }
+    seenIds.set(id, where);
+  };
+
+  /** Unknown type: fatal only when the caller declared the accepted set. */
+  const noteUnknownType = (message: string): void => {
+    if (declaredTypes) errors.push(message);
+    else warnings.push(message);
+  };
 
   if (typeof json !== 'object' || json === null) {
     return result(['Scene JSON must be a non-null object'], []);
@@ -79,6 +114,7 @@ export function validateSceneJson(
       errors.push('floor must be an object');
     } else {
       if (!s.floor.id) errors.push('floor.id is required');
+      else noteId(s.floor.id, 'floor');
       if (s.floor.walkable !== undefined) {
         if (!Array.isArray(s.floor.walkable)) {
           errors.push('floor.walkable must be an array');
@@ -107,10 +143,17 @@ export function validateSceneJson(
       s.walls.forEach((w, i) => {
         const wall = w as Record<string, unknown>;
         if (!wall.id) errors.push(`walls[${i}].id is required`);
+        else noteId(wall.id, `walls[${i}]`);
+        let numeric = true;
         for (const k of ['x', 'y', 'endX', 'endY']) {
-          if (typeof wall[k] !== 'number') errors.push(`walls[${i}].${k} must be a number`);
+          if (typeof wall[k] !== 'number') { errors.push(`walls[${i}].${k} must be a number`); numeric = false; }
         }
-        if (wall.x === wall.endX && wall.y === wall.endY) warnings.push(`walls[${i}] has zero length`);
+        // Only meaningful once the coordinates are numbers: with all four
+        // missing, `undefined === undefined` reported every such wall as
+        // zero-length on top of the four errors it already had.
+        if (numeric && wall.x === wall.endX && wall.y === wall.endY) {
+          warnings.push(`walls[${i}] has zero length`);
+        }
       });
     }
   }
@@ -122,15 +165,30 @@ export function validateSceneJson(
     } else {
       s.lights.forEach((l, i) => {
         const light = l as Record<string, unknown>;
-        if (typeof light.type !== 'string' || !lightTypes.has(light.type)) {
-          errors.push(`lights[${i}].type must be one of ${[...lightTypes].join(', ')}, got '${light.type}'`);
+        if (typeof light.type !== 'string') {
+          errors.push(`lights[${i}].type must be a string, got '${light.type}'`);
+        } else if (!lightTypes.has(light.type)) {
+          noteUnknownType(
+            `lights[${i}].type '${light.type}' is not one of ${[...lightTypes].join(', ')}; ` +
+            'register it with Engine.registerLight() or pass it in options.lightTypes',
+          );
         }
+        if (light.id !== undefined) noteId(light.id, `lights[${i}]`);
         if (light.type === 'omni') {
           for (const k of ['x', 'y', 'z']) {
             if (typeof light[k] !== 'number') errors.push(`lights[${i}].${k} must be a number`);
           }
           if (typeof light.intensity === 'number' && (light.intensity < 0 || light.intensity > 10)) {
             warnings.push(`lights[${i}].intensity ${light.intensity} is outside typical range 0–10`);
+          }
+        }
+        if (light.type === 'directional') {
+          // Only omni was checked, so a directional light with a string angle
+          // validated clean and then produced NaN transforms at runtime.
+          for (const k of ['angle', 'elevation']) {
+            if (light[k] !== undefined && typeof light[k] !== 'number') {
+              errors.push(`lights[${i}].${k} must be a number when present`);
+            }
           }
         }
       });
@@ -145,6 +203,7 @@ export function validateSceneJson(
       s.characters.forEach((c, i) => {
         const ch = c as Record<string, unknown>;
         if (!ch.id) errors.push(`characters[${i}].id is required`);
+        else noteId(ch.id, `characters[${i}]`);
         for (const k of ['x', 'y']) {
           if (typeof ch[k] !== 'number') errors.push(`characters[${i}].${k} must be a number`);
         }
@@ -164,11 +223,21 @@ export function validateSceneJson(
       s.props.forEach((p, i) => {
         const prop = p as Record<string, unknown>;
         if (!prop.id) errors.push(`props[${i}].id is required`);
+        else noteId(prop.id, `props[${i}]`);
         if (typeof prop.x !== 'number') errors.push(`props[${i}].x must be a number`);
         if (typeof prop.y !== 'number') errors.push(`props[${i}].y must be a number`);
-        if (typeof prop.type !== 'string') errors.push(`props[${i}].type must be a string`);
-        if (typeof prop.type === 'string' && !propTypes.has(prop.type)) {
-          errors.push(`props[${i}].type must be one of ${[...propTypes].join(', ')}, got ${prop.type}`);
+        if (typeof prop.type !== 'string') {
+          errors.push(`props[${i}].type must be a string`);
+        } else if (!propTypes.has(prop.type)) {
+          noteUnknownType(
+            `props[${i}].type '${prop.type}' is not one of ${[...propTypes].join(', ')}; ` +
+            'register it with Engine.registerProp() or pass it in options.propTypes',
+          );
+        }
+        // `Engine.buildScene` feeds this straight into `new HealthComponent({ max })`,
+        // where a string or a zero produces an entity that is dead on arrival.
+        if (prop.health !== undefined && (typeof prop.health !== 'number' || !(prop.health > 0))) {
+          errors.push(`props[${i}].health must be a number > 0 when present, got ${prop.health}`);
         }
       });
     }

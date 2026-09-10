@@ -40,9 +40,91 @@ describe('validateSceneJson', () => {
     expect(r.warnings.some(w => w.includes('rows'))).toBe(true);
   });
 
-  it('errors on invalid light type', () => {
+  it('warns, not errors, on a light type it cannot know about', () => {
+    // The validator has no view of Engine.registerLight(), so calling an
+    // unrecognised type invalid was a false negative for every custom type.
     const r = validateSceneJson({ lights: [{ type: 'spot' }] });
-    expect(r.errors.some(e => e.includes('type'))).toBe(true);
+    expect(r.ok).toBe(true);
+    expect(r.warnings.some(w => w.includes("'spot'"))).toBe(true);
+  });
+
+  it('errors on an unknown light type once the caller declares the set', () => {
+    const r = validateSceneJson({ lights: [{ type: 'spot' }] }, { lightTypes: ['aura'] });
+    expect(r.ok).toBe(false);
+    expect(r.errors.some(e => e.includes("'spot'"))).toBe(true);
+  });
+
+  it('accepts a declared custom light type', () => {
+    const r = validateSceneJson({ lights: [{ type: 'aura' }] }, { lightTypes: ['aura'] });
+    expect(r.ok).toBe(true);
+    expect(r.warnings).toEqual([]);
+  });
+
+  it('errors on a non-string light type', () => {
+    const r = validateSceneJson({ lights: [{ type: 7 }] });
+    expect(r.errors.some(e => e.includes('must be a string'))).toBe(true);
+  });
+
+  it('validates directional angle and elevation, which only omni got', () => {
+    const bad = validateSceneJson({ lights: [{ type: 'directional', angle: '45' }] });
+    expect(bad.errors.some(e => e.includes('angle'))).toBe(true);
+
+    const ok = validateSceneJson({ lights: [{ type: 'directional', angle: 45, elevation: 0.8 }] });
+    expect(ok.ok).toBe(true);
+  });
+
+  it('warns on an unknown prop type but errors once declared', () => {
+    const loose = validateSceneJson({ props: [{ id: 'm1', type: 'mob', x: 1, y: 1 }] });
+    expect(loose.ok).toBe(true);
+    expect(loose.warnings.some(w => w.includes('registerProp'))).toBe(true);
+
+    const strict = validateSceneJson(
+      { props: [{ id: 'm1', type: 'mob', x: 1, y: 1 }] },
+      { propTypes: ['spawner'] },
+    );
+    expect(strict.ok).toBe(false);
+  });
+
+  it('errors on a non-numeric or non-positive prop health', () => {
+    for (const health of ['100', 0, -5]) {
+      const r = validateSceneJson({ props: [{ id: 'c', type: 'chest', x: 1, y: 1, health }] });
+      expect(r.errors.some(e => e.includes('health'))).toBe(true);
+    }
+    const ok = validateSceneJson({ props: [{ id: 'c', type: 'chest', x: 1, y: 1, health: 50 }] });
+    expect(ok.ok).toBe(true);
+  });
+
+  it('catches a duplicate id across different collections', () => {
+    const r = validateSceneJson({
+      floor: { id: 'ground' },
+      characters: [{ id: 'hero', x: 1, y: 1 }],
+      props: [{ id: 'hero', type: 'chest', x: 2, y: 2 }],
+    });
+    // `removeById` filters every match and `getById` returns the first, so a
+    // duplicate means one object is unreachable and both die together.
+    expect(r.ok).toBe(false);
+    expect(r.errors.some(e => e.includes('Duplicate id "hero"'))).toBe(true);
+  });
+
+  it('accepts distinct ids across collections', () => {
+    const r = validateSceneJson({
+      floor: { id: 'ground' },
+      walls: [{ id: 'w1', x: 0, y: 0, endX: 4, endY: 0 }],
+      characters: [{ id: 'hero', x: 1, y: 1 }],
+      props: [{ id: 'chest-1', type: 'chest', x: 2, y: 2 }],
+      lights: [{ id: 'torch', type: 'omni', x: 1, y: 1, z: 0 }],
+    });
+    expect(r.errors).toEqual([]);
+  });
+
+  it('reports a zero-length wall only when the coordinates are numbers', () => {
+    const missing = validateSceneJson({ walls: [{ id: 'w' }] });
+    // Four coordinate errors, but no bogus "zero length" on top of them:
+    // `undefined === undefined` used to make every incomplete wall zero-length.
+    expect(missing.warnings.some(w => w.includes('zero length'))).toBe(false);
+
+    const degenerate = validateSceneJson({ walls: [{ id: 'w', x: 2, y: 2, endX: 2, endY: 2 }] });
+    expect(degenerate.warnings.some(w => w.includes('zero length'))).toBe(true);
   });
 
   it('warns on character out of bounds', () => {

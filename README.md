@@ -77,7 +77,7 @@ broken object cannot take down the frame. `unregister(Ctor)` and
 - **Props** — `Crystal`, `Boulder`, `Chest`, `Tree`, `FlowerPatch`, `Lantern`, `Cloud`, `FloatingText`; canvas-drawn, ECS-powered
 - **Audio** — `AudioManager`; one-shot SFX, looping BGM with crossfade, spatial distance attenuation, 3-bus volume (master/sfx/bgm)
 - **JSON scene loader** — `SceneSerializer` + `engine.loadScene()` round-trip scene environment, camera, lights, built-in objects, and collision map
-- **Scene validator** — `validateSceneJson()`; runtime JSON schema check + ECS component assertions
+- **Scene validator** — `validateSceneJson()`; runtime JSON schema check + ECS component assertions; duplicate-id detection; unknown types warn unless you declare the accepted set
 - **Scene editor** — visual editor (`editor.ts`); undo/redo, walkable/blocked drag-paint, object list, property panel, JSON export/import; right-click delete; DirectionalLight placement; keyboard shortcuts (`V/W/L/D/C/1/2/3/B/P`); `camera.screenToWorld` for zoom/pan-accurate picking
 - **Sprite editor** — sprite sheet frame inspector and animation clip builder (`sprite-editor.ts`); 8-direction live preview (cached `Map<Direction,DirCell>`); `anchorY` control; click-frame inspection with action/dir hint; JSON export + import; data URL upload support
 - **AssetLoader** — instanceable image preloader; per-scene isolation; `unload(url)`; `size` getter; `register(url, img)` for data-URL injection (sprite editor); static API delegates to `AssetLoader.default` (backwards-compatible)
@@ -122,7 +122,7 @@ npm run test:webgl # builds, then runs 9 deterministic captures + lifecycle test
 
 | Layer | Command | Scope |
 |---|---|---|
-| Unit | `npm test` | 807 tests across 66 files (Vitest 4) |
+| Unit | `npm test` | 816 tests across 66 files (Vitest 4) |
 | Coverage | `npm run test:coverage` | v8 provider + per-module ratchets |
 | Workflows | `npm run lint:workflows` | GitHub Actions YAML: unquoted colons, tab indentation, `run:` expression injection |
 | Browser | `npm run test:webgl` | 9 fixture captures + 2 context-lifecycle tests (Chromium/SwiftShader) against the built bundle |
@@ -139,9 +139,9 @@ Correctness-critical modules carry their own floors:
 | `src/ecs/**` | 92% | 88% |
 | `src/audio/**` | 78% | 71% |
 | `src/animation/**` | 88% | 80% |
-| `src/core/**` | 94% | 82% |
+| `src/core/**` | 95% | 84% |
 | `src/elements/**` | 57% | 53% |
-| Whole project | 76.7% | 74.1% |
+| Whole project | 77% | 74.9% |
 
 Raise a floor when you add tests; never lower one to make a build pass. Test
 count is not coverage — every P0/P1 defect found in the last audit sat in a
@@ -950,6 +950,18 @@ validateComponents(entity: Entity, required: ComponentCtor[]): ValidationResult
 requireComponent<T>(entity: Entity, ctor: ComponentCtor<T>): T  // throws if missing
 ```
 
+Nothing in the engine calls `validateSceneJson`: `engine.buildScene()` loads what
+it is given and warns about unknown types as it goes. Run the validator yourself
+over hand-authored level files — in an editor, an asset pipeline, or a CI check.
+
+A type outside the built-in set is a **warning**, because the validator has no
+view of what the application registered through `Engine.registerProp()` /
+`registerLight()`. Pass `propTypes` / `lightTypes` to declare the full accepted
+set; doing so promotes unknown types to **errors**. Duplicate ids across floor,
+walls, characters, props and lights are always errors — `Scene.removeById()`
+filters every match and `getById()` returns the first, so a duplicate means one
+object is unreachable and both disappear together.
+
 ## Roadmap
 
 ### Completed ✅
@@ -1008,7 +1020,7 @@ requireComponent<T>(entity: Entity, ctor: ComponentCtor<T>): T  // throws if mis
 | EventBus event maps | Event names and payload types are coupled; custom maps supported |
 | Scene.toJSON(): runtime state + built-in prop serialization | Environment, camera, view, light IDs/options, collider, built-ins |
 | Lib build: ESM + CJS dual output + .d.ts (npm run build:lib) | |
-| Unit tests: 807 tests across 66 files (Vitest 4, Node ≥ 22) | |
+| Unit tests: 816 tests across 66 files (Vitest 4, Node ≥ 22) | |
 | Coverage ratchets per module (`npm run test:coverage`) | v8 provider; per-glob floors on math/physics/lighting/ecs/animation/elements/audio/core |
 | Examples: 9 progressive demos + tools gallery | |
 
