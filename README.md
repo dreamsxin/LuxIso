@@ -36,6 +36,7 @@ Application code should continue using the Canvas2D `Engine` API until the
 - **IsoView** — `scene.view` rotation + elevation; `scene.transitionView()` smooth animated transitions
 - **Camera** — follow, pan, zoom, world-bounds clamping; frame-rate-independent lerp; `applyTransform()` fully wired into `Scene.draw()`
 - **Input** — `InputManager`; keyboard, mouse and **multi-touch**; `pointer` is the primary contact, `touches` is the full list (two-thumb layouts); mouse buttons bind as `MouseLeft` / `MouseMiddle` / `MouseRight`; releases everything on blur or tab-hide; suppresses browser touch gestures by default
+- **Analog input** — `TouchStick` on-screen stick (deadzone, dynamic origin, claims one contact by id); `InputMap.addAxisSource()` feeds any analog producer into `axis()`, which `ClickMover` already honours
 - **ClickMover** — click-to-move + keyboard movement helper; animated marker; collision-aware; frame-rate-independent (`speed` calibrated at 60 FPS)
 - **Sprite animation** — `SpriteSheet` + `AnimationController` (idle/walk state machine, 8-direction)
 - **Directional animator** — `DirectionalAnimator`; clip naming `action_DIR`; fallback chain; `playOnce()`
@@ -93,7 +94,7 @@ npm run test:webgl # builds, then runs 9 deterministic captures + lifecycle test
 
 | Layer | Command | Scope |
 |---|---|---|
-| Unit | `npm test` | 489 tests across 48 files (Vitest 4) |
+| Unit | `npm test` | 516 tests across 49 files (Vitest 4) |
 | Coverage | `npm run test:coverage` | v8 provider + per-module ratchets |
 | Browser | `npm run test:webgl` | 9 fixture captures + 2 context-lifecycle tests (Chromium/SwiftShader) against the built bundle |
 
@@ -109,7 +110,7 @@ Correctness-critical modules carry their own floors:
 | `src/ecs/**` | 82% | 78% |
 | `src/audio/**` | 78% | 71% |
 | `src/animation/**` | 81% | 75% |
-| `src/core/**` | 70% | 59% |
+| `src/core/**` | 72% | 60% |
 | `src/elements/**` | 57% | 53% |
 | Whole project | 66% | 62% |
 
@@ -299,7 +300,8 @@ src/
 │   ├── Engine.ts                # RAF loop; JSON loader (floor/walls/lights/chars/props/clouds); pre/postFrame
 │   ├── HudLayer.ts              # Canvas-space UI: labels, bars, buttons, panels
 │   ├── InputManager.ts          # Keyboard/mouse/multi-touch state; touches[]; mouse-button keys; per-frame flush
-│   ├── InputMap.ts              # Action-binding layer over InputManager; axis(); toJSON/fromJSON
+│   ├── InputMap.ts              # Action-binding layer over InputManager; axis() + analog AxisSource; toJSON/fromJSON
+│   ├── TouchStick.ts            # On-screen analog stick; AxisSource; deadzone, dynamic origin, per-contact claim
 │   ├── LightmapCache.ts         # OffscreenCanvas floor cache; isDirty snapshot; blit()
 │   ├── Minimap.ts               # OffscreenCanvas HUD overlay; walkable grid + object dots
 │   ├── ObjectPool.ts            # Generic object pool; acquire/release/releaseAll; prewarm
@@ -500,6 +502,42 @@ ClickMover.REFERENCE_FPS                        // 60 — the rate `speed` is ca
 final frame of a click-move the mover emits the exact remaining delta, so the
 entity lands on the clicked tile rather than stopping short by a step.
 
+
+### `TouchStick`
+
+```ts
+new TouchStick({ x, y, radius?, deadzone?, captureRadius?, dynamicOrigin?, baseColor?, knobColor? })
+stick.update(input, isTaken?): void      // poll once per frame, before reading the axis
+stick.value: { x, y }                    // analog vector, length ≤ 1
+stick.active: boolean
+stick.touchId: number | null             // the claimed contact — check before letting buttons take it
+stick.setCentre(x, y): void              // after a resize
+stick.reset(): void
+stick.draw(ctx): void                    // base ring + knob, in screen space
+```
+
+`TouchStick` implements `AxisSource`, so registering it makes the whole movement
+chain analog without any other change:
+
+```ts
+const stick = new TouchStick({ x: 110, y: engine.canvasH - 110 });
+map.addAxisSource(stick);          // () => void detach
+
+engine.start(
+  (ts) => stick.draw(engine.ctx),
+  () => {
+    stick.update(input);
+    // ClickMover reads map.axis(), so it now honours partial deflection
+    mover.update(dt, input, map, camera, /* ... */);
+  },
+);
+```
+
+It claims one contact by `Touch.identifier` and holds it until that finger
+lifts, so a second thumb on a skill button never steals it. `axis()` sums every
+active source with the digital keys and clamps to length 1 — pure-keyboard
+results are unchanged, and holding a key while pushing the stick grants no extra
+speed.
 
 ### `Character`
 
@@ -899,7 +937,7 @@ requireComponent<T>(entity: Entity, ctor: ComponentCtor<T>): T  // throws if mis
 | EventBus event maps | Event names and payload types are coupled; custom maps supported |
 | Scene.toJSON(): runtime state + built-in prop serialization | Environment, camera, view, light IDs/options, collider, built-ins |
 | Lib build: ESM + CJS dual output + .d.ts (npm run build:lib) | |
-| Unit tests: 489 tests across 48 files (Vitest 4, Node ≥ 22) | |
+| Unit tests: 516 tests across 49 files (Vitest 4, Node ≥ 22) | |
 | Coverage ratchets per module (`npm run test:coverage`) | v8 provider; per-glob floors on math/physics/lighting/ecs/animation/elements/audio/core |
 | Examples: 9 progressive demos + tools gallery | |
 
@@ -910,7 +948,6 @@ See [FRAMEWORK_ANALYSIS.md](FRAMEWORK_ANALYSIS.md) for a detailed comparison wit
 | Priority | Item | Notes |
 |----------|------|-------|
 | P1 | `example-05` sky draw functions (400+ lines) inline in `main.ts` | Split to `environment/*.ts` |
-| P2 | `InputMap.axis()` is discrete ±1 only | An on-screen joystick produces analog magnitudes that the action layer cannot express; a virtual-joystick/on-screen-button widget does not exist either |
 | P2 | `HudLayer` is desktop-shaped | Only `type: 'button'` is hit-tested, `handleClick` is never auto-wired (the docs suggest a `click` listener, which is the wrong event on touch), `_hovered` sticks after a tap, and default targets are far below 44×44 |
 | P2 | `webgl-next` renders only 12 built-in types | `SceneExtractor._extractObject` is a closed `instanceof` chain; any other `IsoObject` becomes a magenta diagnostic diamond. There is no extractor-registration API and no canvas-to-texture fallback, so every custom class in `examples/` is unrenderable on the WebGL path |
 | P2 | `webgl-next` has no HUD path | `HudLayer` is Canvas-only; the WebGL preview draws UI as DOM overlays (`DomOverlayRenderer`, `MinimapRenderer`). A game on that backend must build its own overlay layer |

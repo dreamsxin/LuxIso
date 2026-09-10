@@ -160,7 +160,76 @@ describe('InputMap — axis', () => {
     keydown({ type: 'keydown', key: 'a', code: 'KeyA' });
     expect(axis()).toEqual({ x: 0, y: 0 });
   });
+
+  // ── Analog sources ───────────────────────────────────────────────────────
+  // Before these existed the action layer could only express ±1, so an
+  // on-screen stick's partial deflection had nowhere to go.
+
+  const source = (x: number, y: number, active = true) => ({ value: { x, y }, active });
+
+  it('passes an analog source through unchanged', () => {
+    map.addAxisSource(source(0.37, -0.12));
+    const { x, y } = axis();
+    expect(x).toBeCloseTo(0.37, 6);
+    expect(y).toBeCloseTo(-0.12, 6);
+  });
+
+  it('skips inactive sources', () => {
+    map.addAxisSource(source(1, 1, false));
+    expect(axis()).toEqual({ x: 0, y: 0 });
+  });
+
+  it('sums multiple sources', () => {
+    map.addAxisSource(source(0.2, 0));
+    map.addAxisSource(source(0.3, 0));
+    expect(axis().x).toBeCloseTo(0.5, 6);
+  });
+
+  it('clamps the combined vector to length 1', () => {
+    map.addAxisSource(source(0.9, 0.9));
+    map.addAxisSource(source(0.9, 0.9));
+    const { x, y } = axis();
+    expect(Math.hypot(x, y)).toBeCloseTo(1, 6);
+  });
+
+  it('gives no extra speed for holding a key and pushing a stick', () => {
+    keydown({ type: 'keydown', key: 'd', code: 'KeyD' });
+    map.addAxisSource(source(1, 0));
+    expect(axis().x).toBeCloseTo(1, 6);
+  });
+
+  it('leaves the keyboard-only result untouched', () => {
+    map.addAxisSource(source(0, 0, false));
+    keydown({ type: 'keydown', key: 'd', code: 'KeyD' });
+    keydown({ type: 'keydown', key: 's', code: 'KeyS' });
+    const { x, y } = axis();
+    expect(x).toBeCloseTo(Math.SQRT1_2, 6);
+    expect(y).toBeCloseTo(Math.SQRT1_2, 6);
+  });
+
+  it('the returned detach removes the source', () => {
+    const off = map.addAxisSource(source(0.5, 0));
+    expect(axis().x).toBeCloseTo(0.5, 6);
+    off();
+    expect(axis()).toEqual({ x: 0, y: 0 });
+    expect(map.axisSources.length).toBe(0);
+  });
+
+  it('registering the same source twice counts once', () => {
+    const s = source(0.4, 0);
+    map.addAxisSource(s);
+    map.addAxisSource(s);
+    expect(map.axisSources.length).toBe(1);
+    expect(axis().x).toBeCloseTo(0.4, 6);
+  });
+
+  it('clearAxisSources drops everything', () => {
+    map.addAxisSource(source(1, 0));
+    map.clearAxisSources();
+    expect(axis()).toEqual({ x: 0, y: 0 });
+  });
 });
+
 
 describe('InputMap — callbacks', () => {
   it('fires a subscribed callback on press', () => {

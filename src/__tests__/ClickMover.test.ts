@@ -28,21 +28,25 @@ interface Fakes {
   press(worldX: number, worldY: number, camera: Camera): void;
   release(): void;
   hold(dir: 'up' | 'down' | 'left' | 'right' | null): void;
+  /** Override the axis with an analog vector, as a TouchStick would produce. */
+  setAxis(x: number, y: number): void;
 }
 
 function makeFakes(): Fakes {
   const pointer = { x: 0, y: 0, pressed: false, down: false };
   let held: string | null = null;
+  let analog: { x: number; y: number } | null = null;
 
   const input = { pointer } as unknown as InputManager;
   const map = {
     axis(px: string, nx: string, py: string, ny: string) {
+      void px; void nx; void py; void ny;
+      if (analog) return analog;
       let x = 0, y = 0;
       if (held === 'right') x = 1;
       if (held === 'left')  x = -1;
       if (held === 'down')  y = 1;
       if (held === 'up')    y = -1;
-      void px; void nx; void py; void ny;
       return { x, y };
     },
   } as unknown as InputMap;
@@ -57,9 +61,11 @@ function makeFakes(): Fakes {
       pointer.pressed = true;
     },
     release() { pointer.pressed = false; },
-    hold(dir) { held = dir; },
+    hold(dir) { held = dir; analog = null; },
+    setAxis(x, y) { analog = { x, y }; },
   };
 }
+
 
 function step(
   mover: ClickMover,
@@ -119,6 +125,29 @@ describe('ClickMover — frame-rate independence', () => {
     step(mover, f, camera, 1 / 60, 5, 5);
     expect(mover.velX).toBeCloseTo(0.08, 9);
   });
+
+  it('respects an analog axis magnitude instead of snapping to full speed', () => {
+    const camera = new Camera();
+    const mover = new ClickMover({ cols: 40, rows: 40, speed: 0.08 });
+    const f = makeFakes();
+    // What a TouchStick at 40% deflection produces. Normalising by the vector
+    // length would turn this back into a full-speed on/off button.
+    f.setAxis(0.4, 0);
+
+    step(mover, f, camera, 1 / 60, 5, 5);
+    expect(mover.velX).toBeCloseTo(0.08 * 0.4, 9);
+  });
+
+  it('still caps a digital diagonal at one step', () => {
+    const camera = new Camera();
+    const mover = new ClickMover({ cols: 40, rows: 40, speed: 0.08 });
+    const f = makeFakes();
+    f.setAxis(Math.SQRT1_2, Math.SQRT1_2);
+
+    step(mover, f, camera, 1 / 60, 5, 5);
+    expect(Math.hypot(mover.velX, mover.velY)).toBeCloseTo(0.08, 9);
+  });
+
 
   it('produces no displacement when dt is 0 (Engine reports that on frame 1)', () => {
     const camera = new Camera();

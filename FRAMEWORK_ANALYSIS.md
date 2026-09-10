@@ -1,7 +1,7 @@
 # LuxIso 架构分析报告 v5
 
 > 更新日期：2026-09-09
-> 基线：Canvas 2D 默认 + WebGL2 预览，489 个 Vitest 测试 / 48 个测试文件（含 v8 覆盖率阈值），11 个 Playwright WebGL 测试
+> 基线：Canvas 2D 默认 + WebGL2 预览，516 个 Vitest 测试 / 49 个测试文件（含 v8 覆盖率阈值），11 个 Playwright WebGL 测试
 
 ## 执行摘要
 
@@ -118,7 +118,6 @@ const bus = new EventBus<GameEvents>();
 | 优先级 | 问题 | 建议 |
 |---|---|---|
 | P1 | example-05 天空绘制函数仍集中在 main.ts | 拆到 environment 模块 |
-| P2 | `InputMap.axis()` 只有离散 ±1 | 屏幕摇杆输出模拟量，action 层表达不了；虚拟摇杆/屏幕按键控件也不存在 |
 | P2 | `HudLayer` 是桌面形状 | 只有 `type: 'button'` 参与命中测试，`handleClick` 从不自动接线（文档建议的 `click` 在触屏是错的事件），`_hovered` 点击后不消失，默认命中区远小于 44×44 |
 | P2 | `webgl-next` 只认 12 个内置类型 | `SceneExtractor._extractObject` 是封闭 `instanceof` 链，其余 `IsoObject` 一律画成洋红诊断菱形；无注册 API、无 canvas-to-texture 兜底，`examples/` 里所有自定义类在 WebGL 路径上都渲染不出来 |
 | P2 | `webgl-next` 没有 HUD 路径 | `HudLayer` 仅 Canvas；WebGL 预览的 UI 走 DOM 覆盖层（`DomOverlayRenderer` / `MinimapRenderer`），基于该后端的游戏必须自建覆盖层 |
@@ -257,6 +256,17 @@ const bus = new EventBus<GameEvents>();
   新增 `bindPageLifecycle()` 一次性接好两件事：首次 pointerdown/touchend/keydown/mousedown
   解锁后自摘监听（iOS Safari 对哪个事件算手势历来不稳，所以全绑），以及隐藏时
   `suspend()`、回来时 resume——`suspend()` 此前在整个仓库中没有任何调用者。
+- 模拟量输入。`InputMap.axis()` 只做四个方向键的离散 ±1 合成，屏幕摇杆的部分推程在
+  action 层根本无法表达，所以「先加控件」是没意义的——必须同时打通两端。现在引入
+  `AxisSource` 接口，`axis()` 把所有 active 源与数字键相加后把长度截到 1：纯键盘结果
+  逐位不变（单键 1、对角各 1/√2），同时按键 + 推杆也不会获得额外速度。新增
+  `TouchStick` 作为第一个实现，按 `Touch.identifier` 认领单个触点并持有到该手指抬起，
+  第二根拇指按技能键不会把它抢走；带死区（越过死区后重新缩放到 0 起步，避免角色突然
+  窜出去）、可选动态原点（落点即中心，适合「左半屏任意位置起摇」）。
+  顺带修掉 `ClickMover` 的一处：它把 `map.axis()` 的结果按向量长度归一化，会把摇杆的
+  40% 推程重新放大成满速，等于把模拟摇杆退化为一个开关。改成 `Math.max(1, len)` 截断——
+  数字对角本来长度就是 1，键盘行为不变。
+
 
 
 
@@ -279,11 +289,11 @@ const bus = new EventBus<GameEvents>();
 | 类型安全 | 9/10 | ComponentCtor 与 EventMap 覆盖核心扩展面；`tsc` 现已覆盖 examples 与 e2e |
 | 可扩展性 | 8/10 | 加载注册表与自定义事件良好；序列化注册表待补 |
 | 文档质量 | 8/10 | README 与本报告已同步当前实现 |
-| 测试覆盖 | 8/10 | 489 个单测 + 11 个浏览器测试；已接入 v8 覆盖率与分模块阈值（整体 66.3% 语句 / 62.5% 分支），三个 fixture 已按 1.5% 门槛比对基线 |
+| 测试覆盖 | 8/10 | 516 个单测 + 11 个浏览器测试；已接入 v8 覆盖率与分模块阈值（整体 66.8% 语句 / 62.9% 分支），三个 fixture 已按 1.5% 门槛比对基线 |
 | 综合 | 8.3/10 | 架构短板已大幅收敛，下一阶段应由 profiling 驱动 |
 
 测试数量不等于覆盖率。`vitest.config.ts` 现已按模块设定阈值（math/physics/lighting
-90% 语句、ecs 82%、animation 81%、audio 78%、core 70%、elements 57%，整体 66%），
+90% 语句、ecs 82%、animation 81%、audio 78%、core 72%、elements 57%，整体 66%），
 并在 CI 中作为门禁。阈值一律设在当前值略下方，只能随新测试上调，不允许为了让构建
 通过而下调。
 

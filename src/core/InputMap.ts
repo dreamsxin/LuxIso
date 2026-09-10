@@ -35,12 +35,28 @@ import { InputManager } from './InputManager';
 
 type ActionCallback = () => void;
 
+/**
+ * A producer of analog 2D input, such as an on-screen stick.
+ *
+ * `axis()` sums every active source with the digital keys and clamps the result
+ * to length 1, so a widget can be added without the game learning about it.
+ */
+export interface AxisSource {
+  /** Current vector; components in [-1, 1]. */
+  readonly value: { x: number; y: number };
+  /** True while the source is producing input. Inactive sources are skipped. */
+  readonly active: boolean;
+}
+
+
 export class InputMap {
   private _input: InputManager;
   /** action → set of key strings */
   private _bindings = new Map<string, Set<string>>();
   /** action → InputManager unsubscribe functions, so remove() can detach them */
   private _unsubscribes = new Map<string, Set<() => void>>();
+  private _axisSources = new Set<AxisSource>();
+
 
   constructor(input: InputManager) {
     this._input = input;
@@ -120,8 +136,14 @@ export class InputMap {
   }
 
   /**
-   * Returns a normalised 2D axis vector from four directional actions.
-   * Diagonal inputs are normalised to length 1.
+   * Returns a 2D axis vector from four directional actions, plus any registered
+   * analog sources.
+   *
+   * Digital keys contribute ±1 per axis; every active `AxisSource` adds its own
+   * vector. The sum is clamped to length 1, which leaves the pure-keyboard cases
+   * exactly as they were (a single key is 1, a diagonal is 1/√2 each) while
+   * making an on-screen stick's partial deflection come through intact. Holding
+   * a key *and* pushing the stick therefore grants no extra speed.
    *
    * @example
    *   const { x, y } = map.axis('move_right', 'move_left', 'move_down', 'move_up');
@@ -140,14 +162,47 @@ export class InputMap {
     if (this.isDown(positiveY)) y += 1;
     if (this.isDown(negativeY)) y -= 1;
 
-    // Normalise diagonal
+    // Normalise the digital diagonal on its own, so adding an analog source
+    // cannot change what the keyboard alone reports.
     if (x !== 0 && y !== 0) {
       const inv = 1 / Math.SQRT2;
       x *= inv;
       y *= inv;
     }
+
+    for (const source of this._axisSources) {
+      if (!source.active) continue;
+      x += source.value.x;
+      y += source.value.y;
+    }
+
+    const length = Math.hypot(x, y);
+    if (length > 1) {
+      x /= length;
+      y /= length;
+    }
     return { x, y };
   }
+
+  // ── Analog sources ─────────────────────────────────────────────────────────
+
+  /**
+   * Register an analog contributor to `axis()`. Returns a detach function.
+   * Registering the same source twice is a no-op.
+   */
+  addAxisSource(source: AxisSource): () => void {
+    this._axisSources.add(source);
+    return () => { this._axisSources.delete(source); };
+  }
+
+  /** Drop every registered analog source. */
+  clearAxisSources(): void {
+    this._axisSources.clear();
+  }
+
+  /** Registered analog sources, in insertion order. */
+  get axisSources(): readonly AxisSource[] { return [...this._axisSources]; }
+
 
   // ── Event API ──────────────────────────────────────────────────────────────
 

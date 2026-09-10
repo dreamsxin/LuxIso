@@ -117,10 +117,15 @@ export class ClickMover {
     let moveX = 0, moveY = 0;
 
     if (hasKb) {
-      const len = Math.hypot(kbAxis.x, kbAxis.y) || 1;
+      // Clamp rather than normalise. `map.axis()` already returns length 1 for a
+      // digital diagonal, so this is unchanged for the keyboard — but dividing
+      // by the length would rescale an analog stick's partial deflection back
+      // to full speed, making a TouchStick a slower on/off button.
+      const len = Math.max(1, Math.hypot(kbAxis.x, kbAxis.y));
       moveX = kbAxis.x / len * step;
       moveY = kbAxis.y / len * step;
     } else if (this._target) {
+
       const dx = this._target.x - entityX;
       const dy = this._target.y - entityY;
       const dist = Math.hypot(dx, dy);
