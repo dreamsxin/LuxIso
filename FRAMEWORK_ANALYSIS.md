@@ -1,7 +1,7 @@
 # LuxIso 架构分析报告 v5
 
 > 更新日期：2026-09-09
-> 基线：Canvas 2D 默认 + WebGL2 预览，733 个 Vitest 测试 / 61 个测试文件（含 v8 覆盖率阈值），11 个 Playwright WebGL 测试
+> 基线：Canvas 2D 默认 + WebGL2 预览，751 个 Vitest 测试 / 62 个测试文件（含 v8 覆盖率阈值），11 个 Playwright WebGL 测试
 
 ## 执行摘要
 
@@ -399,6 +399,22 @@ const bus = new EventBus<GameEvents>();
   - `handleMove()` 跳过不可见按钮，于是隐藏时的高亮状态被保留，再显示回来就是亮的。
   另外补了 `elements` 只读访问器（对齐 `Scene.allObjects`），以及 18 个用例覆盖
   bar 的背景/填充/边框/标签、label 阴影、按钮 hover 配色、DPR 变换与 save/restore 平衡。
+- `DebugRenderer` 是 `src/core` 里最后一个 0% 覆盖的大文件（181 条语句），而它恰好是
+  调 ARPG 数值时最常开的工具，所以「画错」比「不画」更糟：
+  - 光照圈半径写成 `(light.radius ?? 200) / (tileW / 2) * (tileW / 2)`——**除完再乘回去，
+    是个伪装成单位换算的恒等式**，随后又乘 0.18。`OmniLight.radius` 本来就是屏幕像素，
+    于是 320px 的光被画成 58px 的圈，正好在你要看光照范围的时候骗人。现在按原值绘制。
+  - 触发区椭圆用 `r * tileW / 2` 和它的一半：既假定了 2:1 瓦片，又整体差了 √2。
+    投影矩阵 `[[tw/2, -tw/2], [th/2, th/2]]` 的奇异值是 `tw/√2` 与 `th/√2`，
+    世界圆半径 r 对应的正是这两个半轴乘 r，现在按精确值画。
+  - 三处通过 `as unknown as { objects }` 强转读 `Scene` 的**私有字段**，其中一处的注释
+    还写着「Access objects via the public getAll」——注释与代码互相打脸。改用 `allObjects`。
+  - FPS 采样的 `_lastTs > 0` 是第九处哨兵，且重复时间戳会算出 `1000 / 0 = Infinity`，
+    一旦进入滑动平均就永远污染，面板上直接显示 `FPS: Infinity`；时间戳回退则记负值。
+    现在 `null` 哨兵 + 只在 `dt > 0` 时采样。
+  类注释的示例同样不可用：`new DebugRenderer(scene, engine)` 少了 originX/originY
+  （engine 被当成 originX），`input.onAction` / `input.bindKey` 这两个方法在 `InputMap`
+  上根本不存在（应为 `define` + `on`）。已全部改成真实 API。
 
 
 
@@ -427,7 +443,7 @@ const bus = new EventBus<GameEvents>();
 | 类型安全 | 9/10 | ComponentCtor 与 EventMap 覆盖核心扩展面；`tsc` 现已覆盖 examples 与 e2e |
 | 可扩展性 | 9/10 | 加载注册表、自定义事件、WebGL extractor 注册表均已就绪；序列化注册表待补 |
 | 文档质量 | 8/10 | README 与本报告已同步当前实现 |
-| 测试覆盖 | 8/10 | 733 个单测 + 11 个浏览器测试；已接入 v8 覆盖率与分模块阈值（整体 72.5% 语句 / 70.4% 分支），三个 fixture 已按 1.5% 门槛比对基线 |
+| 测试覆盖 | 8/10 | 751 个单测 + 11 个浏览器测试；已接入 v8 覆盖率与分模块阈值（整体 75.3% 语句 / 73.1% 分支），三个 fixture 已按 1.5% 门槛比对基线 |
 | 综合 | 8.3/10 | 架构短板已大幅收敛，下一阶段应由 profiling 驱动 |
 
 测试数量不等于覆盖率。`vitest.config.ts` 现已按模块设定阈值（math/physics/lighting

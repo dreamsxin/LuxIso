@@ -34,16 +34,16 @@ export interface DebugRendererOptions {
  * trigger zones onto the canvas for development purposes.
  *
  * @example
- *   const debug = new DebugRenderer(scene, engine);
+ *   const debug = new DebugRenderer(scene, engine.originX, engine.originY);
  *   debug.enabled = true;
  *
  *   engine.start((ts) => {
- *     if (debug.enabled) debug.draw(engine.ctx, canvas.width, canvas.height);
+ *     debug.draw(engine.ctx, engine.canvasW, engine.canvasH, ts);
  *   });
  *
  *   // Toggle with a key
- *   input.onAction('debug', () => { debug.enabled = !debug.enabled; });
- *   input.bindKey('F1', 'debug');
+ *   map.define('debug', ['F1']);
+ *   map.on('debug', () => { debug.enabled = !debug.enabled; });
  */
 export class DebugRenderer {
   enabled = false;
@@ -55,7 +55,7 @@ export class DebugRenderer {
 
   // FPS tracking
   private _fpsSamples: number[] = [];
-  private _lastTs = 0;
+  private _lastTs: number | null = null;
 
   constructor(
     scene: Scene,
@@ -206,16 +206,12 @@ export class DebugRenderer {
   }
 
   private _drawAABBs(ctx: CanvasRenderingContext2D, tileW: number, tileH: number): void {
-    // Access objects via the public getAll — use IsoObject base
-    const objects = (this._scene as unknown as { objects: { aabb: { minX: number; minY: number; maxX: number; maxY: number }; id: string }[] }).objects;
-    if (!objects) return;
-
     ctx.save();
     ctx.strokeStyle = this._opts.aabbColor;
     ctx.lineWidth = 0.8;
     ctx.setLineDash([3, 3]);
 
-    for (const obj of objects) {
+    for (const obj of this._scene.allObjects) {
       const { minX, minY, maxX, maxY } = obj.aabb;
       const corners = [
         project(minX, minY, 0, tileW, tileH),
@@ -242,10 +238,13 @@ export class DebugRenderer {
 
     for (const light of this._scene.omniLights) {
       const { sx, sy } = project(light.position.x, light.position.y, 0, tileW, tileH);
-      // Approximate world-radius to screen pixels (rough, ignores zoom here since we're in camera space)
-      const radiusPx = (light.radius ?? 200) / (tileW / 2) * (tileW / 2);
+      // `OmniLight.radius` is already in screen pixels, and this runs inside the
+      // camera transform, so it is drawn as-is. The old expression divided and
+      // multiplied by the same `tileW / 2` — a no-op dressed up as a conversion
+      // — and then scaled by 0.18, showing a 320 px light as a 58 px ring.
+      const radiusPx = light.radius;
       ctx.beginPath();
-      ctx.arc(sx, sy - light.position.z, radiusPx * 0.18, 0, Math.PI * 2);
+      ctx.arc(sx, sy - light.position.z, radiusPx, 0, Math.PI * 2);
       ctx.stroke();
 
       // Cross-hair at light position
@@ -268,25 +267,26 @@ export class DebugRenderer {
   }
 
   private _drawTriggers(ctx: CanvasRenderingContext2D, tileW: number, tileH: number): void {
-    // Walk all entities and look for TriggerZoneComponent
-    const objects = (this._scene as unknown as { objects: unknown[] }).objects;
-    if (!objects) return;
-
     ctx.save();
     ctx.strokeStyle = this._opts.triggerColor;
     ctx.lineWidth = 1;
     ctx.setLineDash([4, 4]);
 
-    for (const obj of objects) {
+    for (const obj of this._scene.allObjects) {
       if (!(obj instanceof Entity)) continue;
       const trigger = obj.getComponent(TriggerZoneComponent);
       if (!trigger) continue;
 
       const { sx, sy } = project(obj.position.x, obj.position.y, 0, tileW, tileH);
-      // Convert world-unit radius to approximate screen pixels
-      const radiusPx = trigger.radius * (tileW / 2);
+      // The projection matrix is [[tw/2, -tw/2], [th/2, th/2]], whose singular
+      // values are tw/√2 and th/√2 — so a world circle of radius r is an
+      // ellipse with exactly those semi-axes scaled by r. The old code used
+      // `r * tileW / 2` and simply halved it for y, which both assumed 2:1
+      // tiles and was off by √2.
+      const semiX = trigger.radius * tileW / Math.SQRT2;
+      const semiY = trigger.radius * tileH / Math.SQRT2;
       ctx.beginPath();
-      ctx.ellipse(sx, sy, radiusPx, radiusPx * 0.5, 0, 0, Math.PI * 2);
+      ctx.ellipse(sx, sy, semiX, semiY, 0, 0, Math.PI * 2);
       ctx.stroke();
     }
 
@@ -295,10 +295,12 @@ export class DebugRenderer {
   }
 
   private _drawHud(ctx: CanvasRenderingContext2D, canvasW: number, ts: number): void {
-    // FPS sampling
-    if (this._lastTs > 0) {
-      const fps = 1000 / (ts - this._lastTs);
-      this._fpsSamples.push(fps);
+    // FPS sampling. `null`, not 0: a timestamp of 0 is legitimate, and a
+    // repeated one made `1000 / 0` — Infinity, which then poisoned the running
+    // average for good. A backwards timestamp is ignored the same way.
+    const dt = this._lastTs === null ? 0 : ts - this._lastTs;
+    if (dt > 0) {
+      this._fpsSamples.push(1000 / dt);
       if (this._fpsSamples.length > 30) this._fpsSamples.shift();
     }
     this._lastTs = ts;
@@ -310,8 +312,7 @@ export class DebugRenderer {
     const lines: string[] = ['[DEBUG]'];
     if (this._opts.showFps)         lines.push(`FPS: ${avgFps.toFixed(0)}`);
     if (this._opts.showObjectCount) {
-      const count = (this._scene as unknown as { objects: unknown[] }).objects?.length ?? 0;
-      lines.push(`Objects: ${count}`);
+      lines.push(`Objects: ${this._scene.allObjects.length}`);
     }
     if (this._opts.showCollision)   lines.push('Collision: ON');
     if (this._opts.showAABB)        lines.push('AABB: ON');
