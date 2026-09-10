@@ -1,7 +1,7 @@
 # LuxIso 架构分析报告 v5
 
 > 更新日期：2026-09-09
-> 基线：Canvas 2D 默认 + WebGL2 预览，761 个 Vitest 测试 / 63 个测试文件（含 v8 覆盖率阈值），11 个 Playwright WebGL 测试
+> 基线：Canvas 2D 默认 + WebGL2 预览，775 个 Vitest 测试 / 64 个测试文件（含 v8 覆盖率阈值），11 个 Playwright WebGL 测试
 
 ## 执行摘要
 
@@ -423,6 +423,17 @@ const bus = new EventBus<GameEvents>();
   - `MinimapRenderer` 直接读 `window.devicePixelRatio`，无 `window` 的环境下直接抛
     `ReferenceError`；画布尚未布局（rect 0×0）时会建出 1×1 的 backing store 并照常
     发一整帧谁也看不见的绘制指令。现在 DPR 有回退、零尺寸直接跳过。
+- `webgl-baselines` 工作流曾连续几个提交无法被 dispatch，根因是一行不合法的 YAML
+  （`- run: echo "Reason: ${{ inputs.reason }}"`——纯量里不能出现 `: `）。真正的问题不是
+  那一行，而是**仓库里没有任何东西检查工作流语法**：GitHub 只把它写成某次 run 上的
+  annotation，既不构成失败的 check，本地也复现不出来，所以修好之后旧 annotation 还留在
+  历史里，看起来像「还在报错」。现在补上 `scripts/lint-workflows.mjs`（零依赖，不引入
+  YAML 解析器）与 `npm run lint:workflows`，三条规则都是这里真实踩过的：
+  未加引号却含冒号的纯量、缩进里的 Tab、把 `${{ inputs.* }}` / `${{ github.event.* }}`
+  直接插进 `run:`（shell 注入，应走 `env:`）。`webgl-preview.yml` 的 paths 从只监听
+  自身扩到 `.github/workflows/**`，并在 `npm ci` 之后跑这道门禁——工作流语法错误从此
+  是一次失败的 CI，而不是一条没人看见的 annotation。14 个用例覆盖规则本身，其中一个
+  直接断言仓库现有工作流全部通过。
 
 
 
@@ -451,7 +462,7 @@ const bus = new EventBus<GameEvents>();
 | 类型安全 | 9/10 | ComponentCtor 与 EventMap 覆盖核心扩展面；`tsc` 现已覆盖 examples 与 e2e |
 | 可扩展性 | 9/10 | 加载注册表、自定义事件、WebGL extractor 注册表均已就绪；序列化注册表待补 |
 | 文档质量 | 8/10 | README 与本报告已同步当前实现 |
-| 测试覆盖 | 8/10 | 761 个单测 + 11 个浏览器测试；已接入 v8 覆盖率与分模块阈值（整体 76.3% 语句 / 73.8% 分支），三个 fixture 已按 1.5% 门槛比对基线 |
+| 测试覆盖 | 8/10 | 775 个单测 + 11 个浏览器测试；已接入 v8 覆盖率与分模块阈值（整体 76.3% 语句 / 73.8% 分支），三个 fixture 已按 1.5% 门槛比对基线 |
 | 综合 | 8.3/10 | 架构短板已大幅收敛，下一阶段应由 profiling 驱动 |
 
 测试数量不等于覆盖率。`vitest.config.ts` 现已按模块设定阈值（math/physics/lighting

@@ -3,7 +3,7 @@ name: WebGL Preview
 on:
   push:
     paths:
-      - '.github/workflows/webgl-preview.yml'
+      - '.github/workflows/**'
       - 'src/**'
       - 'webgl-next/**'
       - 'package.json'
@@ -12,7 +12,7 @@ on:
       - 'vite.config.ts'
   pull_request:
     paths:
-      - '.github/workflows/webgl-preview.yml'
+      - '.github/workflows/**'
       - 'src/**'
       - 'webgl-next/**'
       - 'package.json'
@@ -34,6 +34,11 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      # Workflow syntax gate. A `run:` line with an unquoted colon once made
+      # webgl-baselines.yml unparseable, which GitHub only reports as an
+      # annotation on a run — nothing failed a check and nothing surfaced
+      # locally, so the workflow stayed undispatchable for several commits.
+      - run: npm run lint:workflows
       - run: npx playwright install --with-deps chromium
       # Unit suite with the coverage ratchets in vitest.config.ts. Fails the job
       # if a correctness-critical module loses coverage.

@@ -44,6 +44,7 @@
     "dev": "vite",
     "encoding:check": "node scripts/normalize-encoding.mjs",
     "encoding:fix": "node scripts/normalize-encoding.mjs --write",
+    "lint:workflows": "node scripts/lint-workflows.mjs",
     "build": "npm run encoding:check && tsc && vite build",
     "build:lib": "npm run encoding:check && cross-env BUILD_MODE=lib vite build && tsc -p tsconfig.lib.json",
     "preview": "vite preview",
