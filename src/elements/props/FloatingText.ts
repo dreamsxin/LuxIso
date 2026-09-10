@@ -9,7 +9,13 @@ export interface FloatingTextOptions {
   z: number;
   text: string;
   color?: string;
+  /** Lifetime in milliseconds. Default 1000. */
   duration?: number;
+  /**
+   * Rise rate in **screen pixels per second** — `position.z` is screen pixels,
+   * like every other Z in the engine. Default 40, which lifts a damage number
+   * about 32 px over a typical 800 ms life. Set 0 for a static label.
+   */
   speed?: number;
   fontSize?: number;
 }
@@ -17,6 +23,9 @@ export interface FloatingTextOptions {
 /**
  * FloatingText — a temporary isometric object that floats upward and fades out.
  * Useful for damage numbers, status effects, or labels.
+ *
+ * `Scene.update()` drops instances once `isExpired` turns true, so spawning one
+ * per hit does not accumulate.
  */
 export class FloatingText extends IsoObject {
   text: string;
@@ -27,16 +36,26 @@ export class FloatingText extends IsoObject {
   
   private _elapsed = 0;
   private _alpha = 1;
-  private _lastTs = 0;
+  /**
+   * Null until the first update. A `0` sentinel would collide with a legitimate
+   * timestamp of 0 — the text then read "first frame" forever, never rising,
+   * fading or expiring, so `Scene` never removed it either.
+   */
+  private _lastTs: number | null = null;
+
 
   constructor(opts: FloatingTextOptions) {
     super(opts.id, opts.x, opts.y, opts.z);
     this.text = opts.text;
     this.color = opts.color ?? '#ffffff';
     this.duration = opts.duration ?? 1000; // ms
-    this.speed = opts.speed ?? 1.5; // units/sec
+    // Screen pixels per second. The old default of 1.5 predates the single-Z
+    // convention and read as "world units"; against pixel Z it lifted a damage
+    // number 1.2 px over its whole life, so the documented float never happened.
+    this.speed = opts.speed ?? 40;
     this.fontSize = opts.fontSize ?? 16;
   }
+
 
   get aabb(): AABB {
     // Floating text doesn't usually need strict depth sorting against walls,
@@ -61,13 +80,17 @@ export class FloatingText extends IsoObject {
 
   update(ts?: number): void {
     const now = ts ?? performance.now();
-    const dt = this._lastTs === 0 ? 0.016 : Math.min((now - this._lastTs) / 1000, 0.1);
+    // dt 0 on the first call, matching Engine / ClickMover / DirectionalAnimator.
+    // The old 0.016 fallback invented a frame of elapsed time, so a text was
+    // already slightly faded before it had been drawn once.
+    const dt = this._lastTs === null ? 0 : Math.min((now - this._lastTs) / 1000, 0.1);
     this._lastTs = now;
 
     this._elapsed += dt * 1000;
     this.position.z += this.speed * dt;
     this._alpha = Math.max(0, 1 - this._elapsed / this.duration);
   }
+
 
   draw(dc: DrawContext): void {
     const { ctx, tileW, tileH, originX, originY } = dc;

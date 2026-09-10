@@ -122,7 +122,7 @@ npm run test:webgl # builds, then runs 9 deterministic captures + lifecycle test
 
 | Layer | Command | Scope |
 |---|---|---|
-| Unit | `npm test` | 548 tests across 51 files (Vitest 4) |
+| Unit | `npm test` | 561 tests across 52 files (Vitest 4) |
 | Coverage | `npm run test:coverage` | v8 provider + per-module ratchets |
 | Browser | `npm run test:webgl` | 9 fixture captures + 2 context-lifecycle tests (Chromium/SwiftShader) against the built bundle |
 
@@ -352,7 +352,7 @@ src/
 │       ├── Tree.ts              # Low-poly tree; canvas-drawn; registered as prop 'tree'
 │       ├── FlowerPatch.ts       # Scattered flower cluster; registered as prop 'flowers'
 │       ├── Lantern.ts           # Lantern prop with attached OmniLight; prop 'lantern'
-│       └── FloatingText.ts      # Floating text; auto-expires; depth-sorted; Scene.spawnFloatingText()
+│       └── FloatingText.ts      # Floating text; rises at px/sec; auto-expires via Scene.update(); Scene.spawnFloatingText()
 ├── animation/
 │   ├── SpriteSheet.ts           # AnimationClip (frames, fps, loop); AssetLoader preload
 │   ├── AnimationController.ts   # State machine; 8-direction; idle↔walk; dt-based
@@ -971,7 +971,7 @@ requireComponent<T>(entity: Entity, ctor: ComponentCtor<T>): T  // throws if mis
 | EventBus event maps | Event names and payload types are coupled; custom maps supported |
 | Scene.toJSON(): runtime state + built-in prop serialization | Environment, camera, view, light IDs/options, collider, built-ins |
 | Lib build: ESM + CJS dual output + .d.ts (npm run build:lib) | |
-| Unit tests: 548 tests across 51 files (Vitest 4, Node ≥ 22) | |
+| Unit tests: 561 tests across 52 files (Vitest 4, Node ≥ 22) | |
 | Coverage ratchets per module (`npm run test:coverage`) | v8 provider; per-glob floors on math/physics/lighting/ecs/animation/elements/audio/core |
 | Examples: 9 progressive demos + tools gallery | |
 

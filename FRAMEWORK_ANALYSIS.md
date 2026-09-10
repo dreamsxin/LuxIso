@@ -1,7 +1,7 @@
 # LuxIso 架构分析报告 v5
 
 > 更新日期：2026-09-09
-> 基线：Canvas 2D 默认 + WebGL2 预览，548 个 Vitest 测试 / 51 个测试文件（含 v8 覆盖率阈值），11 个 Playwright WebGL 测试
+> 基线：Canvas 2D 默认 + WebGL2 预览，561 个 Vitest 测试 / 52 个测试文件（含 v8 覆盖率阈值），11 个 Playwright WebGL 测试
 
 ## 执行摘要
 
@@ -283,6 +283,15 @@ const bus = new EventBus<GameEvents>();
   纹理 segment。后注册者优先，子类可以覆盖基类而不必先反注册。内置类型仍先匹配。
   自定义 extractor 是跑在渲染路径里的应用代码，所以外面包了两道保护：抛异常或没产出
   任何几何都退回诊断菱形并写进 `unsupported`，一个坏对象不会带崩整帧。
+- 补测 `FloatingText`（37%→59% 语句 / 67%→92% 分支）又验证了同一条规律。它的类注释写着
+  「floats upward and fades out」，而 `speed` 默认 1.5、注释标为「units/sec」——但
+  `position.z` 是屏幕像素，于是一个伤害数字在 800ms 生命里上升 **1.2 像素**，文档承诺的
+  上浮从来没发生过。默认值改为 40 px/s（约 32px），单位在类型上写明。
+  另外两处：`_lastTs = 0` 这个哨兵与合法的时间戳 0 冲突——`update(0)` 之后每一帧都被判为
+  「第一帧」，文字永远不升、不淡出、不过期，`Scene` 也就永远不会移除它；改为 `null`。
+  首帧 dt 也从凭空的 0.016 改为 0，与 `Engine` / `ClickMover` / `DirectionalAnimator` 一致，
+  此前文字在被画出来之前就已经淡掉一帧。
+
 
 
 
@@ -308,7 +317,7 @@ const bus = new EventBus<GameEvents>();
 | 类型安全 | 9/10 | ComponentCtor 与 EventMap 覆盖核心扩展面；`tsc` 现已覆盖 examples 与 e2e |
 | 可扩展性 | 9/10 | 加载注册表、自定义事件、WebGL extractor 注册表均已就绪；序列化注册表待补 |
 | 文档质量 | 8/10 | README 与本报告已同步当前实现 |
-| 测试覆盖 | 8/10 | 548 个单测 + 11 个浏览器测试；已接入 v8 覆盖率与分模块阈值（整体 67.6% 语句 / 65.5% 分支），三个 fixture 已按 1.5% 门槛比对基线 |
+| 测试覆盖 | 8/10 | 561 个单测 + 11 个浏览器测试；已接入 v8 覆盖率与分模块阈值（整体 67.8% 语句 / 65.7% 分支），三个 fixture 已按 1.5% 门槛比对基线 |
 | 综合 | 8.3/10 | 架构短板已大幅收敛，下一阶段应由 profiling 驱动 |
 
 测试数量不等于覆盖率。`vitest.config.ts` 现已按模块设定阈值（math/physics/lighting
