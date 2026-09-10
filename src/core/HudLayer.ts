@@ -280,14 +280,40 @@ export class HudLayer {
     return this._map.get(id) as T | undefined;
   }
 
+  /** All elements in draw order (back to front). */
+  get elements(): readonly HudElement[] {
+    return this._elements;
+  }
+
   remove(id: string): void {
-    this._elements = this._elements.filter(e => e.id !== id);
+    const el = this._map.get(id);
+    if (!el) return;
+    this._elements = this._elements.filter(e => e !== el);
     this._map.delete(id);
+    this._forget(el);
   }
 
   clear(): void {
     this._elements = [];
     this._map.clear();
+    this.resetInput();
+  }
+
+  /**
+   * Drop any press state that refers to `el`.
+   *
+   * Without this a contact pressed on a removed element still resolved on
+   * release, so hiding or rebuilding a HUD mid-press fired a button that was no
+   * longer part of the layer.
+   */
+  private _forget(el: HudElement): void {
+    for (const [id, pressed] of [...this._pressedOn]) {
+      if (pressed !== el) continue;
+      this._pressedOn.delete(id);
+      this._lastX.delete(id);
+      this._lastY.delete(id);
+    }
+    if (el.type === 'button') el._hovered = false;
   }
 
   // ── Input handling ─────────────────────────────────────────────────────────
@@ -314,9 +340,10 @@ export class HudLayer {
    */
   handleMove(x: number, y: number): void {
     for (const el of this._elements) {
-      if (el.type === 'button' && el.visible) {
-        el._hovered = this._contains(el, x, y);
-      }
+      if (el.type !== 'button') continue;
+      // An invisible button used to be skipped entirely, so it kept whatever
+      // hover state it had and came back highlighted when shown again.
+      el._hovered = el.visible && this._contains(el, x, y);
     }
   }
 
@@ -540,8 +567,24 @@ export class HudLayer {
     ctx.closePath();
   }
 
+  /**
+   * Register an element, replacing any existing one with the same id **in
+   * place** so the draw order is preserved.
+   *
+   * The map used to be overwritten while the array was appended to, so a HUD
+   * rebuilt on scene entry kept drawing every previous generation of each
+   * element and only the newest was reachable through `get()`.
+   */
   private _add(el: HudElement): void {
+    const existing = this._map.get(el.id);
+    if (existing) {
+      const index = this._elements.indexOf(existing);
+      if (index >= 0) this._elements[index] = el;
+      else this._elements.push(el);
+      this._forget(existing);
+    } else {
+      this._elements.push(el);
+    }
     this._map.set(el.id, el);
-    this._elements.push(el);
   }
 }

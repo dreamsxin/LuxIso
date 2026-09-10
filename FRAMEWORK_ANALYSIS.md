@@ -1,7 +1,7 @@
 # LuxIso 架构分析报告 v5
 
 > 更新日期：2026-09-09
-> 基线：Canvas 2D 默认 + WebGL2 预览，715 个 Vitest 测试 / 60 个测试文件（含 v8 覆盖率阈值），11 个 Playwright WebGL 测试
+> 基线：Canvas 2D 默认 + WebGL2 预览，733 个 Vitest 测试 / 61 个测试文件（含 v8 覆盖率阈值），11 个 Playwright WebGL 测试
 
 ## 执行摘要
 
@@ -389,6 +389,16 @@ const bus = new EventBus<GameEvents>();
     `raw` 双端钳到 [0, 1]（时钟回拨也不会把进度推成负数）。
   类注释里的 `await transition.play('fade', 400)` 是双重错误——`play()` 这个方法不存在，
   第二个参数也是 options 而非毫秒数，照抄必定 TypeError。已改为真实用法。
+- `HudLayer` 的绘制与注册面（语句 49%）暴露三处缺陷，都在「重进场景时重建 HUD」这条
+  ARPG 每关都会走的路径上：
+  - `_add()` 对 `_map` 是 `set`、对 `_elements` 是 `push`。**同 id 重复添加不会替换**，
+    旧元素永远留在绘制列表里（每关叠一层），而 `get()` 只能拿到最新那个。现在按原位
+    替换，绘制顺序保持不变。
+  - `remove()` / `clear()` 不清 `_pressedOn`：手指按住技能键时该键被移除，抬手仍会
+    触发一次 `onClick`——一个已经不属于 HUD 的按钮。现在移除即遗忘按压状态。
+  - `handleMove()` 跳过不可见按钮，于是隐藏时的高亮状态被保留，再显示回来就是亮的。
+  另外补了 `elements` 只读访问器（对齐 `Scene.allObjects`），以及 18 个用例覆盖
+  bar 的背景/填充/边框/标签、label 阴影、按钮 hover 配色、DPR 变换与 save/restore 平衡。
 
 
 
@@ -417,7 +427,7 @@ const bus = new EventBus<GameEvents>();
 | 类型安全 | 9/10 | ComponentCtor 与 EventMap 覆盖核心扩展面；`tsc` 现已覆盖 examples 与 e2e |
 | 可扩展性 | 9/10 | 加载注册表、自定义事件、WebGL extractor 注册表均已就绪；序列化注册表待补 |
 | 文档质量 | 8/10 | README 与本报告已同步当前实现 |
-| 测试覆盖 | 8/10 | 715 个单测 + 11 个浏览器测试；已接入 v8 覆盖率与分模块阈值（整体 71.3% 语句 / 69.8% 分支），三个 fixture 已按 1.5% 门槛比对基线 |
+| 测试覆盖 | 8/10 | 733 个单测 + 11 个浏览器测试；已接入 v8 覆盖率与分模块阈值（整体 72.5% 语句 / 70.4% 分支），三个 fixture 已按 1.5% 门槛比对基线 |
 | 综合 | 8.3/10 | 架构短板已大幅收敛，下一阶段应由 profiling 驱动 |
 
 测试数量不等于覆盖率。`vitest.config.ts` 现已按模块设定阈值（math/physics/lighting
