@@ -17,6 +17,14 @@ export class AnimationController {
   private _frame = 0;
   private _done = false;
   private _onComplete: (() => void) | null = null;
+  /**
+   * Set by `playOnce`, which must not loop even when the clip is flagged
+   * `loop: true` (or leaves the flag off, which also means looping). Without it
+   * an attack clip cycled forever, so the completion callback never fired and
+   * the controller never returned to the idle clip. `DirectionalAnimator`
+   * carries the same flag for the same reason.
+   */
+  private _forceOnce = false;
 
   direction: Direction = 'S';
 
@@ -43,6 +51,7 @@ export class AnimationController {
     this.elapsed = 0;
     this._frame = 0;
     this._done = false;
+    this._forceOnce = false;
     this._onComplete = null;
     return true;
   }
@@ -50,6 +59,9 @@ export class AnimationController {
   /**
    * Play a non-looping clip once, then call `onComplete`.
    * Automatically switches back to `returnTo` clip when done (default 'idle').
+   *
+   * The clip's own `loop` flag is overridden for this playback — see
+   * `_forceOnce`. A later `play()` cancels the one-shot.
    */
   playOnce(name: string, onComplete?: () => void, returnTo = 'idle'): boolean {
     if (!this.sheet.hasClip(name)) {
@@ -57,10 +69,10 @@ export class AnimationController {
       return false;
     }
     this.clip = this.sheet.getClip(name);
-    // Force non-looping for this playback
     this.elapsed = 0;
     this._frame = 0;
     this._done = false;
+    this._forceOnce = true;
     this._onComplete = () => {
       onComplete?.();
       if (returnTo && this.sheet.hasClip(returnTo)) this.play(returnTo);
@@ -77,7 +89,7 @@ export class AnimationController {
     if (totalFrames === 0) return;
     const totalDuration = frameDuration * totalFrames;
 
-    const shouldLoop = this.clip.loop ?? true;
+    const shouldLoop = this._forceOnce ? false : (this.clip.loop ?? true);
     if (shouldLoop) {
       this._frame = Math.floor((this.elapsed % totalDuration) / frameDuration);
     } else {
@@ -100,6 +112,7 @@ export class AnimationController {
     this.elapsed = 0;
     this._frame = 0;
     this._done = false;
+    this._forceOnce = false;
     this._onComplete = null;
   }
 

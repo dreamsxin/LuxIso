@@ -1,7 +1,7 @@
 # LuxIso 架构分析报告 v5
 
 > 更新日期：2026-09-09
-> 基线：Canvas 2D 默认 + WebGL2 预览，621 个 Vitest 测试 / 55 个测试文件（含 v8 覆盖率阈值），11 个 Playwright WebGL 测试
+> 基线：Canvas 2D 默认 + WebGL2 预览，639 个 Vitest 测试 / 56 个测试文件（含 v8 覆盖率阈值），11 个 Playwright WebGL 测试
 
 ## 执行摘要
 
@@ -329,6 +329,16 @@ const bus = new EventBus<GameEvents>();
   - `_lastTs === 0` 哨兵（第五处）：`update(0)` 之后紧接着的那一帧被整帧丢弃。
   另外 `followPath([])` 过去会把空数组 `shift()` 出 `undefined` 并保留上一个目标，
   对象继续走向旧终点；现在空路径等于取消移动。
+- ARPG 的攻击动作暴露了一处**已经修过一次但漏了另一半**的缺陷。`DirectionalAnimator`
+  早先补测时发现 `playOnce` 必须覆盖 clip 自身的 `loop` 标志，为此加了 `_forceOnce`；
+  但 `Character` 和 `AnimationComponent` 实际用的是另一个类 `AnimationController`，
+  它的 `playOnce` 只重置了播放进度，函数体里那句注释「Force non-looping for this
+  playback」从来没有对应实现。于是只要 clip 是 `loop: true`（或干脆没写 `loop`，默认
+  就是循环），attack/hurt/die 这类一次性动作会永远循环：完成回调不触发，也永远不回到
+  idle。现在两个类共用同一套语义，`play()` 与 `reset()` 会解除一次性标志。
+  规律再次成立：**同一个缺陷在孪生类里往往各有一份，修一处不等于修完。**
+  `AnimationComponent` 的 `_lastTs === 0` 是第六处哨兵冲突，另外它把负 dt 直接喂给
+  控制器，时间戳回退会让动画倒放；现在与其它模块一致钳到 [0, 0.1]。
 
 
 
@@ -357,11 +367,11 @@ const bus = new EventBus<GameEvents>();
 | 类型安全 | 9/10 | ComponentCtor 与 EventMap 覆盖核心扩展面；`tsc` 现已覆盖 examples 与 e2e |
 | 可扩展性 | 9/10 | 加载注册表、自定义事件、WebGL extractor 注册表均已就绪；序列化注册表待补 |
 | 文档质量 | 8/10 | README 与本报告已同步当前实现 |
-| 测试覆盖 | 8/10 | 621 个单测 + 11 个浏览器测试；已接入 v8 覆盖率与分模块阈值（整体 68.9% 语句 / 67.5% 分支），三个 fixture 已按 1.5% 门槛比对基线 |
+| 测试覆盖 | 8/10 | 639 个单测 + 11 个浏览器测试；已接入 v8 覆盖率与分模块阈值（整体 69.4% 语句 / 68.0% 分支），三个 fixture 已按 1.5% 门槛比对基线 |
 | 综合 | 8.3/10 | 架构短板已大幅收敛，下一阶段应由 profiling 驱动 |
 
 测试数量不等于覆盖率。`vitest.config.ts` 现已按模块设定阈值（math/physics/lighting
-90% 语句、ecs 86%、animation 81%、audio 78%、core 76%、elements 57%，整体 68.9%），
+90% 语句、ecs 86%、animation 88%、audio 78%、core 76%、elements 57%，整体 69.3%），
 并在 CI 中作为门禁。阈值一律设在当前值略下方，只能随新测试上调，不允许为了让构建
 通过而下调。
 

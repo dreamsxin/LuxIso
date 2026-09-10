@@ -29,7 +29,7 @@ export class AnimationComponent implements Component {
   private _autoUpdateDirection: boolean;
   private _lastX = 0;
   private _lastY = 0;
-  private _lastTs = 0;
+  private _lastTs: number | null = null;
 
   constructor(opts: AnimationOptions) {
     this._controller = new AnimationController(opts.spriteSheet, opts.initialClip ?? 'idle');
@@ -58,7 +58,13 @@ export class AnimationComponent implements Component {
     if (!this._owner) return;
 
     const now = ts ?? performance.now();
-    const dt = this._lastTs === 0 ? 0.016 : Math.min((now - this._lastTs) / 1000, 0.1);
+    // `null`, not 0: a timestamp of 0 is legitimate, and the old
+    // `_lastTs === 0` sentinel stayed armed through it, so the frame right
+    // after it advanced by an invented 16 ms instead of its real delta.
+    // A backwards timestamp used to rewind the clip.
+    const dt = this._lastTs === null
+      ? 0
+      : Math.min(Math.max(0, (now - this._lastTs) / 1000), 0.1);
     this._lastTs = now;
 
     if (this._autoUpdateDirection) {

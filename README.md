@@ -66,7 +66,7 @@ broken object cannot take down the frame. `unregister(Ctor)` and
 - **Input** — `InputManager`; keyboard, mouse and **multi-touch**; `pointer` is the primary contact, `touches` is the full list (two-thumb layouts); mouse buttons bind as `MouseLeft` / `MouseMiddle` / `MouseRight`; releases everything on blur or tab-hide; suppresses browser touch gestures by default
 - **Analog input** — `TouchStick` on-screen stick (deadzone, dynamic origin, claims one contact by id); `InputMap.addAxisSource()` feeds any analog producer into `axis()`, which `ClickMover` already honours
 - **ClickMover** — click-to-move + keyboard movement helper; animated marker; collision-aware; frame-rate-independent (`speed` calibrated at 60 FPS)
-- **Sprite animation** — `SpriteSheet` + `AnimationController` (idle/walk state machine, 8-direction)
+- **Sprite animation** — `SpriteSheet` + `AnimationController` (idle/walk state machine, 8-direction, `playOnce()` overrides the clip's own `loop` flag)
 - **Directional animator** — `DirectionalAnimator`; clip naming `action_DIR`; fallback chain; `playOnce()`
 - **Particle system** — `ParticleSystem`; procedural circle/square + sprite mode; blend modes; preset factories: sparkBurst, dustPuff, crystalShatter, coinSpill, ambientDrift, plus the `FIRE` / `SMOKE` emitter configs
 - **Tile collision** — `TileCollider` walkable grid; AABB slide-and-clamp; `sweepMove()` binary search with fast-path; `MovementComponent.nudge(dx,dy)` collision-resolved directional move
@@ -122,7 +122,7 @@ npm run test:webgl # builds, then runs 9 deterministic captures + lifecycle test
 
 | Layer | Command | Scope |
 |---|---|---|
-| Unit | `npm test` | 621 tests across 55 files (Vitest 4) |
+| Unit | `npm test` | 639 tests across 56 files (Vitest 4) |
 | Coverage | `npm run test:coverage` | v8 provider + per-module ratchets |
 | Browser | `npm run test:webgl` | 9 fixture captures + 2 context-lifecycle tests (Chromium/SwiftShader) against the built bundle |
 
@@ -135,12 +135,12 @@ Correctness-critical modules carry their own floors:
 | `src/math/**` | 90% | 88% |
 | `src/physics/**` | 90% | 85% |
 | `src/lighting/**` | 90% | 84% |
-| `src/ecs/**` | 86% | 83% |
+| `src/ecs/**` | 86% | 84% |
 | `src/audio/**` | 78% | 71% |
-| `src/animation/**` | 81% | 75% |
+| `src/animation/**` | 88% | 80% |
 | `src/core/**` | 76% | 69% |
 | `src/elements/**` | 57% | 53% |
-| Whole project | 68.9% | 67.4% |
+| Whole project | 69.3% | 67.9% |
 
 Raise a floor when you add tests; never lower one to make a build pass. Test
 count is not coverage — every P0/P1 defect found in the last audit sat in a
@@ -355,7 +355,7 @@ src/
 │       └── FloatingText.ts      # Floating text; rises at px/sec; auto-expires via Scene.update(); Scene.spawnFloatingText()
 ├── animation/
 │   ├── SpriteSheet.ts           # AnimationClip (frames, fps, loop); AssetLoader preload
-│   ├── AnimationController.ts   # State machine; 8-direction; idle↔walk; dt-based
+│   ├── AnimationController.ts   # State machine; 8-direction; idle↔walk; dt-based; playOnce() forces non-looping
 │   ├── DirectionalAnimator.ts   # action_DIR clip naming; fallback chain; playOnce(); buildSheet()
 │   └── ParticleSystem.ts        # IsoObject; circle/square + sprite particles; blend modes; presets
 ├── physics/
@@ -974,7 +974,7 @@ requireComponent<T>(entity: Entity, ctor: ComponentCtor<T>): T  // throws if mis
 | EventBus event maps | Event names and payload types are coupled; custom maps supported |
 | Scene.toJSON(): runtime state + built-in prop serialization | Environment, camera, view, light IDs/options, collider, built-ins |
 | Lib build: ESM + CJS dual output + .d.ts (npm run build:lib) | |
-| Unit tests: 621 tests across 55 files (Vitest 4, Node ≥ 22) | |
+| Unit tests: 639 tests across 56 files (Vitest 4, Node ≥ 22) | |
 | Coverage ratchets per module (`npm run test:coverage`) | v8 provider; per-glob floors on math/physics/lighting/ecs/animation/elements/audio/core |
 | Examples: 9 progressive demos + tools gallery | |
 
