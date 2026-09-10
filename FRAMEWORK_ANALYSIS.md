@@ -1,7 +1,7 @@
 # LuxIso 架构分析报告 v5
 
 > 更新日期：2026-09-09
-> 基线：Canvas 2D 默认 + WebGL2 预览，446 个 Vitest 测试 / 47 个测试文件（含 v8 覆盖率阈值），11 个 Playwright WebGL 测试
+> 基线：Canvas 2D 默认 + WebGL2 预览，462 个 Vitest 测试 / 47 个测试文件（含 v8 覆盖率阈值），11 个 Playwright WebGL 测试
 
 ## 执行摘要
 
@@ -117,7 +117,14 @@ const bus = new EventBus<GameEvents>();
 
 | 优先级 | 问题 | 建议 |
 |---|---|---|
+| P1 | `Engine.resize()` 不处理 `devicePixelRatio` | backing store 按 CSS 像素定尺，DPR=3 手机上是 1/3 分辨率放大。`src/` 内 `devicePixelRatio` 零命中，只有 `webgl-next/` 有 |
+| P1 | 切后台无暂停 | `Engine` 无 `visibilitychange`，后台时间被静默丢弃（`dt` 每帧截到 100ms），且 `AudioManager.suspend()` 存在但从无调用者 |
+| P1 | Web Audio 首次手势解锁未接线 | `AudioManager.resume()` 本身正确，但框架从不绑定任何手势；`_loadBuffer` 的 `waitForContext` 5 秒超时，开局无手势则预加载直接 reject |
 | P1 | example-05 天空绘制函数仍集中在 main.ts | 拆到 environment 模块 |
+| P2 | `InputMap.axis()` 只有离散 ±1 | 屏幕摇杆输出模拟量，action 层表达不了；虚拟摇杆/屏幕按键控件也不存在 |
+| P2 | `HudLayer` 是桌面形状 | 只有 `type: 'button'` 参与命中测试，`handleClick` 从不自动接线（文档建议的 `click` 在触屏是错的事件），`_hovered` 点击后不消失，默认命中区远小于 44×44 |
+| P2 | `webgl-next` 只认 12 个内置类型 | `SceneExtractor._extractObject` 是封闭 `instanceof` 链，其余 `IsoObject` 一律画成洋红诊断菱形；无注册 API、无 canvas-to-texture 兜底，`examples/` 里所有自定义类在 WebGL 路径上都渲染不出来 |
+| P2 | `webgl-next` 没有 HUD 路径 | `HudLayer` 仅 Canvas；WebGL 预览的 UI 走 DOM 覆盖层（`DomOverlayRenderer` / `MinimapRenderer`），基于该后端的游戏必须自建覆盖层 |
 | P1 | 自定义 prop 没有配套 serializer registry | 为注册表增加 serialize 回调或独立注册 API |
 | P2 | 9 个 WebGL fixture 中有 6 个未接入基线比对 | `day-ne` / `low-angle` / `night-lanterns` 已按 1.5% 门槛比对committed 基线；扩展只需往 `PIXEL_GATED_FIXTURES` 加 ID 并重新生成 |
 | P2 | `src/elements/**` 57% / 分支 53% 是当前最低的一块 | 主体是 canvas 绘制代码，未覆盖分支集中在绘制路径；再往上需要给 `Engine` / `Scene` 搭 canvas 测试夹具 |
@@ -214,6 +221,21 @@ const bus = new EventBus<GameEvents>();
   就记一条 `pixel-gate-skipped` annotation 而不做断言，提交 PNG 即自动生效；
   `webgl-baselines` workflow 用 `LUXISO_WRITE_BASELINES=1` 绕过这个跳过，才能把基线
   first-run 生成出来。本地以 `CI=1` 复现验证：修复前 3 个 fixture 失败，修复后 11/11 通过。
+- 为立项 2.5D ARPG 手游做的审计暴露了输入层的三个真实缺陷，全部与移动端相关。
+  `touchstart` 无条件覆盖指针状态，第二根手指落下就伪造一次新的 press；`touchend`
+  无条件 `down = false` 且不看 `ev.touches.length`，双指按下抬起一根，框架就报告
+  "玩家松手了"——这两条合起来使"左手摇杆 + 右手技能"在物理上不可能实现，因为
+  `ev.touches[0]` 之外的坐标全被丢弃。现在按 `changedTouches` 维护完整的触点表
+  （`touches` / `touchCount` / `getTouch(id)`），`pointer` 只跟随主触点，主触点抬起时
+  提升最老的存活触点而不是报告 release。`mouseup` 从 canvas 移到 window——在画布内
+  按下、画布外松开，此前永远收不到抬起事件，指针会卡在按下状态。
+  另外把 `MouseLeft` / `MouseMiddle` / `MouseRight` 注册成可绑定键，`InputMap` 文档里
+  `rebind('attack', ['MouseLeft', 'Space'])` 这个示例从此不再是死绑定——`mousedown`
+  以前从不往 `_pressed` 写入任何鼠标键名。最后补上 `blur` / `visibilitychange` 的
+  全量释放：切走时不发 keyup，回来角色会继续走。默认对 canvas 触摸事件调
+  `preventDefault`（可用 `preventTouchDefault: false` 关闭），否则手机上页面会滚动、
+  双击缩放、弹长按菜单并带 300ms 点击延迟。
+
 
 
 
@@ -233,11 +255,11 @@ const bus = new EventBus<GameEvents>();
 | 类型安全 | 9/10 | ComponentCtor 与 EventMap 覆盖核心扩展面；`tsc` 现已覆盖 examples 与 e2e |
 | 可扩展性 | 8/10 | 加载注册表与自定义事件良好；序列化注册表待补 |
 | 文档质量 | 8/10 | README 与本报告已同步当前实现 |
-| 测试覆盖 | 8/10 | 446 个单测 + 11 个浏览器测试；已接入 v8 覆盖率与分模块阈值（整体 64.4% 语句 / 60.9% 分支），三个 fixture 已按 1.5% 门槛比对基线 |
+| 测试覆盖 | 8/10 | 462 个单测 + 11 个浏览器测试；已接入 v8 覆盖率与分模块阈值（整体 65.1% 语句 / 61.3% 分支），三个 fixture 已按 1.5% 门槛比对基线 |
 | 综合 | 8.3/10 | 架构短板已大幅收敛，下一阶段应由 profiling 驱动 |
 
 测试数量不等于覆盖率。`vitest.config.ts` 现已按模块设定阈值（math/physics/lighting
-90% 语句、ecs 82%、animation 81%、audio 67%、core 66%、elements 57%，整体 64%），
+90% 语句、ecs 82%、animation 81%、audio 67%、core 68%、elements 57%，整体 65%），
 并在 CI 中作为门禁。阈值一律设在当前值略下方，只能随新测试上调，不允许为了让构建
 通过而下调。
 

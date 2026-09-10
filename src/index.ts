@@ -12,7 +12,7 @@ export { Camera } from './core/Camera';
 export type { CameraBounds, CameraOptions } from './core/Camera';
 export { LightmapCache } from './core/LightmapCache';
 export { InputManager } from './core/InputManager';
-export type { PointerState } from './core/InputManager';
+export type { PointerState, TouchPoint, InputManagerOptions } from './core/InputManager';
 export { SceneManager } from './core/SceneManager';
 export type { ManagedScene } from './core/SceneManager';
 export { ClickMover } from './core/ClickMover';

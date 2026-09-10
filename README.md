@@ -35,6 +35,7 @@ Application code should continue using the Canvas2D `Engine` API until the
 - **Wall openings** — door/window parallelogram clipping on wall faces
 - **IsoView** — `scene.view` rotation + elevation; `scene.transitionView()` smooth animated transitions
 - **Camera** — follow, pan, zoom, world-bounds clamping; frame-rate-independent lerp; `applyTransform()` fully wired into `Scene.draw()`
+- **Input** — `InputManager`; keyboard, mouse and **multi-touch**; `pointer` is the primary contact, `touches` is the full list (two-thumb layouts); mouse buttons bind as `MouseLeft` / `MouseMiddle` / `MouseRight`; releases everything on blur or tab-hide; suppresses browser touch gestures by default
 - **ClickMover** — click-to-move + keyboard movement helper; animated marker; collision-aware; frame-rate-independent (`speed` calibrated at 60 FPS)
 - **Sprite animation** — `SpriteSheet` + `AnimationController` (idle/walk state machine, 8-direction)
 - **Directional animator** — `DirectionalAnimator`; clip naming `action_DIR`; fallback chain; `playOnce()`
@@ -92,7 +93,7 @@ npm run test:webgl # builds, then runs 9 deterministic captures + lifecycle test
 
 | Layer | Command | Scope |
 |---|---|---|
-| Unit | `npm test` | 446 tests across 47 files (Vitest 4) |
+| Unit | `npm test` | 462 tests across 47 files (Vitest 4) |
 | Coverage | `npm run test:coverage` | v8 provider + per-module ratchets |
 | Browser | `npm run test:webgl` | 9 fixture captures + 2 context-lifecycle tests (Chromium/SwiftShader) against the built bundle |
 
@@ -108,9 +109,9 @@ Correctness-critical modules carry their own floors:
 | `src/ecs/**` | 82% | 78% |
 | `src/audio/**` | 67% | 55% |
 | `src/animation/**` | 81% | 75% |
-| `src/core/**` | 66% | 55% |
+| `src/core/**` | 68% | 56% |
 | `src/elements/**` | 57% | 53% |
-| Whole project | 64% | 60% |
+| Whole project | 65% | 61% |
 
 Raise a floor when you add tests; never lower one to make a build pass. Test
 count is not coverage — every P0/P1 defect found in the last audit sat in a
@@ -296,7 +297,7 @@ src/
 │   ├── DebugRenderer.ts         # Overlay: collision grid, AABB, light radii, triggers, FPS
 │   ├── Engine.ts                # RAF loop; JSON loader (floor/walls/lights/chars/props/clouds); pre/postFrame
 │   ├── HudLayer.ts              # Canvas-space UI: labels, bars, buttons, panels
-│   ├── InputManager.ts          # Raw keyboard/pointer state; per-frame flush
+│   ├── InputManager.ts          # Keyboard/mouse/multi-touch state; touches[]; mouse-button keys; per-frame flush
 │   ├── InputMap.ts              # Action-binding layer over InputManager; axis(); toJSON/fromJSON
 │   ├── LightmapCache.ts         # OffscreenCanvas floor cache; isDirty snapshot; blit()
 │   ├── Minimap.ts               # OffscreenCanvas HUD overlay; walkable grid + object dots
@@ -871,7 +872,7 @@ requireComponent<T>(entity: Entity, ctor: ComponentCtor<T>): T  // throws if mis
 | EventBus event maps | Event names and payload types are coupled; custom maps supported |
 | Scene.toJSON(): runtime state + built-in prop serialization | Environment, camera, view, light IDs/options, collider, built-ins |
 | Lib build: ESM + CJS dual output + .d.ts (npm run build:lib) | |
-| Unit tests: 446 tests across 47 files (Vitest 4, Node ≥ 22) | |
+| Unit tests: 462 tests across 47 files (Vitest 4, Node ≥ 22) | |
 | Coverage ratchets per module (`npm run test:coverage`) | v8 provider; per-glob floors on math/physics/lighting/ecs/animation/elements/audio/core |
 | Examples: 9 progressive demos + tools gallery | |
 
@@ -881,7 +882,14 @@ See [FRAMEWORK_ANALYSIS.md](FRAMEWORK_ANALYSIS.md) for a detailed comparison wit
 
 | Priority | Item | Notes |
 |----------|------|-------|
+| P1 | `Engine.resize()` ignores `devicePixelRatio` | The backing store is sized in CSS pixels, so a DPR-3 phone renders at a third of the resolution and upscales. Nothing in `src/` reads `devicePixelRatio`; only `webgl-next/` does |
+| P1 | Nothing pauses on tab-hide | `Engine` has no `visibilitychange` handling, so backgrounded time is silently dropped (`dt` is clamped to 100 ms per frame) and `AudioManager.suspend()` — which exists — is never called |
+| P1 | Web Audio needs a first-gesture unlock, and nothing wires one | `AudioManager.resume()` is a correct unlock primitive but the framework never binds it. Worse, `_loadBuffer`'s `waitForContext` rejects after 5 s, so preloads fail outright if no gesture happens in that window |
 | P1 | `example-05` sky draw functions (400+ lines) inline in `main.ts` | Split to `environment/*.ts` |
+| P2 | `InputMap.axis()` is discrete ±1 only | An on-screen joystick produces analog magnitudes that the action layer cannot express; a virtual-joystick/on-screen-button widget does not exist either |
+| P2 | `HudLayer` is desktop-shaped | Only `type: 'button'` is hit-tested, `handleClick` is never auto-wired (the docs suggest a `click` listener, which is the wrong event on touch), `_hovered` sticks after a tap, and default targets are far below 44×44 |
+| P2 | `webgl-next` renders only 12 built-in types | `SceneExtractor._extractObject` is a closed `instanceof` chain; any other `IsoObject` becomes a magenta diagnostic diamond. There is no extractor-registration API and no canvas-to-texture fallback, so every custom class in `examples/` is unrenderable on the WebGL path |
+| P2 | `webgl-next` has no HUD path | `HudLayer` is Canvas-only; the WebGL preview draws UI as DOM overlays (`DomOverlayRenderer`, `MinimapRenderer`). A game on that backend must build its own overlay layer |
 | P2 | The pixel-diff gate has no baselines committed yet | `day-ne` / `low-angle` / `night-lanterns` are wired to compare at 1.5%, but `webgl-next/e2e/__screenshots__/` is empty, so the spec skips the assertion with a `pixel-gate-skipped` annotation. Run the manual `webgl-baselines` workflow, review the PNGs, commit them — that alone arms the gate |
 | P2 | Six of nine WebGL fixtures are not baseline-gated | Extending the set means adding IDs to `PIXEL_GATED_FIXTURES` and regenerating |
 | P2 | `src/elements/**` (57% branches 53%) is the lowest-covered module | Mostly canvas draw code; the uncovered branches are painting paths, not logic. `Engine` / `Scene` also need a canvas harness to go much higher |

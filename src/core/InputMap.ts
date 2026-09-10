@@ -26,6 +26,10 @@
  *
  *   // Rebind at runtime (e.g. from settings screen):
  *   map.rebind('attack', ['MouseLeft', 'Space']);
+ *
+ * Bindable key strings are `KeyboardEvent.key` / `.code` values plus the
+ * synthetic mouse buttons `MouseLeft`, `MouseMiddle` and `MouseRight`. Touch is
+ * not bindable — read `input.touches` and drive actions yourself.
  */
 import { InputManager } from './InputManager';
 
