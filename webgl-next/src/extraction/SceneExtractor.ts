@@ -59,11 +59,87 @@ interface VisibleBounds {
 }
 
 /**
+ * What a registered extractor is handed. Deliberately narrow: geometry plus the
+ * projection and the pick id, nothing that would let application code reach into
+ * the extractor's frame state.
+ */
+export interface ExtractorContext {
+  readonly builder: GeometryBuilder;
+  readonly tileW: number;
+  readonly tileH: number;
+  /** Stable id for this object in the picking buffer — pass it in `VertexStyle`. */
+  readonly pickId: number;
+  /** World (x, y, z-in-pixels) → screen space, same projection the built-ins use. */
+  project(x: number, y: number, zPixels?: number): RenderPoint;
+}
+
+/**
+ * Emits geometry for one object. Return a texture URL to have the geometry put
+ * in a textured draw segment, or nothing for flat colour.
+ */
+export type ObjectExtractor<T extends IsoObject = IsoObject> =
+  (object: T, ctx: ExtractorContext) => string | void;
+
+type IsoObjectCtor<T extends IsoObject = IsoObject> = abstract new (...args: never[]) => T;
+
+/**
  * Converts the mutable Canvas scene graph into renderer-owned numeric data.
  * The geometry arena and metadata arrays are reused between frames.
  */
 export class SceneExtractor {
+  /**
+   * Custom extractors, most recently registered first.
+   *
+   * Dispatch for built-in types is a hardcoded `instanceof` chain; anything else
+   * used to become a magenta diagnostic diamond with no way to opt in, which
+   * made every custom `IsoObject` subclass unrenderable on the WebGL path. This
+   * registry is that opt-in.
+   */
+  private static _extractors: Array<{ ctor: IsoObjectCtor; extract: ObjectExtractor }> = [];
+
+  /**
+   * Teach the extractor how to draw an object type.
+   *
+   * Later registrations win, so a subclass can override a base class without
+   * unregistering it. Built-in types are matched first and cannot be overridden
+   * this way.
+   *
+   * @example
+   *   SceneExtractor.register(LavaRiver, (river, ctx) => {
+   *     const a = ctx.project(river.position.x, river.position.y);
+   *     ctx.builder.quad(a, b, c, d, { color: [1, 0.3, 0.1, 1], sample: a, lit: false, pickId: ctx.pickId });
+   *   });
+   */
+  static register<T extends IsoObject>(ctor: IsoObjectCtor<T>, extract: ObjectExtractor<T>): void {
+    SceneExtractor.unregister(ctor);
+    SceneExtractor._extractors.unshift({
+      ctor,
+      extract: extract as ObjectExtractor,
+    });
+  }
+
+  /** Remove a registration. Returns true if one was present. */
+  static unregister(ctor: IsoObjectCtor): boolean {
+    const before = SceneExtractor._extractors.length;
+    SceneExtractor._extractors = SceneExtractor._extractors.filter(e => e.ctor !== ctor);
+    return SceneExtractor._extractors.length !== before;
+  }
+
+  /** Drop every registration. Intended for tests. */
+  static clearExtractors(): void {
+    SceneExtractor._extractors = [];
+  }
+
+  /** The extractor that would handle this object, or null. */
+  static findExtractor(object: IsoObject): ObjectExtractor | null {
+    for (const entry of SceneExtractor._extractors) {
+      if (object instanceof entry.ctor) return entry.extract;
+    }
+    return null;
+  }
+
   private readonly _builder = new GeometryBuilder();
+
   private readonly _pickIds = new WeakMap<object, number>();
   private readonly _externalPickIds = new Map<string, number>();
   private readonly _pickLookup = new Map<number, string>();
@@ -305,15 +381,64 @@ export class SceneExtractor {
     } else if (object instanceof Lantern) {
       this._extractLantern(object, tileW, tileH);
     } else {
+      const custom = SceneExtractor.findExtractor(object);
+      if (custom) return this._runCustomExtractor(object, custom, tileW, tileH) ?? undefined;
       this._unsupported.push({
         id: object.id,
         type: object.constructor.name,
-        reason: 'No WebGL geometry extractor is registered for this object type.',
+        reason: 'No WebGL geometry extractor is registered for this object type. '
+          + 'Register one with SceneExtractor.register(Ctor, fn).',
       });
       this._extractDiagnostic(object, tileW, tileH);
     }
     return undefined;
   }
+
+  /**
+   * Run a registered extractor, and fall back to the diagnostic marker if it
+   * throws or emits nothing.
+   *
+   * A custom extractor is application code running inside the render path; left
+   * unguarded, one bad projection would take down the whole frame rather than
+   * showing up as one broken object.
+   */
+  private _runCustomExtractor(
+    object: IsoObject,
+    extract: ObjectExtractor,
+    tileW: number,
+    tileH: number,
+  ): string | undefined {
+    const before = this._builder.mark();
+    const context: ExtractorContext = {
+      builder: this._builder,
+      tileW,
+      tileH,
+      pickId: this._pickId(object),
+      project: (x, y, zPixels = 0) => point(projectIso(x, y, zPixels, tileW, tileH)),
+    };
+    try {
+      const textureUrl = extract(object, context);
+      if (this._builder.mark() === before) {
+        this._unsupported.push({
+          id: object.id,
+          type: object.constructor.name,
+          reason: 'Registered extractor produced no geometry.',
+        });
+        this._extractDiagnostic(object, tileW, tileH);
+        return undefined;
+      }
+      return textureUrl ?? undefined;
+    } catch (err) {
+      this._unsupported.push({
+        id: object.id,
+        type: object.constructor.name,
+        reason: `Registered extractor threw — ${String(err)}`,
+      });
+      this._extractDiagnostic(object, tileW, tileH);
+      return undefined;
+    }
+  }
+
 
   private _extractWall(wall: Wall, tileW: number, tileH: number): void {
     const start = point(projectIso(wall.position.x, wall.position.y, 0, tileW, tileH));

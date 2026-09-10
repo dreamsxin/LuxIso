@@ -83,7 +83,8 @@ describe('WebGL Next SceneExtractor', () => {
     expect(snapshot.unsupported).toEqual([{
       id: 'custom',
       type: 'DiagnosticObject',
-      reason: 'No WebGL geometry extractor is registered for this object type.',
+      reason: 'No WebGL geometry extractor is registered for this object type. '
+        + 'Register one with SceneExtractor.register(Ctor, fn).',
     }]);
     expect(snapshot.geometry.opaque.count).toBe(6);
     expect([...snapshot.pickLookup.values()]).toContain('custom');

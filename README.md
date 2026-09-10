@@ -22,6 +22,34 @@ WebGL2 is currently an isolated preview, not yet an `Engine` constructor option.
 Application code should continue using the Canvas2D `Engine` API until the
 `0.2.0-webgl` package exposes the renderer selector.
 
+### Rendering your own object types on the WebGL path
+
+Built-in types are dispatched by a hardcoded `instanceof` chain. Anything else
+used to become a magenta diagnostic diamond with no way to opt in, which made
+every custom `IsoObject` subclass unrenderable there. Register an extractor
+instead:
+
+```ts
+import { SceneExtractor } from 'luxiso/webgl-next/extraction/SceneExtractor';
+
+SceneExtractor.register(LavaRiver, (river, ctx) => {
+  const a = ctx.project(river.position.x, river.position.y);
+  const b = ctx.project(river.endX, river.endY);
+  ctx.builder.quad(a, [b[0], a[1]], b, [a[0], b[1]], {
+    color: [1, 0.35, 0.1, 1], sample: a, lit: false, pickId: ctx.pickId,
+  });
+  return '/atlas/lava.png';   // optional: puts the geometry in a textured segment
+});
+```
+
+`ctx` carries `builder`, `tileW`, `tileH`, `pickId`, and the same `project()` the
+built-ins use. Later registrations win, so a subclass can override a base class
+without unregistering it. An extractor that throws or emits no geometry falls
+back to the diagnostic marker and is listed in `snapshot.unsupported` — one
+broken object cannot take down the frame. `unregister(Ctor)` and
+`clearExtractors()` complete the API.
+
+
 ## Features
 
 - **Isometric math** — `project()` / `unproject()` / `depthKey()` / `drawIsoCube()`; internal (X, Y, Z) space → screen
@@ -94,7 +122,7 @@ npm run test:webgl # builds, then runs 9 deterministic captures + lifecycle test
 
 | Layer | Command | Scope |
 |---|---|---|
-| Unit | `npm test` | 535 tests across 50 files (Vitest 4) |
+| Unit | `npm test` | 548 tests across 51 files (Vitest 4) |
 | Coverage | `npm run test:coverage` | v8 provider + per-module ratchets |
 | Browser | `npm run test:webgl` | 9 fixture captures + 2 context-lifecycle tests (Chromium/SwiftShader) against the built bundle |
 
@@ -943,7 +971,7 @@ requireComponent<T>(entity: Entity, ctor: ComponentCtor<T>): T  // throws if mis
 | EventBus event maps | Event names and payload types are coupled; custom maps supported |
 | Scene.toJSON(): runtime state + built-in prop serialization | Environment, camera, view, light IDs/options, collider, built-ins |
 | Lib build: ESM + CJS dual output + .d.ts (npm run build:lib) | |
-| Unit tests: 535 tests across 50 files (Vitest 4, Node ≥ 22) | |
+| Unit tests: 548 tests across 51 files (Vitest 4, Node ≥ 22) | |
 | Coverage ratchets per module (`npm run test:coverage`) | v8 provider; per-glob floors on math/physics/lighting/ecs/animation/elements/audio/core |
 | Examples: 9 progressive demos + tools gallery | |
 
@@ -954,7 +982,6 @@ See [FRAMEWORK_ANALYSIS.md](FRAMEWORK_ANALYSIS.md) for a detailed comparison wit
 | Priority | Item | Notes |
 |----------|------|-------|
 | P1 | `example-05` sky draw functions (400+ lines) inline in `main.ts` | Split to `environment/*.ts` |
-| P2 | `webgl-next` renders only 12 built-in types | `SceneExtractor._extractObject` is a closed `instanceof` chain; any other `IsoObject` becomes a magenta diagnostic diamond. There is no extractor-registration API and no canvas-to-texture fallback, so every custom class in `examples/` is unrenderable on the WebGL path |
 | P2 | `webgl-next` has no HUD path | `HudLayer` is Canvas-only; the WebGL preview draws UI as DOM overlays (`DomOverlayRenderer`, `MinimapRenderer`). A game on that backend must build its own overlay layer |
 | P2 | The pixel-diff gate has no baselines committed yet | `day-ne` / `low-angle` / `night-lanterns` are wired to compare at 1.5%, but `webgl-next/e2e/__screenshots__/` is empty, so the spec skips the assertion with a `pixel-gate-skipped` annotation. Run the manual `webgl-baselines` workflow, review the PNGs, commit them — that alone arms the gate |
 | P2 | Six of nine WebGL fixtures are not baseline-gated | Extending the set means adding IDs to `PIXEL_GATED_FIXTURES` and regenerating |

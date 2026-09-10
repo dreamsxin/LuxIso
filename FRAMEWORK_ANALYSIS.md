@@ -1,7 +1,7 @@
 # LuxIso 架构分析报告 v5
 
 > 更新日期：2026-09-09
-> 基线：Canvas 2D 默认 + WebGL2 预览，535 个 Vitest 测试 / 50 个测试文件（含 v8 覆盖率阈值），11 个 Playwright WebGL 测试
+> 基线：Canvas 2D 默认 + WebGL2 预览，548 个 Vitest 测试 / 51 个测试文件（含 v8 覆盖率阈值），11 个 Playwright WebGL 测试
 
 ## 执行摘要
 
@@ -118,7 +118,6 @@ const bus = new EventBus<GameEvents>();
 | 优先级 | 问题 | 建议 |
 |---|---|---|
 | P1 | example-05 天空绘制函数仍集中在 main.ts | 拆到 environment 模块 |
-| P2 | `webgl-next` 只认 12 个内置类型 | `SceneExtractor._extractObject` 是封闭 `instanceof` 链，其余 `IsoObject` 一律画成洋红诊断菱形；无注册 API、无 canvas-to-texture 兜底，`examples/` 里所有自定义类在 WebGL 路径上都渲染不出来 |
 | P2 | `webgl-next` 没有 HUD 路径 | `HudLayer` 仅 Canvas；WebGL 预览的 UI 走 DOM 覆盖层（`DomOverlayRenderer` / `MinimapRenderer`），基于该后端的游戏必须自建覆盖层 |
 | P1 | 自定义 prop 没有配套 serializer registry | 为注册表增加 serialize 回调或独立注册 API |
 | P2 | 9 个 WebGL fixture 中有 6 个未接入基线比对 | `day-ne` / `low-angle` / `night-lanterns` 已按 1.5% 门槛比对committed 基线；扩展只需往 `PIXEL_GATED_FIXTURES` 加 ID 并重新生成 |
@@ -276,6 +275,15 @@ const bus = new EventBus<GameEvents>();
   做帧驱动的按下/抬起：按下高亮、在同一个按钮上抬起才触发（滑出去不算）、按 contact id
   逐个跟踪，配合 `TouchStick.touchId` 就不会和摇杆抢手指。`minHitSize` 可把过小的目标
   对称扩到 44×44（默认 0，保持原行为，因为相邻按钮会互相抢点击）。
+- WebGL 路径的对象分发是一条封闭的 `instanceof` 链，只认 12 个内置类型，其余
+  `IsoObject` 子类一律画成洋红诊断菱形，且**没有任何 opt-in 手段**——`examples/` 里
+  40 多个自定义类在这条路径上全都渲染不出来，这是「用 WebGL2 做完整游戏」最实际的
+  阻塞。现在加了注册表：`SceneExtractor.register(Ctor, (obj, ctx) => ...)`，`ctx` 只暴露
+  `builder` / `tileW` / `tileH` / `pickId` 和与内置一致的 `project()`，返回贴图 URL 即进
+  纹理 segment。后注册者优先，子类可以覆盖基类而不必先反注册。内置类型仍先匹配。
+  自定义 extractor 是跑在渲染路径里的应用代码，所以外面包了两道保护：抛异常或没产出
+  任何几何都退回诊断菱形并写进 `unsupported`，一个坏对象不会带崩整帧。
+
 
 
 
@@ -298,9 +306,9 @@ const bus = new EventBus<GameEvents>();
 | ECS 设计 | 8/10 | 构造函数查询、System、生命周期完整；尚无 archetype |
 | 渲染管线 | 8/10 | Canvas 完整；WebGL 预览已覆盖核心 pass，尚待 golden 和浏览器矩阵 |
 | 类型安全 | 9/10 | ComponentCtor 与 EventMap 覆盖核心扩展面；`tsc` 现已覆盖 examples 与 e2e |
-| 可扩展性 | 8/10 | 加载注册表与自定义事件良好；序列化注册表待补 |
+| 可扩展性 | 9/10 | 加载注册表、自定义事件、WebGL extractor 注册表均已就绪；序列化注册表待补 |
 | 文档质量 | 8/10 | README 与本报告已同步当前实现 |
-| 测试覆盖 | 8/10 | 535 个单测 + 11 个浏览器测试；已接入 v8 覆盖率与分模块阈值（整体 67.4% 语句 / 65.3% 分支），三个 fixture 已按 1.5% 门槛比对基线 |
+| 测试覆盖 | 8/10 | 548 个单测 + 11 个浏览器测试；已接入 v8 覆盖率与分模块阈值（整体 67.6% 语句 / 65.5% 分支），三个 fixture 已按 1.5% 门槛比对基线 |
 | 综合 | 8.3/10 | 架构短板已大幅收敛，下一阶段应由 profiling 驱动 |
 
 测试数量不等于覆盖率。`vitest.config.ts` 现已按模块设定阈值（math/physics/lighting
