@@ -39,7 +39,8 @@ export class Scene {
   private _systems: System[] = [];
   private _systemMatches: Entity[][] = [];
   private _renderer = new SceneRenderer();
-  private _lastTs = 0;
+  private _lastTs: number | null = null;
+
   private _viewFrom: IsoView | null = null;
   private _viewTo: IsoView | null = null;
   private _viewT = 0;
@@ -168,7 +169,11 @@ export class Scene {
 
   update(ts?: number): void {
     const now = ts ?? performance.now();
-    const dt = this._lastTs === 0 ? 1 / 60 : Math.min((now - this._lastTs) / 1000, 0.1);
+    // dt 0 on the first call, matching Engine. The previous `_lastTs === 0`
+    // sentinel collided with a legitimate timestamp of 0 — `update(0)` left the
+    // sentinel armed, so the *second* frame also got the invented 1/60 instead
+    // of its real delta, shifting every view transition and system by a frame.
+    const dt = this._lastTs === null ? 0 : Math.min(Math.max(0, (now - this._lastTs) / 1000), 0.1);
     this._lastTs = now;
 
     if (this._viewFrom && this._viewTo) {

@@ -1,7 +1,7 @@
 # LuxIso 架构分析报告 v5
 
 > 更新日期：2026-09-09
-> 基线：Canvas 2D 默认 + WebGL2 预览，586 个 Vitest 测试 / 53 个测试文件（含 v8 覆盖率阈值），11 个 Playwright WebGL 测试
+> 基线：Canvas 2D 默认 + WebGL2 预览，599 个 Vitest 测试 / 54 个测试文件（含 v8 覆盖率阈值），11 个 Playwright WebGL 测试
 
 ## 执行摘要
 
@@ -305,6 +305,15 @@ const bus = new EventBus<GameEvents>();
   `Camera.lerpFactor` 同一个公式 `1 - (1 - f)^(dt*60)` 转成帧率无关，60FPS 下手感不变；
   `lidLerpFactor` 可调并做了 [0,1] 钳制（避免负底数开分数次幂产生 NaN），
   长帧 dt 截到 100ms，首帧不推进，时间戳回退不推进，另外补了 `lidAngle` 只读访问器。
+- 补测 `Scene.update()`（core 分支 67%→69%）发现 `_lastTs = 0` 哨兵冲突在**所有东西的容器**
+  里也有一份，而且这里的影响面最大：`Scene.update()` 是 System 与 Camera 拿到 `dt` 的唯一
+  来源。`update(0)`（`Engine` 首帧的合法时间戳）之后哨兵仍然武装，于是**第二帧也拿到凭空的
+  1/60**，而不是它真实的 delta——每个 System、每次视角过渡都整体偏移一帧。首帧 dt 同步从
+  1/60 改为 0，与 `Engine` / `ClickMover` / `FloatingText` / `Chest` 一致；时间戳回退不再
+  产生负 dt（此前 `update(1000)` 后 `update(500)` 会把 -0.5 秒发给所有 System，视角过渡直接
+  倒退）。同一个 `_lastTs === 0` 缺陷这样已经出现四次（`FloatingText`、`Chest`、`Scene`，
+  加上 `ClickMover` 的帧率依赖）：**新写的时间累积代码应当一律用 `null` 做首帧哨兵，
+  并复用 `Camera` 的 `1 - (1 - f)^(dt*60)` 做平滑。**
 
 
 
@@ -333,11 +342,11 @@ const bus = new EventBus<GameEvents>();
 | 类型安全 | 9/10 | ComponentCtor 与 EventMap 覆盖核心扩展面；`tsc` 现已覆盖 examples 与 e2e |
 | 可扩展性 | 9/10 | 加载注册表、自定义事件、WebGL extractor 注册表均已就绪；序列化注册表待补 |
 | 文档质量 | 8/10 | README 与本报告已同步当前实现 |
-| 测试覆盖 | 8/10 | 586 个单测 + 11 个浏览器测试；已接入 v8 覆盖率与分模块阈值（整体 68.3% 语句 / 66.6% 分支），三个 fixture 已按 1.5% 门槛比对基线 |
+| 测试覆盖 | 8/10 | 599 个单测 + 11 个浏览器测试；已接入 v8 覆盖率与分模块阈值（整体 68.7% 语句 / 67.1% 分支），三个 fixture 已按 1.5% 门槛比对基线 |
 | 综合 | 8.3/10 | 架构短板已大幅收敛，下一阶段应由 profiling 驱动 |
 
 测试数量不等于覆盖率。`vitest.config.ts` 现已按模块设定阈值（math/physics/lighting
-90% 语句、ecs 82%、animation 81%、audio 78%、core 72%、elements 57%，整体 66%），
+90% 语句、ecs 82%、animation 81%、audio 78%、core 76%、elements 57%，整体 68.5%），
 并在 CI 中作为门禁。阈值一律设在当前值略下方，只能随新测试上调，不允许为了让构建
 通过而下调。
 
