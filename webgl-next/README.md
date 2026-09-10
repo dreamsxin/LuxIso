@@ -64,6 +64,9 @@ The current preview implements the first runnable Phase 0-4 slice:
 - context loss/restore handling, capability reporting, and live render diagnostics;
 - lazy texture resources, sprite-sheet frame UVs, floor textures, and ordered draw segments;
 - alpha/add/multiply particles, DOM floating-text bridge, minimap source data, and debug overlays;
+- a HUD path: `HudOverlayRenderer` stacks the Canvas2D `HudLayer` on a transparent
+  canvas above the GL one, DPR-aware and with `pointer-events` off, so bars,
+  buttons and labels work on this backend without a second widget set;
 - camera frustum extraction for floor tiles and world objects;
 - an editor Canvas/WebGL toggle with ID-buffer selection and Canvas input fallback;
 - WebGL, side-by-side comparison, and Canvas2D fallback modes at `/webgl-next/`.

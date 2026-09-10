@@ -15,6 +15,8 @@ export type { ProjectedShadow, ShadowPoint } from './extraction/ShadowProjector'
 export { ShadowProjectionCache } from './extraction/ShadowProjectionCache';
 export type { ShadowCacheStats } from './extraction/ShadowProjectionCache';
 export { DomOverlayRenderer } from './overlays/DomOverlayRenderer';
+export { HudOverlayRenderer } from './overlays/HudOverlayRenderer';
+export type { HudOverlayOptions } from './overlays/HudOverlayRenderer';
 export { MinimapRenderer } from './overlays/MinimapRenderer';
 export { renderPointToScreen } from './overlays/cameraTransform';
 export { WebGLRenderer, WebGLUnavailableError } from './renderer/WebGLRenderer';

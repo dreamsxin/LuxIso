@@ -38,10 +38,10 @@ export default defineConfig({
        * reporter, which only counts files sitting directly in the folder.
        */
       thresholds: {
-        statements: 76.6,
-        branches: 74,
-        functions: 81.1,
-        lines: 78.4,
+        statements: 76.7,
+        branches: 74.1,
+        functions: 81.2,
+        lines: 78.5,
         // Isometric projection, depth sort, colour math — fully unit-testable.
         'src/math/**':     { statements: 90, branches: 88, functions: 92, lines: 92 },
         // Collision and A*: where the tunnelling and corner-cut bugs lived.

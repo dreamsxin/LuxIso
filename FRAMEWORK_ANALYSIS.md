@@ -1,7 +1,7 @@
 # LuxIso 架构分析报告 v5
 
 > 更新日期：2026-09-09
-> 基线：Canvas 2D 默认 + WebGL2 预览，796 个 Vitest 测试 / 65 个测试文件（含 v8 覆盖率阈值），11 个 Playwright WebGL 测试
+> 基线：Canvas 2D 默认 + WebGL2 预览，807 个 Vitest 测试 / 66 个测试文件（含 v8 覆盖率阈值），11 个 Playwright WebGL 测试
 
 ## 执行摘要
 
@@ -442,6 +442,18 @@ const bus = new EventBus<GameEvents>();
   写这条测试时抓到自己的一个设计陷阱：最初只默认填 `type` / `id` / `enabled`，
   于是往返回来的灯是白色的——`color` / `intensity` 明明是 `BaseLight` 的公共字段，
   却要每个 serializer 作者自己记得写。现在这两项也按内置分支的写法一并默认输出。
+- `webgl-next` 至此才有 UI 通路。此前 `HudLayer` 是纯 Canvas2D，WebGL 预览页把标签手写成
+  DOM，于是**在 WebGL2 后端上做游戏必须先自己实现一套控件**才能显示血条——这是用户选定的
+  ARPG 渲染器上最后一个结构性缺口。做法是不把 HUD 移植到着色器，而是 `HudOverlayRenderer`
+  把已有（且已被两个测试文件覆盖）的 `HudLayer` 挂在 GL canvas 之上的一张透明 2D canvas 上：
+  控件、按压仲裁、DPR 契约全部复用，不产生第二套需要同步的实现。
+  其中三处细节是从这一轮之前踩过的坑里直接搬来的：叠加 canvas 强制 `pointer-events: none`
+  （否则它会吞掉所有触摸，游戏 canvas 一个事件都收不到——`DomOverlayRenderer` 的教训）；
+  画布未布局（0×0）直接跳过而不是造一张 1×1 的 backing store（`MinimapRenderer` 的教训）；
+  `hud.pixelRatio` 传的是**取值函数**而非数值，因为窗口在不同缩放的显示器之间移动时比率会变
+  （`HudLayer` 那次 DPR 回归的教训）。清屏在设备像素下做，之后由 `HudLayer.draw` 装自己的
+  变换，避免漏掉右下边缘。
+  刻意**没有**接进预览页：三张像素基线刚刚生效，往夹具里加 HUD 会立刻让门禁变红。
 - `webgl-baselines` 工作流曾连续几个提交无法被 dispatch，根因是一行不合法的 YAML
   （`- run: echo "Reason: ${{ inputs.reason }}"`——纯量里不能出现 `: `）。真正的问题不是
   那一行，而是**仓库里没有任何东西检查工作流语法**：GitHub 只把它写成某次 run 上的
@@ -481,7 +493,7 @@ const bus = new EventBus<GameEvents>();
 | 类型安全 | 9/10 | ComponentCtor 与 EventMap 覆盖核心扩展面；`tsc` 现已覆盖 examples 与 e2e |
 | 可扩展性 | 9/10 | 加载注册表、自定义事件、WebGL extractor 注册表均已就绪；序列化注册表待补 |
 | 文档质量 | 8/10 | README 与本报告已同步当前实现 |
-| 测试覆盖 | 8/10 | 796 个单测 + 11 个浏览器测试；已接入 v8 覆盖率与分模块阈值（整体 76.7% 语句 / 74.1% 分支），三个 fixture 已按 1.5% 门槛比对基线 |
+| 测试覆盖 | 8/10 | 807 个单测 + 11 个浏览器测试；已接入 v8 覆盖率与分模块阈值（整体 76.8% 语句 / 74.2% 分支），三个 fixture 已按 1.5% 门槛比对基线 |
 | 综合 | 8.3/10 | 架构短板已大幅收敛，下一阶段应由 profiling 驱动 |
 
 测试数量不等于覆盖率。`vitest.config.ts` 现已按模块设定阈值（math/physics/lighting
