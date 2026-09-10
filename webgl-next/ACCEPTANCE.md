@@ -49,7 +49,11 @@ Chromium/SwiftShader at 1280×720 and DPR 1. What it asserts:
 - **All nine fixtures:** the canvas is not blank and not low-variation
   (unique-colour and luminance-deviation floors); two consecutive frames are
   byte-identical; fixture controls and enabled omni-light counts match; a
-  candidate PNG + JSON metadata is emitted and uploaded by CI for 14 days.
+  `<fixture>-viewport.png` context capture + JSON metadata is emitted and
+  uploaded by CI for 14 days. That capture frames the whole `#viewport` (GL
+  canvas plus DOM overlays, minimap and caption) and is **not** a baseline
+  candidate — baselines are `#webgl-canvas` captures named `<fixture>.png`,
+  produced only by the `webgl-baselines` workflow.
 - **`day-ne`, `low-angle`, `night-lanterns`:** additionally compared against a
   committed baseline in `webgl-next/e2e/__screenshots__/` with
   `maxDiffPixelRatio: 0.015`, **once that directory is populated** — as of this

@@ -51,7 +51,15 @@ test.describe('WebGL deterministic fixture matrix', () => {
       const secondFrame = await canvas.screenshot({ animations: 'disabled' });
       expect(secondFrame.equals(firstFrame)).toBe(true);
 
-      const candidatePath = testInfo.outputPath(`${fixture.id}.png`);
+      // `-viewport` in the name on purpose. This is a `#viewport` capture — the
+      // GL canvas *plus* the DOM overlays, minimap and caption — kept only as
+      // review context, whereas the approved baseline below is a `#webgl-canvas`
+      // capture (GL pixels only). Both used to be written as `<id>.png`, in two
+      // different artifacts, so the two sets looked interchangeable once
+      // downloaded and a viewport capture could be filed as a baseline. It would
+      // fail the gate rather than pass silently, but the names should not invite
+      // the mistake in the first place.
+      const candidatePath = testInfo.outputPath(`${fixture.id}-viewport.png`);
       await page.locator('#viewport').screenshot({
         path: candidatePath,
         animations: 'disabled',
@@ -66,7 +74,7 @@ test.describe('WebGL deterministic fixture matrix', () => {
         commit: process.env.GITHUB_SHA ?? 'local',
         pixels,
       }, null, 2));
-      await testInfo.attach(`${fixture.id}-candidate`, {
+      await testInfo.attach(`${fixture.id}-viewport`, {
         path: candidatePath,
         contentType: 'image/png',
       });

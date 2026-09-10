@@ -99,10 +99,12 @@ light control.
 
 Run `npx playwright install chromium` once, then `npm run test:webgl` to execute
 all nine fixtures and two lifecycle tests at 1280×720, DPR 1, using
-Chromium/SwiftShader. Candidate
-screenshots and metadata are written under `test-results/webgl-next/`; CI keeps
-them as a 14-day artifact for review. These candidates are not approved golden
-baselines yet, so the documented 1.5% pixel-diff gate remains pending.
+Chromium/SwiftShader. Context captures (`<fixture>-viewport.png`, the whole
+`#viewport` including the DOM overlays and minimap) and JSON metadata are written
+under `test-results/webgl-next/`; CI keeps them as a 14-day artifact for review.
+They are review context only — the pixel-diff gate compares `<fixture>.png`
+baselines in `webgl-next/e2e/__screenshots__/`, which are `#webgl-canvas`
+captures produced solely by the `webgl-baselines` workflow.
 
 The lifecycle suite forces `WEBGL_lose_context`, requires restoration within two
 seconds, verifies that fixture state and the rendered frame survive restoration,
