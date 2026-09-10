@@ -7,6 +7,18 @@ export interface HudOverlayOptions {
    * nobody can tell apart from 2x.
    */
   maxPixelRatio?: number;
+  /**
+   * Extra painting on the same canvas, after the HUD, with the backing-store
+   * transform already installed so the callback works in logical pixels.
+   *
+   * `HudLayer` has no element type for a `TouchStick` (or any other widget that
+   * draws itself), and without a hook here every game had to fetch the 2D context
+   * behind this renderer's back and re-derive the device-pixel ratio to draw one.
+   *
+   * @example
+   *   new HudOverlayRenderer(canvas, hud, { paint: (ctx) => stick.draw(ctx) });
+   */
+  paint?: (ctx: CanvasRenderingContext2D, width: number, height: number) => void;
 }
 
 /**
@@ -36,6 +48,7 @@ export interface HudOverlayOptions {
 export class HudOverlayRenderer {
   private readonly _context: CanvasRenderingContext2D;
   private readonly _maxPixelRatio: number;
+  private readonly _paint?: (ctx: CanvasRenderingContext2D, width: number, height: number) => void;
   private _pixelRatio = 1;
 
   constructor(
@@ -47,6 +60,7 @@ export class HudOverlayRenderer {
     if (!context) throw new Error('Canvas 2D is required for the HUD overlay.');
     this._context = context;
     this._maxPixelRatio = Math.max(1, opts.maxPixelRatio ?? 2);
+    this._paint = opts.paint;
 
     if (_canvas.style) _canvas.style.pointerEvents = 'none';
     // A getter, not a value: the ratio changes when the window moves between
@@ -87,6 +101,14 @@ export class HudOverlayRenderer {
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, width, height);
     this._hud.draw(ctx, rect.width, rect.height);
+
+    if (!this._paint) return;
+    // Same logical-pixel space the HUD just drew in, and isolated with
+    // save/restore so a careless painter cannot leak state into the next frame.
+    ctx.save();
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    this._paint(ctx, rect.width, rect.height);
+    ctx.restore();
   }
 
   /** Clear the overlay and drop any in-flight HUD press state. */

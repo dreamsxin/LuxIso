@@ -163,3 +163,42 @@ describe('HudOverlayRenderer', () => {
     expect(() => new HudOverlayRenderer(el, new HudLayer())).toThrow(/Canvas 2D/);
   });
 });
+
+describe('HudOverlayRenderer — paint hook', () => {
+  it('paints after the HUD, in logical pixels, and isolates the state', () => {
+    setDpr(2);
+    const { el, state } = canvas(400, 300);
+    const paint = vi.fn((ctx: CanvasRenderingContext2D, _w: number, _h: number) => {
+      ctx.fillRect(1, 2, 3, 4);
+    });
+    new HudOverlayRenderer(el, hudWithBar(), { paint }).render();
+
+    expect(paint).toHaveBeenCalledTimes(1);
+    // Called with the CSS box, not the backing store.
+    expect(paint.mock.calls[0][1]).toBe(400);
+    expect(paint.mock.calls[0][2]).toBe(300);
+
+    const hudFill = state.calls.findIndex(c => c[0] === 'fillRect' && c[1] === 16);
+    const own = state.calls.findIndex(c => c[0] === 'fillRect' && c[1] === 1);
+    expect(hudFill).toBeLessThan(own);
+    // Wrapped in save/restore, with the DPR transform installed for the painter.
+    expect(state.calls.slice(0, own).filter(c => c[0] === 'save').length).toBeGreaterThan(0);
+    expect(state.calls[own - 1]).toEqual(['setTransform', 2, 0, 0, 2, 0, 0]);
+    expect(state.calls[own + 1]).toEqual(['restore']);
+  });
+
+  it('does not paint when the canvas has no layout size', () => {
+    setDpr(1);
+    const { el } = canvas(0, 0);
+    const paint = vi.fn();
+    new HudOverlayRenderer(el, hudWithBar(), { paint }).render();
+    expect(paint).not.toHaveBeenCalled();
+  });
+
+  it('is optional', () => {
+    setDpr(1);
+    const { el } = canvas(400, 300);
+    expect(() => new HudOverlayRenderer(el, hudWithBar()).render()).not.toThrow();
+  });
+});
+
