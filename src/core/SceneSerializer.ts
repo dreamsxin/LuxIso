@@ -12,9 +12,95 @@ import { Lantern } from '../elements/props/Lantern';
 import { OmniLight } from '../lighting/OmniLight';
 import { DirectionalLight } from '../lighting/DirectionalLight';
 import { HealthComponent } from '../ecs/components/HealthComponent';
+import { FloatingText } from '../elements/props/FloatingText';
+import { ParticleSystem } from '../animation/ParticleSystem';
+import type { IsoObject } from '../elements/IsoObject';
+
+/** Constructor of a scene object, abstract classes included. */
+export type IsoObjectCtor = abstract new (...args: never[]) => IsoObject;
+
+/**
+ * Turns a custom scene object into a `props[]` entry.
+ *
+ * Return at least `{ type }` — the key the matching `Engine.registerProp()`
+ * factory is registered under. `id`, `x` and `y` are filled in from the object
+ * unless the entry overrides them, so the usual serializer is one line. Return
+ * `null` to skip the object deliberately.
+ */
+export type PropSerializer<T extends IsoObject = IsoObject> =
+  (object: T) => Record<string, unknown> | null | undefined;
+
+/** Built-in object types `toJSON` already knows how to write. */
+const BUILT_IN_TYPES: readonly IsoObjectCtor[] = [
+  Floor, Wall, Character, Cloud, Crystal, Boulder, Chest, Tree, FlowerPatch, Lantern,
+];
+
+/** Built-ins that are runtime-only by design and must never be persisted. */
+const TRANSIENT_TYPES: readonly IsoObjectCtor[] = [FloatingText, ParticleSystem];
 
 /** Serializes the built-in scene schema consumed by Engine.buildScene(). */
 export class SceneSerializer {
+  /**
+   * Custom prop serializers, in registration order.
+   *
+   * `Engine.registerProp()` has always let an application *load* its own object
+   * types, but `toJSON` was a closed `instanceof` chain, so those objects were
+   * **silently dropped on save** — a checkpoint written through `scene.toJSON()`
+   * came back missing every custom entity, with no error. This is the save-side
+   * half of the same gap `SceneExtractor`'s registry closed for WebGL rendering.
+   */
+  private static _serializers: Array<{
+    ctor: IsoObjectCtor;
+    serialize: PropSerializer<never>;
+  }> = [];
+
+  /** Constructor names already reported as unserializable, to warn once each. */
+  private static _reported = new Set<string>();
+
+  /**
+   * Register a serializer for a custom object type.
+   *
+   * Later registrations win, so a subclass can override its base without
+   * unregistering first. Built-in types are matched before this registry, which
+   * keeps their round-trip behaviour fixed — a serializer for a class deriving
+   * from a built-in prop is therefore not consulted.
+   *
+   * @example
+   *   Engine.registerProp('mob', (p) => new Mob(p.id, p.x, p.y, p.tier as number));
+   *   SceneSerializer.register(Mob, (mob) => ({ type: 'mob', tier: mob.tier }));
+   */
+  static register<T extends IsoObject>(
+    ctor: abstract new (...args: never[]) => T,
+    serialize: PropSerializer<T>,
+  ): void {
+    SceneSerializer._serializers.push({
+      ctor,
+      serialize: serialize as PropSerializer<never>,
+    });
+  }
+
+  /** Remove every serializer registered for `ctor`. Returns true if any went. */
+  static unregister(ctor: IsoObjectCtor): boolean {
+    const before = SceneSerializer._serializers.length;
+    SceneSerializer._serializers = SceneSerializer._serializers.filter((e) => e.ctor !== ctor);
+    return SceneSerializer._serializers.length !== before;
+  }
+
+  /** Drop all custom serializers. Useful between tests. */
+  static clearSerializers(): void {
+    SceneSerializer._serializers = [];
+    SceneSerializer._reported.clear();
+  }
+
+  /** The serializer that would run for `object`, or null. */
+  static findSerializer(object: IsoObject): PropSerializer<never> | null {
+    for (let i = SceneSerializer._serializers.length - 1; i >= 0; i--) {
+      const entry = SceneSerializer._serializers[i];
+      if (object instanceof (entry.ctor as unknown as new () => IsoObject)) return entry.serialize;
+    }
+    return null;
+  }
+
   static toJSON(scene: Scene): Record<string, unknown> {
     const objects = scene.allObjects;
     const floors     = objects.filter((o): o is Floor     => o instanceof Floor);
@@ -179,8 +265,82 @@ export class SceneSerializer {
           postColor: prop.propPostColor,
           heightPx: prop.propHeightPx,
         })),
+        ...SceneSerializer._customProps(objects),
       ],
     };
+  }
+
+  /** Entries for objects no built-in branch covers. */
+  private static _customProps(
+    objects: readonly IsoObject[],
+  ): Array<Record<string, unknown>> {
+    const entries: Array<Record<string, unknown>> = [];
+    for (const object of objects) {
+      if (BUILT_IN_TYPES.some((ctor) => SceneSerializer._isA(object, ctor))) continue;
+      if (TRANSIENT_TYPES.some((ctor) => SceneSerializer._isA(object, ctor))) continue;
+      const entry = SceneSerializer._runSerializer(object);
+      if (entry) entries.push(entry);
+    }
+    return entries;
+  }
+
+  private static _isA(object: IsoObject, ctor: IsoObjectCtor): boolean {
+    return object instanceof (ctor as unknown as new () => IsoObject);
+  }
+
+  /**
+   * Run a custom serializer, guarding the save against application code.
+   *
+   * A serializer that throws, or returns an entry without the `type` key its
+   * `Engine.registerProp()` factory is keyed by, would otherwise take the whole
+   * `toJSON()` down or write an entry that silently cannot be loaded back.
+   */
+  private static _runSerializer(object: IsoObject): Record<string, unknown> | null {
+    const name = object.constructor?.name ?? 'anonymous';
+    const serialize = SceneSerializer.findSerializer(object);
+    if (!serialize) {
+      SceneSerializer._reportOnce(
+        name,
+        `SceneSerializer: no serializer for "${name}"; it will not be saved. ` +
+        'Register one with SceneSerializer.register().',
+      );
+      return null;
+    }
+
+    let entry: Record<string, unknown> | null | undefined;
+    try {
+      entry = (serialize as PropSerializer)(object);
+    } catch (error) {
+      SceneSerializer._reportOnce(
+        name,
+        `SceneSerializer: serializer for "${name}" threw; skipping the object. ${String(error)}`,
+      );
+      return null;
+    }
+    if (!entry) return null;
+
+    if (typeof entry.type !== 'string' || entry.type === '') {
+      SceneSerializer._reportOnce(
+        name,
+        `SceneSerializer: serializer for "${name}" returned no \`type\`; the entry ` +
+        'could not be loaded back and was dropped.',
+      );
+      return null;
+    }
+
+    // Defaults the factory contract needs, overridable by the serializer.
+    return {
+      id: object.id,
+      x: object.position.x,
+      y: object.position.y,
+      ...entry,
+    };
+  }
+
+  private static _reportOnce(key: string, message: string): void {
+    if (SceneSerializer._reported.has(key)) return;
+    SceneSerializer._reported.add(key);
+    console.warn(message);
   }
 
   private static _health(entity: Crystal | Boulder | Chest): { health?: number } {

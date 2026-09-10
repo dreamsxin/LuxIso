@@ -122,7 +122,7 @@ npm run test:webgl # builds, then runs 9 deterministic captures + lifecycle test
 
 | Layer | Command | Scope |
 |---|---|---|
-| Unit | `npm test` | 775 tests across 64 files (Vitest 4) |
+| Unit | `npm test` | 789 tests across 65 files (Vitest 4) |
 | Coverage | `npm run test:coverage` | v8 provider + per-module ratchets |
 | Workflows | `npm run lint:workflows` | GitHub Actions YAML: unquoted colons, tab indentation, `run:` expression injection |
 | Browser | `npm run test:webgl` | 9 fixture captures + 2 context-lifecycle tests (Chromium/SwiftShader) against the built bundle |
@@ -141,7 +141,7 @@ Correctness-critical modules carry their own floors:
 | `src/animation/**` | 88% | 80% |
 | `src/core/**` | 94% | 82% |
 | `src/elements/**` | 57% | 53% |
-| Whole project | 76.2% | 73.7% |
+| Whole project | 76.5% | 74% |
 
 Raise a floor when you add tests; never lower one to make a build pass. Test
 count is not coverage — every P0/P1 defect found in the last audit sat in a
@@ -491,6 +491,30 @@ scene.addSystem(system: System): System
 scene.getSystem(SystemCtor): System | undefined
 scene.removeSystem(systemOrCtor): boolean
 ```
+
+Custom object types round-trip through two paired registries — one per
+direction. `Engine.registerProp()` builds them on load; `SceneSerializer`
+writes them on save. Without the serializer, `toJSON()` cannot know about the
+type and the object is dropped (with a one-time console warning naming it):
+
+```ts
+class Mob extends Entity { constructor(id, x, y, public tier = 1) { super(id, x, y, 0); } }
+
+Engine.registerProp('mob', (p) => new Mob(p.id, p.x, p.y, p.tier as number));
+SceneSerializer.register(Mob, (mob) => ({ type: 'mob', tier: mob.tier }));
+
+SceneSerializer.unregister(Mob): boolean
+SceneSerializer.clearSerializers(): void
+SceneSerializer.findSerializer(object): PropSerializer | null
+```
+
+The serializer returns the `props[]` entry: `type` is required (it is the key
+the factory is registered under), while `id`, `x` and `y` are filled in from the
+object unless the entry overrides them. A `health` field is restored into a
+`HealthComponent` by `Engine.buildScene()`. Return `null` to skip an object.
+Later registrations win, so a subclass can override its base; built-in types are
+matched first, so a class deriving from a built-in prop still serializes as that
+built-in. A serializer that throws costs one object, not the whole save.
 
 ### `Camera`
 
@@ -978,7 +1002,7 @@ requireComponent<T>(entity: Entity, ctor: ComponentCtor<T>): T  // throws if mis
 | EventBus event maps | Event names and payload types are coupled; custom maps supported |
 | Scene.toJSON(): runtime state + built-in prop serialization | Environment, camera, view, light IDs/options, collider, built-ins |
 | Lib build: ESM + CJS dual output + .d.ts (npm run build:lib) | |
-| Unit tests: 775 tests across 64 files (Vitest 4, Node ≥ 22) | |
+| Unit tests: 789 tests across 65 files (Vitest 4, Node ≥ 22) | |
 | Coverage ratchets per module (`npm run test:coverage`) | v8 provider; per-glob floors on math/physics/lighting/ecs/animation/elements/audio/core |
 | Examples: 9 progressive demos + tools gallery | |
 
@@ -992,7 +1016,7 @@ See [FRAMEWORK_ANALYSIS.md](FRAMEWORK_ANALYSIS.md) for a detailed comparison wit
 | P2 | `webgl-next` has no HUD path | `HudLayer` is Canvas-only; the WebGL preview draws UI as DOM overlays (`DomOverlayRenderer`, `MinimapRenderer`). A game on that backend must build its own overlay layer |
 | P2 | Six of nine WebGL fixtures are not baseline-gated | `day-ne` / `low-angle` / `night-lanterns` compare against committed baselines at 1.5%; extending the set means adding IDs to `PIXEL_GATED_FIXTURES` and regenerating through the `webgl-baselines` workflow |
 | P2 | `src/elements/**` (57% branches 53%) is the lowest-covered module | Mostly canvas draw code; the uncovered branches are painting paths, not logic. `Engine` / `Scene` also need a canvas harness to go much higher |
-| P2 | Custom prop serialization requires application code | Add serializer registry paired with `registerProp()` |
+| P2 | Custom **light** serialization requires application code | `SceneSerializer.register()` covers custom objects (props); `toJSON` still writes only `OmniLight` / `DirectionalLight`, so a custom light type registered through `Engine.registerLight()` is not saved |
 | P2 | `EditorRenderer` rebuilds the whole scene on every state change | Debounce to one rebuild per frame, or mutate objects in place for transform-only edits |
 | P2 | `webgl-next` `TextureRegistry` never evicts | Reference-count or LRU-evict per frame; `dispose()` should delete its own GL textures |
 | P3 | System queries scan all Entity instances | Add archetype/query cache if profiling shows a bottleneck |

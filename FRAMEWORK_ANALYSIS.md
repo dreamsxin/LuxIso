@@ -1,7 +1,7 @@
 # LuxIso 架构分析报告 v5
 
 > 更新日期：2026-09-09
-> 基线：Canvas 2D 默认 + WebGL2 预览，775 个 Vitest 测试 / 64 个测试文件（含 v8 覆盖率阈值），11 个 Playwright WebGL 测试
+> 基线：Canvas 2D 默认 + WebGL2 预览，789 个 Vitest 测试 / 65 个测试文件（含 v8 覆盖率阈值），11 个 Playwright WebGL 测试
 
 ## 执行摘要
 
@@ -101,7 +101,7 @@ const bus = new EventBus<GameEvents>();
 - Floor、Wall、Character、Cloud、Crystal、Boulder、Chest
 - Health 最大值与 TileCollider walkable 网格
 
-自定义 prop/light 可通过 Engine 注册表反序列化；自定义 prop 的自动序列化仍需要后续 serializer registry。
+自定义 prop/light 可通过 Engine 注册表反序列化；`SceneSerializer.register()` 现在补上了序列化方向（详见下方审计条目），自定义 light 的序列化仍待补。
 
 ### 深度排序
 
@@ -423,6 +423,19 @@ const bus = new EventBus<GameEvents>();
   - `MinimapRenderer` 直接读 `window.devicePixelRatio`，无 `window` 的环境下直接抛
     `ReferenceError`；画布尚未布局（rect 0×0）时会建出 1×1 的 backing store 并照常
     发一整帧谁也看不见的绘制指令。现在 DPR 有回退、零尺寸直接跳过。
+- ARPG 需要存档（关卡进度、波次状态），于是撞上 `SceneSerializer` 这半边的封闭派发：
+  `Engine.registerProp()` 一直允许应用**加载**自己的对象类型，但 `toJSON()` 是一条
+  `instanceof` 链，自定义对象在**保存时被静默丢弃**——用 `scene.toJSON()` 写的存档
+  读回来会少掉每一个怪物、刷怪点和传送门，而且没有任何报错。这正是当初 `SceneExtractor`
+  注册表在渲染侧解决的同一个缺陷的**存档侧另一半**（「孪生类各有一份」第三次出现）。
+  现在 `SceneSerializer.register(Ctor, serializer)`：serializer 只需返回 `{ type }`
+  加自己的字段，`id` / `x` / `y` 由对象补齐（可被覆盖），`health` 由 `Engine` 侧还原成
+  `HealthComponent`；返回 `null` 表示故意跳过。后注册者优先（子类可覆盖基类），内置类型
+  仍先匹配。保存路径上跑的是应用代码，所以包了两道保护：serializer 抛异常只损失该对象，
+  返回的条目缺 `type`（读不回来）则丢弃并告警；完全没有 serializer 的类型按构造函数名
+  只告警一次——与 `Engine` 加载时对未知 prop type 的告警对称。
+  `FloatingText` / `ParticleSystem` 是设计上的运行时对象，明确排除在告警之外。
+  自定义 **light** 的序列化仍未覆盖，已如实记进 README 路线图。
 - `webgl-baselines` 工作流曾连续几个提交无法被 dispatch，根因是一行不合法的 YAML
   （`- run: echo "Reason: ${{ inputs.reason }}"`——纯量里不能出现 `: `）。真正的问题不是
   那一行，而是**仓库里没有任何东西检查工作流语法**：GitHub 只把它写成某次 run 上的
@@ -462,7 +475,7 @@ const bus = new EventBus<GameEvents>();
 | 类型安全 | 9/10 | ComponentCtor 与 EventMap 覆盖核心扩展面；`tsc` 现已覆盖 examples 与 e2e |
 | 可扩展性 | 9/10 | 加载注册表、自定义事件、WebGL extractor 注册表均已就绪；序列化注册表待补 |
 | 文档质量 | 8/10 | README 与本报告已同步当前实现 |
-| 测试覆盖 | 8/10 | 775 个单测 + 11 个浏览器测试；已接入 v8 覆盖率与分模块阈值（整体 76.3% 语句 / 73.8% 分支），三个 fixture 已按 1.5% 门槛比对基线 |
+| 测试覆盖 | 8/10 | 789 个单测 + 11 个浏览器测试；已接入 v8 覆盖率与分模块阈值（整体 76.6% 语句 / 74.1% 分支），三个 fixture 已按 1.5% 门槛比对基线 |
 | 综合 | 8.3/10 | 架构短板已大幅收敛，下一阶段应由 profiling 驱动 |
 
 测试数量不等于覆盖率。`vitest.config.ts` 现已按模块设定阈值（math/physics/lighting

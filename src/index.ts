@@ -5,6 +5,7 @@ export type { EngineOptions } from './core/Engine';
 export { Scene } from './core/Scene';
 export { SceneRenderer } from './core/SceneRenderer';
 export { SceneSerializer } from './core/SceneSerializer';
+export type { PropSerializer } from './core/SceneSerializer';
 export { Minimap } from './core/Minimap';
 export type { MinimapStyle } from './core/Minimap';
 export type { SceneOptions } from './core/Scene';
