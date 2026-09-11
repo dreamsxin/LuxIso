@@ -1,0 +1,186 @@
+import { describe, it, expect } from 'vitest';
+import { ArenaRun, type HeroIntent } from '../../examples/10-arpg/ArenaRun';
+import type { Combatant } from '../../examples/10-arpg/Combatant';
+
+/**
+ * The arena's closed loop, played out at a fixed dt.
+ *
+ * The demo's central claim is a run that ends: spawn, three waves, a boss, a
+ * result. An idle hero only ever reaches defeat, so victory was unprovable
+ * without sitting at a keyboard. Driving `ArenaRun.step` covers both endings.
+ *
+ * The winning policy has to close distance, not just swing: the boss outranges
+ * the hero (1.3 vs 1.15 world units), so a hero who never moves is hit from a
+ * spot it cannot reach back into. That is the intended pressure, and it is worth
+ * pinning — it makes the difference between a demo that can be won and one that
+ * only looks winnable.
+ */
+
+const DT = 1 / 60;
+
+/** Chase the nearest enemy and swing. What an attentive player does. */
+function brawler(run: ArenaRun): HeroIntent {
+  const target = run.nearestEnemy();
+  if (!target) return {};
+  const dx = target.position.x - run.hero.position.x;
+  const dy = target.position.y - run.hero.position.y;
+  const distance = Math.hypot(dx, dy);
+  if (distance <= run.hero.attackRange * 0.8) return { attack: true };
+  return { x: dx / distance, y: dy / distance, attack: true };
+}
+
+const idle = (): HeroIntent => ({});
+
+/** Play until the run ends or the budget runs out. Returns seconds elapsed. */
+function play(run: ArenaRun, policy: (run: ArenaRun) => HeroIntent, budget = 240): number {
+  run.start();
+  let t = 0;
+  while (!run.isOver && t < budget) {
+    run.step(DT, policy(run));
+    t += DT;
+  }
+  return t;
+}
+
+describe('ArenaRun — a full run', () => {
+  it('reaches victory when the hero closes in and fights', () => {
+    const run = new ArenaRun();
+    const seconds = play(run, brawler);
+
+    expect(run.phase).toBe('victory');
+    expect(seconds).toBeLessThan(240);
+    // 2 + 3 + 4 mobs across three waves, then the boss.
+    expect(run.director.kills).toBe(10);
+    expect(run.enemies.length).toBe(0);
+    expect(run.hero.isDead).toBe(false);
+  });
+
+  it('walks every phase in order, once each', () => {
+    const phases: string[] = [];
+    const run = new ArenaRun({ onPhase: (phase) => phases.push(phase) });
+    play(run, brawler);
+
+    expect(phases).toEqual([
+      'wave', 'intermission', 'wave', 'intermission', 'wave', 'boss', 'victory',
+    ]);
+  });
+
+  it('reaches defeat when the hero never swings', () => {
+    const run = new ArenaRun();
+    play(run, idle);
+
+    expect(run.phase).toBe('defeat');
+    expect(run.hero.isDead).toBe(true);
+    expect(run.director.kills).toBe(0);
+  });
+
+  it('stalls out against the boss if the hero stands its ground', () => {
+    // Swinging without closing is not enough: the boss's reach is longer.
+    const run = new ArenaRun();
+    play(run, () => ({ attack: true }));
+    expect(run.director.kills).toBe(9); // all three waves cleared
+    expect(run.phase).toBe('defeat');
+  });
+
+  it('spawns and despawns through the callbacks, leaving nothing behind', () => {
+    const live = new Set<Combatant>();
+    const run = new ArenaRun({
+      onSpawn: (unit) => live.add(unit),
+      onDespawn: (unit) => live.delete(unit),
+    });
+    play(run, brawler);
+
+    // Only the hero survives; every mob was reported exactly once.
+    expect([...live]).toEqual([run.hero]);
+  });
+
+  it('does nothing before start, or on a non-finite or non-positive dt', () => {
+    const run = new ArenaRun();
+    expect(run.phase).toBe('ready');
+    run.step(DT, { attack: true });
+    expect(run.director.elapsed).toBe(0);
+
+    run.start();
+    const hp = run.hero.health.hp;
+    run.step(0, { attack: true });
+    run.step(-1, { attack: true });
+    run.step(NaN, { attack: true });
+    expect(run.director.elapsed).toBe(0);
+    expect(run.hero.health.hp).toBe(hp);
+  });
+
+  it('heals the hero on each kill, never past the maximum', () => {
+    const run = new ArenaRun();
+    run.start();
+    const max = run.hero.health.maxHp;
+    run.hero.health.takeDamage(max - 1);   // 1 hp left
+    const target = run.enemies[0];
+    target.health.takeDamage(target.health.maxHp);
+    run.step(DT, {});
+    expect(run.hero.health.hp).toBe(1 + ArenaRun.LIFE_ON_KILL);
+
+    run.hero.health.heal(max);
+    const other = run.enemies[0];
+    other.health.takeDamage(other.health.maxHp);
+    run.step(DT, {});
+    expect(run.hero.health.hp).toBe(max);
+  });
+});
+
+describe('ArenaRun — movement', () => {
+  it('keeps the hero inside the arena however hard the axis pushes', () => {
+    const run = new ArenaRun({ cols: 10, rows: 10 });
+    run.start();
+    for (let i = 0; i < 600; i++) run.step(DT, { x: 1, y: 1 });
+    expect(run.hero.position.x).toBeLessThanOrEqual(8.4);
+    expect(run.hero.position.y).toBeLessThanOrEqual(8.4);
+
+    for (let i = 0; i < 1200; i++) run.step(DT, { x: -1, y: -1 });
+    expect(run.hero.position.x).toBeGreaterThanOrEqual(0.6);
+    expect(run.hero.position.y).toBeGreaterThanOrEqual(0.6);
+  });
+
+  it('ignores the axis once the run is over', () => {
+    const run = new ArenaRun();
+    play(run, idle);
+    const x = run.hero.position.x, y = run.hero.position.y;
+    for (let i = 0; i < 60; i++) run.step(DT, { x: 1, y: 1 });
+    expect(run.hero.position.x).toBeCloseTo(x);
+    expect(run.hero.position.y).toBeCloseTo(y);
+  });
+});
+
+describe('ArenaRun — restart', () => {
+  it('rebuilds a finished run from scratch', () => {
+    const live = new Set<Combatant>();
+    const run = new ArenaRun({
+      onSpawn: (unit) => live.add(unit),
+      onDespawn: (unit) => live.delete(unit),
+    });
+    play(run, idle);
+    expect(run.phase).toBe('defeat');
+    const deadHero = run.hero;
+
+    run.restart();
+    expect(run.phase).toBe('wave');
+    expect(run.director.wave).toBe(1);
+    expect(run.director.kills).toBe(0);
+    expect(run.hero).not.toBe(deadHero);
+    expect(run.hero.health.hp).toBe(run.hero.health.maxHp);
+    expect(live.has(deadHero)).toBe(false);
+    // Fresh hero plus wave 1.
+    expect(live.size).toBe(1 + run.enemies.length);
+  });
+
+  it('can be won after a restart', () => {
+    const run = new ArenaRun();
+    play(run, idle);
+    run.restart();
+    let t = 0;
+    while (!run.isOver && t < 240) {
+      run.step(DT, brawler(run));
+      t += DT;
+    }
+    expect(run.phase).toBe('victory');
+  });
+});
