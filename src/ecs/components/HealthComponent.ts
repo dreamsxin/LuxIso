@@ -125,6 +125,22 @@ export class HealthComponent implements Component {
     this._notify();
   }
 
+  /**
+   * Set current hp directly, without firing damage, heal or death notifications.
+   *
+   * For loaders and editors restoring saved state. `takeDamage()` would announce
+   * a hit that never happened and could trip `onDeath` in the middle of a scene
+   * load, while `heal()` refuses to touch an entity that is already dead — so
+   * neither can express "this unit was at 12 of 40 when the game was saved".
+   *
+   * Restoring 0 leaves the entity reading as dead with no death event, which is
+   * the point: the death already happened before the save.
+   */
+  restore(hp: number): void {
+    if (!Number.isFinite(hp)) return;
+    this._current = Math.max(0, Math.min(this._max, hp));
+  }
+
   private _notify(): void {
     if (this._owner) {
       this.onChange?.(this._current, this._max, this._owner);

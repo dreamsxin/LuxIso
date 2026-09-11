@@ -466,9 +466,19 @@ export class SceneSerializer {
     console.warn(message);
   }
 
-  private static _health(entity: Crystal | Boulder | Chest): { health?: number } {
+  /**
+   * Health fields for a built-in prop.
+   *
+   * `hp` is written only when the prop is damaged, so an untouched scene file
+   * keeps its previous shape. Without it a checkpoint healed every prop on load:
+   * only the maximum was saved, so a boulder left at 3 of 50 came back at 50.
+   */
+  private static _health(entity: Crystal | Boulder | Chest): { health?: number; hp?: number } {
     const health = entity.getComponent(HealthComponent);
-    return health ? { health: health.maxHp } : {};
+    if (!health) return {};
+    return health.hp < health.maxHp
+      ? { health: health.maxHp, hp: health.hp }
+      : { health: health.maxHp };
   }
 
   private static _degrees(radians: number): number {

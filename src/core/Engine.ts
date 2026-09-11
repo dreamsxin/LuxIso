@@ -39,6 +39,8 @@ export interface PropJson {
   count?: number;
   seed?: number;
   health?: number;
+  /** Current hp, for a saved prop that was damaged. Defaults to `health`. */
+  hp?: number;
   [key: string]: unknown;
 }
 
@@ -285,20 +287,28 @@ export class Engine {
   }
 
   /**
-   * Apply a JSON `health` value to a freshly built prop.
+   * Apply the JSON `health` (maximum) and `hp` (current) values to a freshly
+   * built prop.
    *
    * A prop that already owns a `HealthComponent` keeps it. `Entity.addComponent`
    * detaches and replaces the previous component of the same type, so injecting a
    * second one left any class that caches its own component — the usual pattern —
    * reading a detached instance while Systems saw a different one. Only the
-   * maximum is taken from JSON in that case, which is what the field means;
-   * current hp survives, so a saved half-dead unit loads back half dead.
+   * maximum is taken from JSON in that case, which is what the field means.
+   *
+   * `hp` restores a damaged unit without announcing a hit that never happened:
+   * `HealthComponent.restore()` fires no damage or death notification.
    *
    * A prop that is not an `Entity` cannot carry components at all. That used to
    * be an unguarded `(prop as any).addComponent(...)`, which threw and aborted
    * the whole scene load over one bad entry.
    */
-  private static _applyPropHealth(prop: IsoObject, health: unknown, type: string): void {
+  private static _applyPropHealth(
+    prop: IsoObject,
+    health: unknown,
+    currentHp: unknown,
+    type: string,
+  ): void {
     if (health === undefined || health === null) return;
     const max = Number(health);
     if (!Number.isFinite(max) || max <= 0) {
@@ -313,8 +323,16 @@ export class Engine {
     }
 
     const existing = entity.getComponent(HealthComponent);
+    const component = existing ?? entity.addComponent(new HealthComponent({ max }));
     if (existing) existing.setMax(max);
-    else entity.addComponent(new HealthComponent({ max }));
+
+    if (currentHp === undefined || currentHp === null) return;
+    const hp = Number(currentHp);
+    if (!Number.isFinite(hp) || hp < 0) {
+      console.warn(`[Engine] Prop '${type}' has an invalid hp ${JSON.stringify(currentHp)}; keeping ${component.hp}.`);
+      return;
+    }
+    component.restore(hp);
   }
 
   /**
@@ -421,7 +439,7 @@ export class Engine {
         continue;
       }
       const prop = propFactory(p);
-      Engine._applyPropHealth(prop, p.health, p.type);
+      Engine._applyPropHealth(prop, p.health, p.hp, p.type);
       scene.addObject(prop);
     }
 

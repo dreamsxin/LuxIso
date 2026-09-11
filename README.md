@@ -122,7 +122,7 @@ npm run test:webgl # builds, then runs 9 deterministic captures + lifecycle test
 
 | Layer | Command | Scope |
 |---|---|---|
-| Unit | `npm test` | 874 tests across 70 files (Vitest 4) |
+| Unit | `npm test` | 881 tests across 70 files (Vitest 4) |
 | Coverage | `npm run test:coverage` | v8 provider + per-module ratchets |
 | Workflows | `npm run lint:workflows` | GitHub Actions YAML: unquoted colons, tab indentation, `run:` expression injection |
 | Browser | `npm run test:webgl` | 9 fixture captures + 2 context-lifecycle tests (Chromium/SwiftShader) against the built bundle |
@@ -239,9 +239,22 @@ engine.start(
   ],
   "clouds": [
     { "id": "c1", "x": 2, "y": 1, "altitude": 6, "speed": 0.4, "angle": 0.3, "scale": 1.2, "seed": 0.7 }
+  ],
+  "props": [
+    { "id": "rock", "type": "boulder", "x": 3, "y": 3, "color": "#7a7a8a", "radius": 18,
+      "health": 50, "hp": 12 }
   ]
 }
 ```
+
+A prop's `type` is resolved through `Engine.registerProp()`; the built-in types
+are `crystal`, `boulder`, `chest`, `tree`, `flowers` and `lantern`. `health` is
+the **maximum** hp and must be positive when present. `hp` is optional and holds
+the **current** hp of a damaged prop, which is what makes a checkpoint faithful —
+it is written by `SceneSerializer.toJSON()` only when the prop is hurt, and
+applied through `HealthComponent.restore()` so loading announces no damage and no
+death. A prop that builds its own `HealthComponent` keeps it: only the maximum is
+taken from JSON.
 
 ## Coordinate System & Z Units
 
@@ -368,7 +381,7 @@ src/
 │   ├── EventBus.ts              # EventMap-typed on/off/emit; globalBus singleton
 │   ├── System.ts                # Batch component queries; priority + attach/detach lifecycle
 │   └── components/
-│       ├── HealthComponent.ts   # hp / maxHp / fraction / isDead; takeDamage / heal; callbacks
+│       ├── HealthComponent.ts   # hp / maxHp / fraction / isDead; takeDamage / heal / restore; callbacks
 │       ├── MovementComponent.ts # ECS moveTo / pathTo / nudge; TileCollider; EventBus arrival/move
 │       ├── AnimationComponent.ts # Drives a SpriteSheet/DirectionalAnimator from ECS update
 │       ├── TimerComponent.ts    # delay / repeat / pause / restart
@@ -663,7 +676,13 @@ hp.hp: number; hp.maxHp: number; hp.fraction: number; hp.isDead: boolean
 hp.takeDamage(amount): void   // negative amounts clamp to 0; they do not heal
 hp.heal(amount): void         // negative amounts clamp to 0; they cannot kill
 hp.setMax(max, scaleCurrentHp?): void   // a non-positive max is ignored
+hp.restore(hp): void          // set current hp silently — for loading a save
 ```
+
+`restore()` is the loader path: it fires no damage, heal or death notification,
+so restoring "12 of 40" does not announce a hit that never happened, and
+restoring 0 loads an already-dead unit without re-running `onDeath`. `Engine`
+uses it for the `hp` field on a prop entry.
 
 ### `MovementComponent`
 
@@ -1025,7 +1044,7 @@ object is unreachable and both disappear together.
 | EventBus event maps | Event names and payload types are coupled; custom maps supported |
 | Scene.toJSON(): runtime state + built-in prop serialization | Environment, camera, view, light IDs/options, collider, built-ins |
 | Lib build: ESM + CJS dual output + .d.ts (npm run build:lib) | |
-| Unit tests: 874 tests across 70 files (Vitest 4, Node ≥ 22) | |
+| Unit tests: 881 tests across 70 files (Vitest 4, Node ≥ 22) | |
 | Coverage ratchets per module (`npm run test:coverage`) | v8 provider; per-glob floors on math/physics/lighting/ecs/animation/elements/audio/core |
 | Examples: 9 progressive demos + tools gallery | |
 

@@ -525,6 +525,12 @@ const bus = new EventBus<GameEvents>();
     场景加载中断。现在先探测 `addComponent` / `getComponent` 再动手，并把
     `health` 的非正数/非数值也降级为一条警告（与 `Validator` 对 `props[i].health`
     的要求一致），而不是把 NaN 塞进组件。
+  - 顺着同一条路还发现**存档根本不保存当前血量**：`SceneSerializer` 只写 `health`
+    （上限），于是一次 checkpoint 把全场治满——留在 3/50 的巨石读回来是 50/50。
+    现在受伤时才额外写 `hp`（未受伤的场景文件形状不变），加载时走新增的
+    `HealthComponent.restore()`：不发 damage / heal / death 通知，所以"存档时已经
+    死了的单位"读回来仍是死的，而不会把 `onDeath` 在加载中途再跑一遍。
+
 
 
 
@@ -556,7 +562,7 @@ const bus = new EventBus<GameEvents>();
 | 类型安全 | 9/10 | ComponentCtor 与 EventMap 覆盖核心扩展面；`tsc` 现已覆盖 examples 与 e2e |
 | 可扩展性 | 9/10 | 加载注册表、自定义事件、WebGL extractor 注册表均已就绪；序列化注册表待补 |
 | 文档质量 | 8/10 | README 与本报告已同步当前实现 |
-| 测试覆盖 | 8/10 | 874 个单测 + 11 个浏览器测试；已接入 v8 覆盖率与分模块阈值（整体 77.1% 语句 / 75.1% 分支），三个 fixture 已按 1.5% 门槛比对基线 |
+| 测试覆盖 | 8/10 | 881 个单测 + 11 个浏览器测试；已接入 v8 覆盖率与分模块阈值（整体 77.2% 语句 / 75.2% 分支），三个 fixture 已按 1.5% 门槛比对基线 |
 | 综合 | 8.3/10 | 架构短板已大幅收敛，下一阶段应由 profiling 驱动 |
 
 测试数量不等于覆盖率。`vitest.config.ts` 现已按模块设定阈值（math/physics/lighting
