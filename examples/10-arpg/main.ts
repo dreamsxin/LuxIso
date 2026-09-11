@@ -15,14 +15,15 @@
  */
 import {
   Scene, Floor, TileCollider, InputManager, InputMap, TouchStick, HudLayer,
-  OmniLight, DirectionalLight,
+  OmniLight, DirectionalLight, SceneSerializer, Engine,
 } from '../../src/index';
 import { SceneExtractor } from '../../webgl-next/src/extraction/SceneExtractor';
 import { WebGLRenderer } from '../../webgl-next/src/renderer/WebGLRenderer';
 import { HudOverlayRenderer } from '../../webgl-next/src/overlays/HudOverlayRenderer';
 import { registerCombatantExtractor } from './CombatantExtractor';
 import { registerCombatantPersistence } from './persistence';
-import { ArenaRun } from './ArenaRun';
+import { Combatant } from './Combatant';
+import { ArenaRun, type ArenaRunSnapshot } from './ArenaRun';
 import { type ArpgPhase } from './WaveDirector';
 
 const COLS = 14, ROWS = 14;
@@ -75,6 +76,8 @@ map.define('move_left', ['a', 'A', 'ArrowLeft']);
 map.define('move_right', ['d', 'D', 'ArrowRight']);
 map.define('attack', [' ', 'Space', 'j', 'J']);
 map.define('restart', ['r', 'R']);
+map.define('save', ['k', 'K']);
+map.define('load', ['l', 'L']);
 
 const stick = new TouchStick({ x: 110, y: 260, radius: 56 });
 map.addAxisSource(stick);
@@ -87,6 +90,7 @@ const hpBar = hud.addBar({ id: 'hp', x: 16, y: 16, w: 190, h: 15, color: '#5ad07
 const waveLabel = hud.addLabel({ id: 'wave', x: 16, y: 50, text: '', color: '#cfe4f0', fontSize: 14 });
 const phaseLabel = hud.addLabel({ id: 'phase', x: 16, y: 70, text: '', color: '#8fb8d0', fontSize: 12 });
 const resultLabel = hud.addLabel({ id: 'result', x: 16, y: 96, text: '', color: '#ffd890', fontSize: 18, visible: false });
+const noticeLabel = hud.addLabel({ id: 'notice', x: 16, y: 122, text: '', color: '#9fd8b0', fontSize: 12, visible: false });
 const attackButton = hud.addButton({
   id: 'attack', x: 0, y: 0, w: 92, h: 92, label: 'ATTACK',
   bgColor: 'rgba(200,80,60,0.55)', hoverColor: 'rgba(240,120,90,0.8)',
@@ -128,6 +132,61 @@ function restart(): void {
   attackQueued = false;
   run.restart();
 }
+
+// ── Checkpoint ────────────────────────────────────────────────────────────────
+
+const SAVE_KEY = 'luxiso.arpg.checkpoint';
+/** Seconds left on the transient notice under the result line. */
+let noticeFor = 0;
+
+function notify(text: string): void {
+  noticeLabel.text = text;
+  noticeLabel.visible = true;
+  noticeFor = 2.5;
+}
+
+/** A checkpoint is the pair: the serialized scene, plus the run's bookkeeping. */
+function saveCheckpoint(): void {
+  try {
+    localStorage.setItem(SAVE_KEY, JSON.stringify({
+      scene: SceneSerializer.toJSON(scene),
+      run: run.snapshot(),
+    }));
+    notify('checkpoint saved');
+  } catch {
+    // Private browsing, or a full quota.
+    notify('save failed');
+  }
+}
+
+function loadCheckpoint(): void {
+  let raw: string | null = null;
+  try {
+    raw = localStorage.getItem(SAVE_KEY);
+  } catch {
+    notify('save storage unavailable');
+    return;
+  }
+  if (!raw) { notify('no checkpoint yet'); return; }
+
+  try {
+    const save = JSON.parse(raw) as { scene?: object; run?: ArenaRunSnapshot };
+    if (!save.scene) { notify('checkpoint unreadable'); return; }
+    // `Engine` can only build a whole Scene, not merge a fragment into a live
+    // one, so the fighters are lifted out of a throwaway scene and adopted. The
+    // scratch canvas is a plain 2D one: this canvas already holds a GL context.
+    const scratch = new Engine({ canvas: document.createElement('canvas') });
+    const fighters = scratch.buildScene(save.scene).getAll(Combatant);
+    if (!run.adopt(fighters, save.run ?? {})) { notify('checkpoint has no hero'); return; }
+    hud.resetInput();
+    stick.reset();
+    attackQueued = false;
+    notify('checkpoint loaded');
+  } catch {
+    notify('checkpoint unreadable');
+  }
+}
+
 
 // ── Layout ────────────────────────────────────────────────────────────────────
 
@@ -184,6 +243,8 @@ function frame(ts: number): void {
   hud.handleMove(input.pointer.x, input.pointer.y);
 
   if (map.wasPressed('restart')) restart();
+  if (map.wasPressed('save')) saveCheckpoint();
+  if (map.wasPressed('load')) loadCheckpoint();
 
   const axis = map.axis('move_right', 'move_left', 'move_down', 'move_up');
   run.step(dt, { x: axis.x, y: axis.y, attack: swingRequested() });
@@ -193,14 +254,18 @@ function frame(ts: number): void {
   // Movement was already integrated by `ArenaRun` through `fixedUpdate`, which
   // `MovementComponent` latches onto — so this cannot step it a second time.
   scene.update(ts);
-  refreshHud();
+  refreshHud(dt);
   draw();
   input.flush();
   requestAnimationFrame(frame);
 }
 
-function refreshHud(): void {
+function refreshHud(dt: number): void {
   const director = run.director;
+  if (noticeFor > 0) {
+    noticeFor = Math.max(0, noticeFor - dt);
+    if (noticeFor === 0) noticeLabel.visible = false;
+  }
   hpBar.value = run.hero.health.fraction;
   hpBar.label = `HP ${Math.ceil(run.hero.health.hp)} / ${run.hero.health.maxHp}`;
   waveLabel.text = director.phase === 'boss'

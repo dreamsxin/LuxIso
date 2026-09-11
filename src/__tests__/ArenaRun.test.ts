@@ -184,3 +184,81 @@ describe('ArenaRun — restart', () => {
     expect(run.phase).toBe('victory');
   });
 });
+
+describe('ArenaRun — checkpoint', () => {
+  it('resumes a mid-run save and still reaches victory', () => {
+    const source = new ArenaRun();
+    source.start();
+    // Play into wave 2, then save: the fighters plus the bookkeeping.
+    let t = 0;
+    while (source.director.wave < 2 && t < 120) {
+      source.step(DT, brawler(source));
+      t += DT;
+    }
+    const snapshot = source.snapshot();
+    const fighters = [source.hero, ...source.enemies];
+    expect(snapshot.director.kills).toBeGreaterThan(0);
+
+    const resumed = new ArenaRun();
+    expect(resumed.adopt(fighters, snapshot)).toBe(true);
+    expect(resumed.hero).toBe(source.hero);
+    expect(resumed.director.wave).toBe(snapshot.director.wave);
+    expect(resumed.director.kills).toBe(snapshot.director.kills);
+    expect(resumed.phase).toBe(snapshot.director.phase);
+
+    play(resumed, brawler);
+    expect(resumed.phase).toBe('victory');
+    // The kills carried over, so the total counts the whole run, not just the tail.
+    expect(resumed.director.kills).toBe(10);
+  });
+
+  it('swaps scene membership through the callbacks', () => {
+    const live = new Set<Combatant>();
+    const source = new ArenaRun();
+    source.start();
+    const fighters = [source.hero, ...source.enemies];
+
+    const target = new ArenaRun({
+      onSpawn: (unit) => live.add(unit),
+      onDespawn: (unit) => live.delete(unit),
+    });
+    target.start();
+    const replaced = [target.hero, ...target.enemies];
+    expect(live.size).toBe(replaced.length);
+
+    target.adopt(fighters, source.snapshot());
+    expect([...live].sort((a, b) => a.id.localeCompare(b.id)))
+      .toEqual([...fighters].sort((a, b) => a.id.localeCompare(b.id)));
+    for (const unit of replaced) expect(live.has(unit)).toBe(false);
+  });
+
+  it('refuses a save with no hero and changes nothing', () => {
+    const run = new ArenaRun();
+    run.start();
+    const hero = run.hero;
+    const enemies = [...run.enemies];
+
+    expect(run.adopt(enemies, run.snapshot())).toBe(false);
+    expect(run.hero).toBe(hero);
+    expect(run.enemies).toEqual(enemies);
+  });
+
+  it('does not re-spawn the wave it adopted', () => {
+    const source = new ArenaRun();
+    source.start();
+    const fighters = [source.hero, ...source.enemies];
+
+    const live = new Set<Combatant>();
+    const target = new ArenaRun({
+      onSpawn: (unit) => live.add(unit),
+      onDespawn: (unit) => live.delete(unit),
+    });
+    // The constructor already spawned a placeholder hero; adopting replaces it.
+    expect(live.size).toBe(1);
+
+    target.adopt(fighters, source.snapshot());
+    expect([...live]).toEqual(fighters);
+    expect(target.enemies.length).toBe(fighters.length - 1);
+  });
+});
+

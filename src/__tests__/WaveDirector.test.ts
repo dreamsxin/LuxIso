@@ -197,3 +197,82 @@ describe('WaveDirector', () => {
     expect(d.mobsAlive).toBe(2);
   });
 });
+
+describe('WaveDirector — checkpoint', () => {
+  it('captures the whole bookkeeping, and nothing about the mobs', () => {
+    const d = new WaveDirector({ intermission: 2 });
+    d.start();
+    d.update(1.5);
+    d.reportMobDefeated();
+
+    expect(d.snapshot()).toEqual({
+      phase: 'wave', wave: 1, alive: 2, kills: 1, elapsed: 1.5, countdown: 0,
+    });
+  });
+
+  it('adopts a snapshot without re-spawning the wave', () => {
+    const onSpawnWave = vi.fn();
+    const d = new WaveDirector({ onSpawnWave });
+    d.restore({ phase: 'wave', wave: 3, alive: 2, kills: 7, elapsed: 42.5, countdown: 0 });
+
+    expect(onSpawnWave).not.toHaveBeenCalled();
+    expect(d.phase).toBe('wave');
+    expect(d.wave).toBe(3);
+    expect(d.mobsAlive).toBe(2);
+    expect(d.kills).toBe(7);
+    expect(d.elapsed).toBeCloseTo(42.5);
+  });
+
+  it('announces the phase it landed in, so a UI follows the load', () => {
+    const onPhase = vi.fn();
+    const d = new WaveDirector({ onPhase });
+    d.restore({ phase: 'boss' });
+    expect(onPhase).toHaveBeenCalledWith('boss', 'ready');
+
+    onPhase.mockClear();
+    d.restore({ phase: 'boss' });
+    expect(onPhase).not.toHaveBeenCalled();
+  });
+
+  it('keeps running from where the save left off', () => {
+    const onSpawnWave = vi.fn();
+    const d = new WaveDirector({ intermission: 2, onSpawnWave });
+    d.restore({ phase: 'intermission', wave: 1, alive: 0, kills: 2, elapsed: 8, countdown: 0.5 });
+
+    d.update(0.25);
+    expect(d.phase).toBe('intermission');
+    expect(d.countdown).toBeCloseTo(0.25);
+    d.update(0.25);
+    expect(d.phase).toBe('wave');
+    expect(d.wave).toBe(2);
+    expect(onSpawnWave).toHaveBeenCalledWith(2, 4); // default count is 2 + wave
+    expect(d.elapsed).toBeCloseTo(8.5);
+  });
+
+  it('survives a hand-edited or truncated save', () => {
+    const d = new WaveDirector({ intermission: 2 });
+    d.start();
+    const before = d.snapshot();
+
+    d.restore({});
+    expect(d.snapshot()).toEqual(before);
+
+    d.restore({
+      phase: 'nonsense' as never, wave: NaN, alive: 'lots' as never,
+      kills: -5, elapsed: Infinity, countdown: 99,
+    });
+    expect(d.phase).toBe('wave');       // unknown phase ignored
+    expect(d.wave).toBe(1);             // NaN ignored
+    expect(d.mobsAlive).toBe(3);        // non-numeric ignored
+    expect(d.kills).toBe(0);            // clamped up to 0
+    expect(d.elapsed).toBe(before.elapsed); // Infinity ignored
+    expect(d.countdown).toBe(0);        // countdown reads 0 outside an intermission
+  });
+
+  it('clamps a wave number past the configured total', () => {
+    const d = new WaveDirector({ waves: 3 });
+    d.restore({ wave: 99 });
+    expect(d.wave).toBe(3);
+  });
+});
+

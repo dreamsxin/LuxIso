@@ -14,7 +14,12 @@
  */
 import type { TileCollider } from '../../src/index';
 import { Combatant } from './Combatant';
-import { WaveDirector, type ArpgPhase } from './WaveDirector';
+import { WaveDirector, type ArpgPhase, type WaveDirectorSnapshot } from './WaveDirector';
+
+/** A run's bookkeeping, saved next to the serialized scene. */
+export interface ArenaRunSnapshot {
+  director: WaveDirectorSnapshot;
+}
 
 /** What the player (or a test) asks of the hero this frame. */
 export interface HeroIntent {
@@ -96,6 +101,40 @@ export class ArenaRun {
     this._hero = this._spawnHero();
     this._director = this._newDirector();
     this._director.start();
+  }
+
+  /**
+   * The run's bookkeeping, to be stored next to a serialized scene.
+   *
+   * The fighters are not in here: they are scene objects, and the scene has its
+   * own serializer (`examples/10-arpg/persistence.ts` registers both directions).
+   * A checkpoint is the pair.
+   */
+  snapshot(): ArenaRunSnapshot {
+    return { director: this._director.snapshot() };
+  }
+
+  /**
+   * Take over fighters restored from a saved scene, plus that save's bookkeeping.
+   *
+   * The current fighters are reported through `onDespawn` and the adopted ones
+   * through `onSpawn`, so the caller's scene follows without a second code path.
+   * Wave spawning stays quiet: the units already exist, so re-running the
+   * director's `start()` would double the wave.
+   *
+   * @returns false if the save has no hero, in which case nothing changes.
+   */
+  adopt(fighters: readonly Combatant[], snapshot: Partial<ArenaRunSnapshot> = {}): boolean {
+    const hero = fighters.find((unit) => unit.faction === 'hero');
+    if (!hero) return false;
+
+    for (const unit of [this._hero, ...this._enemies]) this._opts.onDespawn?.(unit);
+    this._hero = hero;
+    this._enemies = fighters.filter((unit) => unit !== hero);
+    this._director = this._newDirector();
+    if (snapshot.director) this._director.restore(snapshot.director);
+    for (const unit of fighters) this._opts.onSpawn?.(unit);
+    return true;
   }
 
   /** Nearest living enemy, or null. */

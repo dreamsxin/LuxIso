@@ -4,6 +4,7 @@ import { Scene } from '../core/Scene';
 import { SceneSerializer } from '../core/SceneSerializer';
 import { HealthComponent } from '../ecs/components/HealthComponent';
 import { TileCollider } from '../physics/TileCollider';
+import { ArenaRun } from '../../examples/10-arpg/ArenaRun';
 import { Combatant } from '../../examples/10-arpg/Combatant';
 import {
   registerCombatantPersistence, unregisterCombatantPersistence, COMBATANT_TYPE,
@@ -137,3 +138,64 @@ describe('ARPG persistence', () => {
     expect(reloaded.getAll(Combatant).length).toBe(0);
   });
 });
+
+describe('ARPG checkpoint', () => {
+  const DT = 1 / 60;
+
+  /** Chase and swing, the policy a run has to be winnable under. */
+  function brawler(run: ArenaRun) {
+    const target = run.nearestEnemy();
+    if (!target) return {};
+    const dx = target.position.x - run.hero.position.x;
+    const dy = target.position.y - run.hero.position.y;
+    const distance = Math.hypot(dx, dy);
+    if (distance <= run.hero.attackRange * 0.8) return { attack: true };
+    return { x: dx / distance, y: dy / distance, attack: true };
+  }
+
+  it('survives a full save to JSON and back, mid-run', () => {
+    registerCombatantPersistence();
+    const scene = arena();
+    const run = new ArenaRun({
+      onSpawn: (unit) => scene.addObject(unit),
+      onDespawn: (unit) => scene.removeById(unit.id),
+    });
+    run.start();
+
+    // Play into wave 2 and take a few hits, so the save has something to lose.
+    let t = 0;
+    while (run.director.wave < 2 && t < 120) {
+      run.step(DT, brawler(run));
+      t += DT;
+    }
+    run.hero.health.takeDamage(37);
+
+    // A checkpoint is the pair: the serialized scene plus the run bookkeeping.
+    const save = JSON.parse(JSON.stringify({
+      scene: SceneSerializer.toJSON(scene),
+      run: run.snapshot(),
+    }));
+
+    // Load: rebuild the scene, hand its fighters to a fresh run.
+    const restoredScene = new Engine({ canvas: makeCanvas() }).buildScene(save.scene);
+    const resumed = new ArenaRun();
+    expect(resumed.adopt(restoredScene.getAll(Combatant), save.run)).toBe(true);
+
+    expect(resumed.phase).toBe(run.phase);
+    expect(resumed.director.wave).toBe(run.director.wave);
+    expect(resumed.director.kills).toBe(run.director.kills);
+    expect(resumed.director.elapsed).toBeCloseTo(run.director.elapsed, 5);
+    expect(resumed.hero.health.hp).toBe(run.hero.health.hp);
+    expect(resumed.enemies.length).toBe(run.enemies.length);
+
+    // And it is still a playable run, not a frozen tableau.
+    let elapsed = 0;
+    while (!resumed.isOver && elapsed < 240) {
+      resumed.step(DT, brawler(resumed));
+      elapsed += DT;
+    }
+    expect(resumed.phase).toBe('victory');
+    expect(resumed.director.kills).toBe(10);
+  });
+});
+

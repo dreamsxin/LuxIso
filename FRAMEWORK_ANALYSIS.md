@@ -530,6 +530,20 @@ const bus = new EventBus<GameEvents>();
     现在受伤时才额外写 `hp`（未受伤的场景文件形状不变），加载时走新增的
     `HealthComponent.restore()`：不发 damage / heal / death 通知，所以"存档时已经
     死了的单位"读回来仍是死的，而不会把 `onDeath` 在加载中途再跑一遍。
+- 把 checkpoint 真正做完（K 存 / L 读，落在 localStorage），暴露的是**边界形状**问题：
+  - 一局的进度此前只活在内存里。`WaveDirector` 加了 `snapshot()` / `restore()`：只有
+    phase / wave / alive / kills / elapsed / countdown 这些账面数据，怪的身份属于场景、
+    由场景自己的序列化负责。`restore()` 刻意**不触发**生成回调（单位是跟着存档一起
+    读回来的，再生成一遍就是双份），但会在 phase 真的变化时触发 `onPhase`，让 UI 跟上；
+    非法字段（未知 phase、NaN、超界）一律保留当前值，手改过的存档只会退化不会投毒。
+  - `Engine` 只能构建**整个** `Scene`，没有"把一段 props 合并进现有场景"的入口。
+    于是读档只能先建一个丢弃用的场景、把 `getAll(Combatant)` 抬出来交给
+    `ArenaRun.adopt()`（旧单位走 `onDespawn`、新单位走 `onSpawn`，调用方的场景自然跟随）。
+    能用，但这是**框架缺一个 API** 的信号，记在这里而不是假装它不存在。
+  - 另一处形状：`ArenaRun` 的构造函数会先生成一个英雄，于是 `adopt()` 之前总有一个
+    占位英雄被立刻销毁。对页面无害（'ready' 阶段场上确实该有人），测试里已经把这个
+    事实写清楚，避免以后被当成泄漏。
+
 
 
 
@@ -562,7 +576,7 @@ const bus = new EventBus<GameEvents>();
 | 类型安全 | 9/10 | ComponentCtor 与 EventMap 覆盖核心扩展面；`tsc` 现已覆盖 examples 与 e2e |
 | 可扩展性 | 9/10 | 加载注册表、自定义事件、WebGL extractor 注册表均已就绪；序列化注册表待补 |
 | 文档质量 | 8/10 | README 与本报告已同步当前实现 |
-| 测试覆盖 | 8/10 | 886 个单测 + 11 个浏览器测试；已接入 v8 覆盖率与分模块阈值（整体 77.2% 语句 / 75.2% 分支），三个 fixture 已按 1.5% 门槛比对基线 |
+| 测试覆盖 | 8/10 | 897 个单测 + 11 个浏览器测试；已接入 v8 覆盖率与分模块阈值（整体 77.2% 语句 / 75.2% 分支），三个 fixture 已按 1.5% 门槛比对基线 |
 | 综合 | 8.3/10 | 架构短板已大幅收敛，下一阶段应由 profiling 驱动 |
 
 测试数量不等于覆盖率。`vitest.config.ts` 现已按模块设定阈值（math/physics/lighting

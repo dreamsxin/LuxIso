@@ -8,6 +8,26 @@
 
 export type ArpgPhase = 'ready' | 'wave' | 'intermission' | 'boss' | 'victory' | 'defeat';
 
+/** Every phase, in the order a run walks them. Also the whitelist `restore` uses. */
+const PHASES: readonly ArpgPhase[] =
+  ['ready', 'wave', 'intermission', 'boss', 'victory', 'defeat'];
+
+/** A run's bookkeeping as plain data. See `WaveDirector.snapshot()`. */
+export interface WaveDirectorSnapshot {
+  phase: ArpgPhase;
+  wave: number;
+  alive: number;
+  kills: number;
+  elapsed: number;
+  countdown: number;
+}
+
+function clampInt(value: unknown, fallback: number, min: number, max: number): number {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.max(min, Math.min(max, Math.floor(n)));
+}
+
 export interface WaveDirectorOptions {
   /** Normal waves before the boss. Default 3. */
   waves?: number;
@@ -100,6 +120,48 @@ export class WaveDirector {
   reportHeroDefeated(): void {
     if (this.isOver) return;
     this._setPhase('defeat');
+  }
+
+  /**
+   * The whole run state as plain data, for a checkpoint.
+   *
+   * Mob identities are deliberately absent: they live in the scene, and the scene
+   * has its own serializer. This is only the bookkeeping that would otherwise be
+   * lost — which wave, how many are still standing, what has been earned.
+   */
+  snapshot(): WaveDirectorSnapshot {
+    return {
+      phase: this._phase,
+      wave: this._wave,
+      alive: this._alive,
+      kills: this._kills,
+      elapsed: this._elapsed,
+      countdown: this._countdown,
+    };
+  }
+
+  /**
+   * Adopt a snapshot. Spawn callbacks do **not** fire: the units are restored
+   * from the save alongside this, so re-spawning them would double the wave.
+   * `onPhase` does fire when the phase actually changes, so a UI showing the
+   * result screen or the wave counter follows the load.
+   *
+   * Fields that are missing or not finite keep their current value, so a
+   * truncated or hand-edited save degrades instead of poisoning the run with NaN.
+   */
+  restore(state: Partial<WaveDirectorSnapshot>): void {
+    if (state.phase && PHASES.includes(state.phase)) {
+      const previous = this._phase;
+      this._phase = state.phase;
+      if (previous !== state.phase) this._opts.onPhase?.(state.phase, previous);
+    }
+    this._wave = clampInt(state.wave, this._wave, 0, this._waves);
+    this._alive = clampInt(state.alive, this._alive, 0, Number.MAX_SAFE_INTEGER);
+    this._kills = clampInt(state.kills, this._kills, 0, Number.MAX_SAFE_INTEGER);
+    if (Number.isFinite(state.elapsed as number)) this._elapsed = Math.max(0, state.elapsed as number);
+    if (Number.isFinite(state.countdown as number)) {
+      this._countdown = Math.max(0, Math.min(this._intermission, state.countdown as number));
+    }
   }
 
   private _beginWave(wave: number): void {
