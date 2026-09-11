@@ -170,13 +170,12 @@ function loadCheckpoint(): void {
   if (!raw) { notify('no checkpoint yet'); return; }
 
   try {
-    const save = JSON.parse(raw) as { scene?: object; run?: ArenaRunSnapshot };
+    const save = JSON.parse(raw) as { scene?: { props?: [] }; run?: ArenaRunSnapshot };
     if (!save.scene) { notify('checkpoint unreadable'); return; }
-    // `Engine` can only build a whole Scene, not merge a fragment into a live
-    // one, so the fighters are lifted out of a throwaway scene and adopted. The
-    // scratch canvas is a plain 2D one: this canvas already holds a GL context.
-    const scratch = new Engine({ canvas: document.createElement('canvas') });
-    const fighters = scratch.buildScene(save.scene).getAll(Combatant);
+    // `Engine.buildProps` restores objects without a Scene, so the fighters go
+    // straight into the live one through `adopt`'s spawn callback.
+    const fighters = Engine.buildProps(save.scene.props)
+      .filter((object): object is Combatant => object instanceof Combatant);
     if (!run.adopt(fighters, save.run ?? {})) { notify('checkpoint has no hero'); return; }
     hud.resetInput();
     stick.reset();

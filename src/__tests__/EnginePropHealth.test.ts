@@ -235,4 +235,50 @@ describe('Engine — saved current hp', () => {
   });
 });
 
+describe('Engine.buildProps', () => {
+  it('restores props without a Scene, in input order', () => {
+    Engine.registerProp('healer', (json) => new SelfHealingProp(json.id, 30, 30));
+    const props = Engine.buildProps([
+      { id: 'a', type: 'healer', x: 1, y: 1 },
+      { id: 'b', type: 'healer', x: 2, y: 2, health: 60, hp: 9 },
+    ]);
+
+    expect(props.map(p => p.id)).toEqual(['a', 'b']);
+    const b = props[1] as SelfHealingProp;
+    expect(b.own.maxHp).toBe(60);
+    expect(b.own.hp).toBe(9);
+  });
+
+  it('skips an unregistered type with a warning, keeping the rest', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    Engine.registerProp('healer', (json) => new SelfHealingProp(json.id, 10, 10));
+    const props = Engine.buildProps([
+      { id: 'ghost', type: 'not-registered', x: 0, y: 0 },
+      { id: 'real', type: 'healer', x: 1, y: 1 },
+    ]);
+
+    expect(props.map(p => p.id)).toEqual(['real']);
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('Unknown prop type'));
+  });
+
+  it('accepts an empty or missing list', () => {
+    expect(Engine.buildProps([])).toEqual([]);
+    expect(Engine.buildProps(undefined)).toEqual([]);
+  });
+
+  it('is the same path a full load takes', () => {
+    Engine.registerProp('healer', (json) => new SelfHealingProp(json.id, 30, 30));
+    const entries = [{ id: 'h', type: 'healer', x: 2, y: 2, health: 44, hp: 4 }];
+
+    const direct = Engine.buildProps(entries)[0] as SelfHealingProp;
+    const viaScene = new Engine({ canvas: makeCanvas() })
+      .buildScene({ cols: 8, rows: 8, props: entries })
+      .getById('h') as SelfHealingProp;
+
+    expect([direct.own.maxHp, direct.own.hp]).toEqual([44, 4]);
+    expect([viaScene.own.maxHp, viaScene.own.hp]).toEqual([44, 4]);
+  });
+});
+
+
 

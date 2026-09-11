@@ -176,10 +176,11 @@ describe('ARPG checkpoint', () => {
       run: run.snapshot(),
     }));
 
-    // Load: rebuild the scene, hand its fighters to a fresh run.
-    const restoredScene = new Engine({ canvas: makeCanvas() }).buildScene(save.scene);
+    // Load the way the page does: props restored without a Scene, then adopted.
+    const fighters = Engine.buildProps((save.scene as { props?: [] }).props)
+      .filter((object): object is Combatant => object instanceof Combatant);
     const resumed = new ArenaRun();
-    expect(resumed.adopt(restoredScene.getAll(Combatant), save.run)).toBe(true);
+    expect(resumed.adopt(fighters, save.run)).toBe(true);
 
     expect(resumed.phase).toBe(run.phase);
     expect(resumed.director.wave).toBe(run.director.wave);

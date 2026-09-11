@@ -122,7 +122,7 @@ npm run test:webgl # builds, then runs 9 deterministic captures + lifecycle test
 
 | Layer | Command | Scope |
 |---|---|---|
-| Unit | `npm test` | 897 tests across 71 files (Vitest 4) |
+| Unit | `npm test` | 901 tests across 71 files (Vitest 4) |
 | Coverage | `npm run test:coverage` | v8 provider + per-module ratchets |
 | Workflows | `npm run lint:workflows` | GitHub Actions YAML: unquoted colons, tab indentation, `run:` expression injection |
 | Browser | `npm run test:webgl` | 9 fixture captures + 2 context-lifecycle tests (Chromium/SwiftShader) against the built bundle |
@@ -458,6 +458,7 @@ engine.maxPixelRatio: number                     // default 2
 engine.appliedPixelRatio: number                 // ratio the current backing store was built with
 engine.loadScene(url: string): Promise<Scene>   // fetch + parse JSON; builds all objects + collider
 engine.buildScene(json: object): Scene          // synchronous, no fetch
+Engine.buildProps(entries): IsoObject[]         // static; props only, no Scene — for a checkpoint, an editor paste, a streamed room
 engine.setScene(scene: Scene): void
 engine.start(postFrame?, preFrame?): void       // postFrame runs after draw; preFrame before draw
 engine.stop(): void
@@ -1045,7 +1046,7 @@ object is unreachable and both disappear together.
 | EventBus event maps | Event names and payload types are coupled; custom maps supported |
 | Scene.toJSON(): runtime state + built-in prop serialization | Environment, camera, view, light IDs/options, collider, built-ins |
 | Lib build: ESM + CJS dual output + .d.ts (npm run build:lib) | |
-| Unit tests: 897 tests across 71 files (Vitest 4, Node ≥ 22) | |
+| Unit tests: 901 tests across 71 files (Vitest 4, Node ≥ 22) | |
 | Coverage ratchets per module (`npm run test:coverage`) | v8 provider; per-glob floors on math/physics/lighting/ecs/animation/elements/audio/core |
 | Examples: 9 progressive demos + tools gallery | |
 

@@ -287,6 +287,38 @@ export class Engine {
   }
 
   /**
+   * Build props from a JSON `props` array, without a `Scene`.
+   *
+   * `buildScene()` can only produce a whole scene, which left "restore these
+   * objects into the scene I already have" — a checkpoint, an editor paste, a
+   * streamed room — with no legal route: callers had to build a throwaway scene
+   * and lift the objects out of it. This is that route, and `buildScene()` now
+   * uses it too, so the two paths cannot drift.
+   *
+   * Entries whose `type` has no registered factory are skipped with a warning,
+   * exactly as in a full load; the returned array holds only what was built, in
+   * input order.
+   *
+   * @example
+   *   const restored = Engine.buildProps(save.scene.props);
+   *   for (const object of restored) scene.addObject(object);
+   */
+  static buildProps(entries: readonly PropJson[] | undefined): IsoObject[] {
+    const props: IsoObject[] = [];
+    for (const entry of entries ?? []) {
+      const factory = Engine._propRegistry.get(entry.type);
+      if (!factory) {
+        console.warn(`[Engine] Unknown prop type '${entry.type}'. Register it with Engine.registerProp().`);
+        continue;
+      }
+      const prop = factory(entry);
+      Engine._applyPropHealth(prop, entry.health, entry.hp, entry.type);
+      props.push(prop);
+    }
+    return props;
+  }
+
+  /**
    * Apply the JSON `health` (maximum) and `hp` (current) values to a freshly
    * built prop.
    *
@@ -432,16 +464,7 @@ export class Engine {
       scene.addObject(cloud);
     }
 
-    for (const p of json.props ?? []) {
-      const propFactory = Engine._propRegistry.get(p.type);
-      if (!propFactory) {
-        console.warn(`[Engine] Unknown prop type '${p.type}'. Register it with Engine.registerProp().`);
-        continue;
-      }
-      const prop = propFactory(p);
-      Engine._applyPropHealth(prop, p.health, p.hp, p.type);
-      scene.addObject(prop);
-    }
+    for (const prop of Engine.buildProps(json.props)) scene.addObject(prop);
 
     // Build collision layer (cols/rows validated at the top of this method)
     if (json.floor?.walkable) {
