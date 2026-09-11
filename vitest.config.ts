@@ -38,10 +38,10 @@ export default defineConfig({
        * reporter, which only counts files sitting directly in the folder.
        */
       thresholds: {
-        statements: 77,
-        branches: 74.9,
-        functions: 81.4,
-        lines: 78.8,
+        statements: 78.4,
+        branches: 75.5,
+        functions: 82,
+        lines: 80.2,
         // Isometric projection, depth sort, colour math — fully unit-testable.
         'src/math/**':     { statements: 90, branches: 88, functions: 92, lines: 92 },
         // Collision and A*: where the tunnelling and corner-cut bugs lived.
@@ -51,8 +51,9 @@ export default defineConfig({
         'src/animation/**':{ statements: 88, branches: 80, functions: 95, lines: 89 },
         'src/audio/**':    { statements: 78, branches: 71, functions: 77, lines: 80 },
         'src/core/**':     { statements: 95, branches: 84, functions: 95, lines: 97 },
-        // Renderable objects: much of the body is canvas drawing code.
-        'src/elements/**': { statements: 57, branches: 53, functions: 73, lines: 61 },
+        // Renderable objects: much of the body is canvas drawing code, reachable
+        // through the recording context in `src/__tests__/helpers/canvas.ts`.
+        'src/elements/**': { statements: 68, branches: 69, functions: 84, lines: 71 },
       },
     },
   },

@@ -35,7 +35,14 @@ export class Cloud extends IsoObject {
   private _scale: number;
   private _seed: number;
 
-  private _lastTs = 0;
+  /**
+   * Timestamp of the previous `update`, or null before the first one.
+   *
+   * `null` rather than 0: `Engine` starts its clock at 0, so a 0 sentinel stayed
+   * armed after the first frame and every frame afterwards was treated as the
+   * first — the cloud never drifted in a scene that began at timestamp 0.
+   */
+  private _lastTs: number | null = null;
 
   // Scene bounds for wrapping (set after construction)
   boundsX = 12;
@@ -77,8 +84,11 @@ export class Cloud extends IsoObject {
 
   update(ts?: number): void {
     const now = ts ?? performance.now();
-    if (this._lastTs === 0) { this._lastTs = now; return; }
-    const dt = Math.min((now - this._lastTs) / 1000, 0.1);
+    if (this._lastTs === null) { this._lastTs = now; return; }
+    // Clamped to [0, 100 ms]: a hidden tab must not teleport the cloud across the
+    // scene on the frame it comes back, and a rewound clock must not drift it
+    // backwards. The rewound stamp still becomes the new baseline.
+    const dt = Math.min(Math.max(0, (now - this._lastTs) / 1000), 0.1);
     this._lastTs = now;
 
     const dist = this._speed * dt;
