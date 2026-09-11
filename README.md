@@ -70,7 +70,7 @@ broken object cannot take down the frame. `unregister(Ctor)` and
 - **Directional animator** — `DirectionalAnimator`; clip naming `action_DIR`; fallback chain; `playOnce()`
 - **Particle system** — `ParticleSystem`; procedural circle/square + sprite mode; blend modes; preset factories: sparkBurst, dustPuff, crystalShatter, coinSpill, ambientDrift, plus the `FIRE` / `SMOKE` emitter configs
 - **Tile collision** — `TileCollider` walkable grid; AABB slide-and-clamp; `sweepMove()` binary search with fast-path; `MovementComponent.nudge(dx,dy)` collision-resolved directional move
-- **A\* Pathfinder** — 8-directional, corner-cut prevention, Bresenham LoS string-pull, min-heap O(log n); instance-level `PathCache` (per-scene, zero cross-scene pollution); `cache.invalidate()`
+- **A\* Pathfinder** — 8-directional, corner-cut prevention, Bresenham LoS string-pull, min-heap O(log n); instance-level `PathCache` (per-scene, zero cross-scene pollution); `cache.invalidate()`; `Pathfinder.hasLineOfSight()` for chase AI that only pays for A* behind cover
 - **ECS** — constructor-keyed components plus priority-ordered `System` queries with variable and fixed-rate updates
 - **EventBus** — `EventBus<EventMap>` couples event names to payload types; typed built-ins and custom events; `globalBus` singleton
 - **Components** — `HealthComponent` (unified EventBus emit on damage/death), `MovementComponent` (nudge + A* pathTo), `TimerComponent`, `TweenComponent` (8 easings, yoyo, repeat), `TweenSequence` (chained tweens), `TriggerZoneComponent` (zero per-frame GC)
@@ -81,7 +81,7 @@ broken object cannot take down the frame. `unregister(Ctor)` and
 - **Scene editor** — visual editor (`editor.ts`); undo/redo, walkable/blocked drag-paint, object list, property panel, JSON export/import; right-click delete; DirectionalLight placement; keyboard shortcuts (`V/W/L/D/C/1/2/3/B/P`); `camera.screenToWorld` for zoom/pan-accurate picking
 - **Sprite editor** — sprite sheet frame inspector and animation clip builder (`sprite-editor.ts`); 8-direction live preview (cached `Map<Direction,DirCell>`); `anchorY` control; click-frame inspection with action/dir hint; JSON export + import; data URL upload support
 - **AssetLoader** — instanceable image preloader; per-scene isolation; `unload(url)`; `size` getter; `register(url, img)` for data-URL injection (sprite editor); static API delegates to `AssetLoader.default` (backwards-compatible)
-- **PathCache** — per-scene A* result cache; `new PathCache(capacity)`; `invalidate()`; pass to `Pathfinder.find()` for zero cross-scene pollution
+- **PathCache** — per-scene A* result cache; `new PathCache(capacity)`; `invalidate()`; pass to `Pathfinder.find()` or to `MovementComponent({ pathCache })` for zero cross-scene pollution
 - **Lib build** — `npm run build:lib` → ESM + CJS dual output plus `dist/types`
 
 ## Tech Stack
@@ -122,7 +122,7 @@ npm run test:webgl # builds, then runs 9 deterministic captures + lifecycle test
 
 | Layer | Command | Scope |
 |---|---|---|
-| Unit | `npm test` | 917 tests across 72 files (Vitest 4) |
+| Unit | `npm test` | 935 tests across 72 files (Vitest 4) |
 | Coverage | `npm run test:coverage` | v8 provider + per-module ratchets |
 | Workflows | `npm run lint:workflows` | GitHub Actions YAML: unquoted colons, tab indentation, `run:` expression injection |
 | Browser | `npm run test:webgl` | 9 fixture captures + 2 context-lifecycle tests (Chromium/SwiftShader) against the built bundle |
@@ -431,7 +431,7 @@ examples/
 ├── 07-desert-ruins/             # Procedural terrain, interactive props, portals
 ├── 08-volcano/                  # Lava terrain, particle FX, burn damage, click-to-move
 ├── 09-slopes/                   # Height-map terrain, bilinear interpolation, smooth voxel hills
-└── 10-arpg/                     # WebGL2 arena: 3 waves + boss + result + checkpoint; custom Entity via SceneExtractor.register, HudLayer over GL, keyboard + TouchStick
+└── 10-arpg/                     # WebGL2 arena: 3 waves + boss + result + checkpoint; pillar cover with LoS-gated A* chase; custom Entity via SceneExtractor.register, HudLayer over GL, keyboard + TouchStick
     ├── WaveDirector.ts          # Run structure (phases, waves, boss, result) + snapshot/restore — no Scene/Engine/DOM, unit-tested
     ├── ArenaRun.ts              # The rules: spawning, hero intent, kill reporting, life on kill, crowd separation. Driven by `step(dt, intent)`, so a full run is a unit test
     ├── Combatant.ts             # Hero / grunt / boss: Entity + HealthComponent + MovementComponent
@@ -689,12 +689,14 @@ uses it for the `hp` field on a prop entry.
 ### `MovementComponent`
 
 ```ts
-new MovementComponent({ speed?, radius?, collider?, bus? })
+new MovementComponent({ speed?, radius?, collider?, bus?, pathCache? })
 mv.moveTo(x, y, z?): void
 mv.pathTo(x, y, z?): boolean     // A* via attached collider; false = unreachable
 mv.followPath(waypoints, z?): void   // empty array cancels the current move
 mv.nudge(dx, dy): void           // swept when longer than `radius`, so knockback cannot clip a wall
 mv.stopMoving(): void
+mv.setPathCache(cache | null): void  // null = the shared module-level cache
+mv.pathCache: PathCache | null       // read-only
 mv.isMoving: boolean
 // Emits EventBus: 'move' each frame, 'arrival' on destination reached.
 // With a collider attached, a move that ends up fully blocked stops instead of
@@ -808,6 +810,19 @@ cache.size; cache.capacity;
 Pathfinder.invalidateCache(collider?): void
 // @deprecated — only flushes the shared default cache. Prefer an explicit
 // PathCache and cache.invalidate().
+
+Pathfinder.hasLineOfSight(collider, a: IsoVec2, b: IsoVec2): boolean
+// The same corner-safe Bresenham walk string-pulling uses. Chase AI wants this
+// rather than A*: walk straight while the target is visible, and pay for a path
+// only once cover breaks the line (see `examples/10-arpg/Combatant.ts`).
+```
+
+A component reaches the cache through its own option rather than the shared
+default:
+
+```ts
+const cache = new PathCache(96);            // one per scene, or per agent group
+new MovementComponent({ collider, pathCache: cache });
 ```
 
 `TileCollider.setWalkable()` bumps `collider.version`, and `PathCache` checks
@@ -1037,7 +1052,7 @@ object is unreachable and both disappear together.
 | Minimap: OffscreenCanvas HUD overlay, walkable grid + object dots | |
 | Precise AABB frustum culling — in-place write-pointer compaction, zero per-frame allocation | |
 | AssetLoader: instanceable; unload(url); size getter; static delegates to .default | |
-| PathCache: per-scene A* cache; invalidate(); passed to Pathfinder.find() | |
+| PathCache: per-scene A* cache; invalidate(); passed to Pathfinder.find() or MovementComponent({ pathCache }) | |
 | ECS: HealthComponent unified EventBus emit; MovementComponent.nudge(); TriggerZone zero-GC | |
 | Performance: depthSort spatial buckets + min-heap Kahn queue; renderer AABB hash; frustum cull in-place | |
 | Engine: PropRegistry + LightRegistry (open for extension) | |
@@ -1046,9 +1061,9 @@ object is unreachable and both disappear together.
 | EventBus event maps | Event names and payload types are coupled; custom maps supported |
 | Scene.toJSON(): runtime state + built-in prop serialization | Environment, camera, view, light IDs/options, collider, built-ins |
 | Lib build: ESM + CJS dual output + .d.ts (npm run build:lib) | |
-| Unit tests: 917 tests across 72 files (Vitest 4, Node ≥ 22) | |
+| Unit tests: 935 tests across 72 files (Vitest 4, Node ≥ 22) | |
 | Coverage ratchets per module (`npm run test:coverage`) | v8 provider; per-glob floors on math/physics/lighting/ecs/animation/elements/audio/core |
-| Examples: 9 progressive demos + tools gallery | |
+| Examples: 10 progressive demos + tools gallery | |
 
 ## Known Limitations & Roadmap (Next)
 

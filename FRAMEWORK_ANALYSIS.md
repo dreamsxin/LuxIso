@@ -1,7 +1,7 @@
 # LuxIso 架构分析报告 v5
 
-> 更新日期：2026-09-09
-> 基线：Canvas 2D 默认 + WebGL2 预览，816 个 Vitest 测试 / 66 个测试文件（含 v8 覆盖率阈值），11 个 Playwright WebGL 测试
+> 更新日期：2026-09-12
+> 基线：Canvas 2D 默认 + WebGL2 预览，935 个 Vitest 测试 / 72 个测试文件（含 v8 覆盖率阈值），11 个 Playwright WebGL 测试
 
 ## 执行摘要
 
@@ -118,8 +118,8 @@ const bus = new EventBus<GameEvents>();
 | 优先级 | 问题 | 建议 |
 |---|---|---|
 | P1 | example-05 天空绘制函数仍集中在 main.ts | 拆到 environment 模块 |
-| P2 | `webgl-next` 没有 HUD 路径 | `HudLayer` 仅 Canvas；WebGL 预览的 UI 走 DOM 覆盖层（`DomOverlayRenderer` / `MinimapRenderer`），基于该后端的游戏必须自建覆盖层 |
-| P1 | 自定义 prop 没有配套 serializer registry | 为注册表增加 serialize 回调或独立注册 API |
+| P2 | `webgl-next` HUD 是叠加的 2D 画布，不是 GL 几何 | 已通过 `HudOverlayRenderer` 把受测的 `HudLayer` 挂在 GL canvas 之上（DPR 感知、`pointer-events: none`、`paint` 钩子承载自绘控件）；条形/按钮/标签够用，需要与 3D 场景混合的 HUD 仍要 GL 通路 |
+| P2 | 自定义类型需要两侧各注册一次 | `SceneSerializer.register()` 写、`Engine.registerProp()` 读，已都到位；只注册一侧仍是静默的半个往返（写侧每类型告警一次），示例把两者绑在同一个函数里避免遗漏 |
 | P2 | 9 个 WebGL fixture 中有 6 个未接入基线比对 | `day-ne` / `low-angle` / `night-lanterns` 已按 1.5% 门槛比对committed 基线；扩展只需往 `PIXEL_GATED_FIXTURES` 加 ID 并重新生成 |
 | P2 | `src/elements/**` 57% / 分支 53% 是当前最低的一块 | 主体是 canvas 绘制代码，未覆盖分支集中在绘制路径；再往上需要给 `Engine` / `Scene` 搭 canvas 测试夹具 |
 | P2 | System 每次调度扫描所有 Entity × System | 达到千级实体后引入 query/archetype 缓存 |
@@ -564,9 +564,25 @@ const bus = new EventBus<GameEvents>();
   回吹）。现在改为 `null` 哨兵 + `[0, 100ms]` 钳制，与其余九处一致。
   这条规律至此已经十次成立：**新写的时间累积代码必须用 `null` 做首帧哨兵。**
   `src/elements/**` 阈值随之从 57/53/73/61 提到 68/69/84/71。
-
-
-
+- 给竞技场加掩体（四根柱子），于是小怪第一次真的需要寻路，而这一步照出框架两个**有文档、
+  没接口**的缺口——和"文档写得完整、测试却是零的模块必然分叉"是同一条规律的另一面：
+  - `PathCache` 的文档写着"每个场景应当自己持有一个"，`Pathfinder.find` 的注释也警告
+    共享默认缓存会造成跨场景污染。但 `MovementComponent.pathTo()` **根本没有参数能传
+    缓存**：它一直走模块级默认缓存。也就是说框架推荐的用法，用组件的人做不到，容量 64
+    的共享缓存还会被一群 agent 互相挤掉。现在 `MovementOptions.pathCache` /
+    `setPathCache()` 补上，`ArenaRun` 为整场比赛持有一个 `PathCache(96)`——一波怪追同一个
+    英雄，问的是同一批 start→goal 瓦片对，第二只怪起就是缓存命中。
+  - 「看得见就直走，被挡住才寻路」这个判断需要视线查询，而框架里唯一的实现是
+    `Pathfinder._hasLoS`——**私有**。调用方要么每帧重算 A*，要么自己搓一份 Bresenham，
+    而手搓的那份几乎必然漏掉拐角规则（`_stringPull` 正是为此修过一次）。现在原样公开为
+    `Pathfinder.hasLineOfSight()`，零新逻辑，只是不再逼着调用方复制私有方法。
+  这一轮也顺手证明了"示例驱动"的价值边界：四根**单格**柱子其实拦不住直线追击，
+  `resolveMove` 的贴墙滑动会让怪绕过去。真正需要寻路的是有缺口的**长墙**——所以
+  载荷测试写成 12×12 网格上一道带缺口的墙，并实测过对照组：把视线分支短路成"永远可见"，
+  30 秒模拟里怪一次都碰不到墙那边的英雄（hp 恒为 500）。**断言必须钉在会失败的场景上，
+  而不是看起来相关的场景上。**
+  重定路径按 0.35 秒节流：移动目标每帧都会让旧路径失效，不节流就是每怪每帧一次 A*，
+  用一条 spy 断言钉住（1 秒内 < 10 次搜索，而不是 60 次）。
 
 
 
@@ -595,9 +611,9 @@ const bus = new EventBus<GameEvents>();
 | ECS 设计 | 8/10 | 构造函数查询、System、生命周期完整；尚无 archetype |
 | 渲染管线 | 8/10 | Canvas 完整；WebGL 预览已覆盖核心 pass，尚待 golden 和浏览器矩阵 |
 | 类型安全 | 9/10 | ComponentCtor 与 EventMap 覆盖核心扩展面；`tsc` 现已覆盖 examples 与 e2e |
-| 可扩展性 | 9/10 | 加载注册表、自定义事件、WebGL extractor 注册表均已就绪；序列化注册表待补 |
+| 可扩展性 | 9/10 | 加载注册表、自定义事件、WebGL extractor 注册表、序列化注册表均已就绪 |
 | 文档质量 | 8/10 | README 与本报告已同步当前实现 |
-| 测试覆盖 | 8/10 | 917 个单测 + 11 个浏览器测试；已接入 v8 覆盖率与分模块阈值（整体 78.6% 语句 / 75.6% 分支），三个 fixture 已按 1.5% 门槛比对基线 |
+| 测试覆盖 | 8/10 | 935 个单测 + 11 个浏览器测试；已接入 v8 覆盖率与分模块阈值（整体 78.6% 语句 / 75.6% 分支），三个 fixture 已按 1.5% 门槛比对基线 |
 | 综合 | 8.3/10 | 架构短板已大幅收敛，下一阶段应由 profiling 驱动 |
 
 测试数量不等于覆盖率。`vitest.config.ts` 现已按模块设定阈值（math/physics/lighting

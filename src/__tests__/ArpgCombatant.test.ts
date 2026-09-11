@@ -3,6 +3,8 @@ import { Combatant } from '../../examples/10-arpg/Combatant';
 import { registerCombatantExtractor } from '../../examples/10-arpg/CombatantExtractor';
 import { SceneExtractor } from '../../webgl-next/src/extraction/SceneExtractor';
 import { Scene } from '../core/Scene';
+import { TileCollider } from '../physics/TileCollider';
+import { PathCache, Pathfinder } from '../physics/Pathfinder';
 
 /**
  * The ARPG demo's fighting entity, and its opt-in to the WebGL2 path.
@@ -138,6 +140,85 @@ describe('Combatant — think', () => {
     a.think(0.016, far);
     expect(far.health.hp).toBe(100);
     expect(a.movement.isMoving).toBe(true);
+  });
+});
+
+describe('Combatant — chasing around cover', () => {
+  /** A barrier down col 6, with a gap at the last two rows. */
+  function barrier(): TileCollider {
+    const collider = new TileCollider(12, 12);
+    for (let row = 0; row < 10; row++) collider.setWalkable(6, row, false);
+    return collider;
+  }
+
+  function chase(mob: Combatant, target: Combatant, seconds: number, dt = 1 / 60): void {
+    for (let i = 0; i < Math.round(seconds / dt); i++) {
+      mob.think(dt, target);
+      mob.fixedUpdate(dt);
+    }
+  }
+
+  it('walks straight at a target it can see', () => {
+    const collider = barrier();
+    const mob = new Combatant('m', 1.5, 2.5, { collider, speed: 2.4 });
+    // Same side of the barrier: nothing on the line.
+    mob.think(1 / 60, new Combatant('h', 4.5, 2.5, { faction: 'hero', collider }));
+    expect(mob.movement.isMoving).toBe(true);
+    expect(mob.movement.remainingWaypoints.length).toBe(0);
+  });
+
+  it('follows a path when the barrier hides the target', () => {
+    const collider = barrier();
+    const mob = new Combatant('m', 1.5, 2.5, { collider, speed: 2.4 });
+    mob.think(1 / 60, new Combatant('h', 9.5, 2.5, { faction: 'hero', collider }));
+    expect(mob.movement.isMoving).toBe(true);
+    // A straight `moveTo` leaves no waypoints; a route around the barrier does.
+    expect(mob.movement.remainingWaypoints.length).toBeGreaterThan(0);
+  });
+
+  it('reaches a target on the far side of the barrier', () => {
+    const collider = barrier();
+    const target = new Combatant('h', 9.5, 2.5, { faction: 'hero', hp: 500, collider });
+    const mob = new Combatant('m', 1.5, 2.5, { collider, speed: 2.4, damage: 3 });
+    chase(mob, target, 30);
+
+    // Through the gap, up the far side, and into reach — the hero is being hit.
+    expect(target.health.hp).toBeLessThan(500);
+    expect(Math.hypot(
+      target.position.x - mob.position.x, target.position.y - mob.position.y,
+    )).toBeLessThanOrEqual(mob.attackRange + 1e-6);
+    expect(collider.isWalkable(Math.floor(mob.position.x), Math.floor(mob.position.y))).toBe(true);
+  });
+
+  it('re-paths on an interval rather than every frame', () => {
+    const collider = barrier();
+    const cache = new PathCache(32);
+    const target = new Combatant('h', 9.5, 2.5, { faction: 'hero', collider });
+    const mob = new Combatant('m', 1.5, 2.5, { collider, speed: 2.4, pathCache: cache });
+
+    const find = vi.spyOn(Pathfinder, 'find');
+    for (let i = 0; i < 60; i++) { mob.think(1 / 60, target); mob.fixedUpdate(1 / 60); }
+    const searches = find.mock.calls.length;
+    find.mockRestore();
+
+    // A second of chasing at REPATH_INTERVAL 0.35 s is a handful of searches,
+    // not one per frame. A moving target invalidates a path constantly, so
+    // without the interval this is an A* per mob per frame.
+    expect(searches).toBeGreaterThan(0);
+    expect(searches).toBeLessThan(10);
+    // And they went through the arena's own cache, not the shared default.
+    expect(cache.size).toBeGreaterThan(0);
+  });
+
+  it('presses on when no path exists at all', () => {
+    const collider = new TileCollider(12, 12);
+    // Seal the target in: A* returns null because the goal tile is blocked.
+    collider.setWalkable(9, 2, false);
+    const target = new Combatant('h', 9.5, 2.5, { faction: 'hero', collider });
+    const mob = new Combatant('m', 1.5, 8.5, { collider, speed: 2.4 });
+
+    mob.think(1 / 60, target);
+    expect(mob.movement.isMoving).toBe(true);
   });
 });
 

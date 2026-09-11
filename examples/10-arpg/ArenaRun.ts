@@ -11,10 +11,18 @@
  * `Entity.fixedUpdate(dt)` rather than the timestamp path: it is deterministic
  * under a fixed dt, and `MovementComponent` latches onto fixed stepping once it
  * is used, so a `Scene.update(ts)` in the same frame cannot integrate twice.
+ *
+ * Given a `collider`, the arena raises four pillars for cover and reports them
+ * through `pillars` for the caller to draw. Cover is what turned the mobs'
+ * straight-line chase into a pathfinding one.
  */
+import { PathCache } from '../../src/index';
 import type { TileCollider } from '../../src/index';
 import { Combatant } from './Combatant';
 import { WaveDirector, type ArpgPhase, type WaveDirectorSnapshot } from './WaveDirector';
+
+/** A blocked arena tile. */
+export interface PillarTile { col: number; row: number; }
 
 /** A run's bookkeeping, saved next to the serialized scene. */
 export interface ArenaRunSnapshot {
@@ -37,6 +45,12 @@ export interface ArenaRunOptions {
   intermission?: number;
   heroSpeed?: number;
   collider?: TileCollider | null;
+  /**
+   * Block four pillar tiles for cover. Default true, and only ever visible with
+   * a `collider` — without one there is nothing to block. Set false for a run
+   * that should play out on an empty floor.
+   */
+  pillars?: boolean;
   onSpawn?: (unit: Combatant) => void;
   onDespawn?: (unit: Combatant) => void;
   onPhase?: (phase: ArpgPhase, previous: ArpgPhase) => void;
@@ -60,6 +74,16 @@ export class ArenaRun {
   private readonly _heroSpeed: number;
   private readonly _min: number;
   private readonly _max: number;
+  private readonly _pillars: readonly PillarTile[];
+  /**
+   * One cache for every fighter in the arena.
+   *
+   * `MovementComponent` used to have no way to accept one, so `pathTo()` always
+   * searched the module-level default that every other scene shares. Pooling the
+   * mobs here is the point: a wave chasing one hero asks for the same handful of
+   * start→goal tile pairs, so the second mob onward gets a cache hit.
+   */
+  private readonly _pathCache = new PathCache(96);
 
   private _hero!: Combatant;
   private _enemies: Combatant[] = [];
@@ -72,6 +96,7 @@ export class ArenaRun {
     this._heroSpeed = Math.max(0, opts.heroSpeed ?? 3.2);
     this._min = 0.6;
     this._max = Math.min(this._cols, this._rows) - 1.6;
+    this._pillars = this._raiseCover();
     this._hero = this._spawnHero();
     this._director = this._newDirector();
   }
@@ -81,6 +106,8 @@ export class ArenaRun {
   get director(): WaveDirector { return this._director; }
   get phase(): ArpgPhase { return this._director.phase; }
   get isOver(): boolean { return this._director.isOver; }
+  /** Blocked cover tiles, for the caller to draw something on. */
+  get pillars(): readonly PillarTile[] { return this._pillars; }
 
   /**
    * Begin the run — wave 1 spawns here, not in the constructor.
@@ -239,6 +266,61 @@ export class ArenaRun {
     }
   }
 
+  /**
+   * Block four pillar tiles, and report them so the caller can draw something
+   * there.
+   *
+   * Cover is what makes the chase interesting and is also the reason the mobs
+   * needed pathfinding at all: a straight `moveTo` walks into the pillar face
+   * and stays there, sliding along it at best. Four tiles is enough to break the
+   * line from the spawn ring to the centre without ever sealing a region off —
+   * single tiles cannot enclose anything, so no wave can spawn unreachable.
+   */
+  private _raiseCover(): readonly PillarTile[] {
+    const collider = this._opts.collider;
+    if (!collider || this._opts.pillars === false) return [];
+
+    const cx = Math.floor(this._cols / 2);
+    const cy = Math.floor(this._rows / 2);
+    const dx = Math.max(2, Math.round(this._cols * 0.22));
+    const dy = Math.max(2, Math.round(this._rows * 0.22));
+
+    const tiles: PillarTile[] = [];
+    for (const [col, row] of [
+      [cx - dx, cy - dy], [cx + dx, cy - dy], [cx - dx, cy + dy], [cx + dx, cy + dy],
+    ]) {
+      // Skip anything the arena is too small to hold, and never block the centre
+      // the hero starts on.
+      if (col < 1 || row < 1 || col >= this._cols - 1 || row >= this._rows - 1) continue;
+      if (col === cx && row === cy) continue;
+      if (!collider.isWalkable(col, row)) continue;
+      collider.setWalkable(col, row, false);
+      tiles.push({ col, row });
+    }
+    return tiles;
+  }
+
+  /**
+   * A free spot on the spawn ring at or after `angle`.
+   *
+   * A pillar sits on the ring's path for some angles, and spawning a mob inside
+   * one leaves it wedged: `sweepMove` correctly refuses to move a body that is
+   * already overlapping blocked ground, so it never joins the fight and the wave
+   * never ends. Rotating to the next free angle is the cheap fix.
+   */
+  private _ringSpot(angle: number, radius: number): { x: number; y: number } {
+    const cx = this._cols / 2, cy = this._rows / 2;
+    const collider = this._opts.collider;
+    for (let i = 0; i < 24; i++) {
+      const a = angle + (i * Math.PI) / 12;
+      const x = cx + Math.cos(a) * radius;
+      const y = cy + Math.sin(a) * radius;
+      if (!collider) return { x, y };
+      if (collider.isWalkable(Math.floor(x), Math.floor(y))) return { x, y };
+    }
+    return { x: cx, y: cy };
+  }
+
   private _newDirector(): WaveDirector {
     return new WaveDirector({
       waves: this._opts.waves ?? 3,
@@ -265,11 +347,12 @@ export class ArenaRun {
   /** Enemies enter on a ring, so they always have to close in. */
   private _spawnEnemy(id: string, index: number, count: number, wave: number): void {
     const angle = (index / count) * Math.PI * 2 + wave;
-    const cx = this._cols / 2, cy = this._rows / 2;
-    const unit = new Combatant(id, cx + Math.cos(angle) * 5.5, cy + Math.sin(angle) * 5.5, {
+    const spot = this._ringSpot(angle, 5.5);
+    const unit = new Combatant(id, spot.x, spot.y, {
       hp: 24 + wave * 8, damage: 4 + wave, speed: 1.5 + wave * 0.18,
       attackInterval: 1.25, radius: 13, color: wave >= 3 ? '#e0743c' : '#c8563c',
       collider: this._opts.collider ?? null,
+      pathCache: this._pathCache,
     });
     this._enemies.push(unit);
     this._opts.onSpawn?.(unit);
@@ -279,6 +362,7 @@ export class ArenaRun {
     const unit = new Combatant('boss', this._cols / 2, 1.4, {
       hp: 220, damage: 14, speed: 1.35, attackRange: 1.3, attackInterval: 1.4,
       radius: 24, color: '#b048d0', collider: this._opts.collider ?? null,
+      pathCache: this._pathCache,
     });
     this._enemies.push(unit);
     this._opts.onSpawn?.(unit);

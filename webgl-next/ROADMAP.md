@@ -3,18 +3,24 @@
 Each phase must leave `main` releasable. Canvas2D is the rollback path until the
 final cutover gate.
 
-## Implementation Status (2026-07-25)
+## Implementation Status (2026-09-12)
 
 | Phase | Status | Remaining gate work |
 |---|---|---|
-| 0 - Baseline/contracts | Implemented preview | Approve captured golden baselines and record benchmark reports |
+| 0 - Baseline/contracts | Implemented | Benchmark reports; three baselines are committed and pixel-gated |
 | 1 - Device/resources | Implemented | Cross-browser/real-GPU restore matrix moves to Phase 5 |
 | 2 - Geometry parity | Implemented preview | Golden diff approval and large-scene performance recording |
-| 3 - Lighting/shadows | Implemented preview | Golden screenshot approval |
-| 4 - Effects/editor | In progress | All examples, editor move parity screenshots, and sprite-editor integration |
+| 3 - Lighting/shadows | Implemented preview | Six of the nine fixtures still need baselines behind the 1.5% gate |
+| 4 - Effects/editor | In progress | Editor move parity screenshots and sprite-editor integration; HUD path and the extractor registry are in |
 | 5 - Preview release | Not started | Browser matrix, package checks, and `0.2.0-webgl.0` publication |
 | 6 - Default cutover | Not started | Requires two accepted preview iterations |
 | 7 - Hardware ray tracing research | Conditional | Standard WebGPU acceleration structures and browser support |
+
+Phase 4's newest consumer is `examples/10-arpg`, a full run on the WebGL2 backend:
+a custom `Entity` through `SceneExtractor.register`, `HudLayer` stacked over the GL
+canvas by `HudOverlayRenderer`, and pillar cover with a line-of-sight-gated A*
+chase. It is deliberately not wired into the pixel-gated fixtures — adding a HUD
+to a gated fixture would turn the gate red.
 
 ## Phase 0 - Baseline and Contracts
 

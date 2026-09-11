@@ -262,6 +262,69 @@ describe('ArenaRun — crowd separation', () => {
   });
 });
 
+describe('ArenaRun — cover', () => {
+  const arena = (): TileCollider => new TileCollider(14, 14);
+
+  it('blocks four pillar tiles and reports them, leaving the centre free', () => {
+    const collider = arena();
+    const run = new ArenaRun({ collider });
+
+    expect(run.pillars.length).toBe(4);
+    for (const { col, row } of run.pillars) {
+      expect(collider.isWalkable(col, row)).toBe(false);
+    }
+    // The hero spawns in the middle, so that tile must stay open.
+    expect(collider.isWalkable(7, 7)).toBe(true);
+  });
+
+  it('raises nothing without a collider, or when asked not to', () => {
+    expect(new ArenaRun().pillars).toEqual([]);
+
+    const collider = arena();
+    const run = new ArenaRun({ collider, pillars: false });
+    expect(run.pillars).toEqual([]);
+    expect(collider.version).toBe(0);
+  });
+
+  it('never spawns a fighter inside a pillar', () => {
+    const collider = arena();
+    const seen: Combatant[] = [];
+    const run = new ArenaRun({ collider, onSpawn: (unit) => seen.push(unit) });
+    play(run, brawler);
+
+    expect(seen.length).toBeGreaterThan(4);
+    for (const unit of seen) {
+      // Spawn positions are recorded on the way in; a wedged mob would have been
+      // placed on blocked ground and could never have moved off it.
+      expect(collider.isWalkable(
+        Math.floor(unit.position.x), Math.floor(unit.position.y),
+      )).toBe(true);
+    }
+  });
+
+  it('lets mobs reach a hero standing behind cover', () => {
+    const collider = arena();
+    const run = new ArenaRun({ collider });
+    run.start();
+    // Tuck the hero directly behind a pillar, on the line from the spawn ring.
+    const pillar = run.pillars[0];
+    run.hero.position.x = pillar.col - 0.9;
+    run.hero.position.y = pillar.row - 0.9;
+
+    const start = run.hero.health.hp;
+    for (let i = 0; i < 60 * 12; i++) run.step(DT, {});
+    // Cover delays the wave; it does not make the hero unreachable.
+    expect(run.hero.health.hp).toBeLessThan(start);
+  });
+
+  it('is still winnable with cover in the arena', () => {
+    const run = new ArenaRun({ collider: arena() });
+    play(run, brawler);
+    expect(run.phase).toBe('victory');
+    expect(run.director.kills).toBe(10);
+  });
+});
+
 describe('ArenaRun — checkpoint', () => {
   it('resumes a mid-run save and still reaches victory', () => {
     const source = new ArenaRun();

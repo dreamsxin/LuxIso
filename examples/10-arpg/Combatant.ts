@@ -10,9 +10,16 @@
  * `think()` only sets intent (a movement target, an attack callback). Integration
  * stays with `MovementComponent`, which `Scene.update`/`Scene.fixedUpdate` drives
  * through `Entity`, so the demo never steps physics itself.
+ *
+ * Chasing is line-of-sight first: while the target is visible the pursuer walks
+ * straight at it, and A* is paid for only when cover breaks the line. Re-pathing
+ * is rate-limited, because a moving target invalidates a path every frame and an
+ * A* per mob per frame is the cost this demo would otherwise quietly pay.
  */
-import { Entity, HealthComponent, MovementComponent, project, blendColorRaw } from '../../src/index';
-import type { AABB, DrawContext, TileCollider } from '../../src/index';
+import {
+  Entity, HealthComponent, MovementComponent, Pathfinder, project, blendColorRaw,
+} from '../../src/index';
+import type { AABB, DrawContext, PathCache, TileCollider } from '../../src/index';
 
 export type Faction = 'hero' | 'enemy';
 
@@ -30,9 +37,14 @@ export interface CombatantOptions {
   radius?: number;
   color?: string;
   collider?: TileCollider | null;
+  /** Shared per-arena path cache, so every mob's A* results are pooled. */
+  pathCache?: PathCache | null;
 }
 
 export class Combatant extends Entity {
+  /** Seconds between A* searches while the target is out of sight. */
+  static readonly REPATH_INTERVAL = 0.35;
+
   readonly faction: Faction;
   readonly damage: number;
   readonly attackRange: number;
@@ -44,6 +56,8 @@ export class Combatant extends Entity {
   onAttack?: (attacker: Combatant, damage: number) => void;
 
   private _cooldown = 0;
+  private _repathIn = 0;
+  private readonly _collider: TileCollider | null;
   private readonly _health: HealthComponent;
   private readonly _movement: MovementComponent;
 
@@ -58,11 +72,13 @@ export class Combatant extends Entity {
     this.shadowRadius = 0.34;
     this.castsShadow = true;
 
+    this._collider = opts.collider ?? null;
     this._health = this.addComponent(new HealthComponent({ max: Math.max(1, opts.hp ?? 40) }));
     this._movement = this.addComponent(new MovementComponent({
       speed: Math.max(0, opts.speed ?? 2.4),
       radius: 0.34,
       collider: opts.collider ?? null,
+      pathCache: opts.pathCache ?? null,
     }));
   }
 
@@ -104,12 +120,18 @@ export class Combatant extends Entity {
   }
 
   /**
-   * Chase `target` and attack when it is in reach. The AI path: cooldown, then
-   * approach or swing.
+   * Chase `target` and attack when it is in reach.
+   *
+   * Cover changes how the approach is steered, not whether it happens: with a
+   * clear line the pursuer walks straight at the target, and behind a pillar it
+   * follows an A* path recomputed at most every `REPATH_INTERVAL`. Without the
+   * line-of-sight branch a straight `moveTo` wedges the mob against the pillar
+   * face, which is what an arena with cover in it turned up.
    */
   think(dt: number, target: Combatant | null): void {
     if (this.isDead) return;
     this.tick(dt);
+    if (Number.isFinite(dt) && dt > 0) this._repathIn = Math.max(0, this._repathIn - dt);
     if (!target || target.isDead) {
       this._movement.stopMoving();
       return;
@@ -118,13 +140,37 @@ export class Combatant extends Entity {
     const dx = target.position.x - this.position.x;
     const dy = target.position.y - this.position.y;
     if (Math.hypot(dx, dy) > this.attackRange) {
-      this._movement.moveTo(target.position.x, target.position.y);
+      this._approach(target);
       return;
     }
 
     // In reach: stop pushing into the target, then swing when the cooldown is up.
     this._movement.stopMoving();
     this.swing(target);
+  }
+
+  /** Walk at a visible target; path around cover when it is not visible. */
+  private _approach(target: Combatant): void {
+    const visible = !this._collider
+      || Pathfinder.hasLineOfSight(this._collider, this.position, target.position);
+
+    if (visible) {
+      // Straight line, and the next blocked frame re-paths immediately rather
+      // than waiting out an interval it spent in the open.
+      this._repathIn = 0;
+      this._movement.moveTo(target.position.x, target.position.y);
+      return;
+    }
+
+    if (this._repathIn > 0 && this._movement.isMoving) return;
+    this._repathIn = Combatant.REPATH_INTERVAL;
+    // A* can fail outright — the target may be standing on a blocked tile after
+    // a nudge. Pressing straight on is better than standing still: the sweep
+    // stops the mob at the pillar instead of inside it, and the next search runs
+    // an interval later.
+    if (!this._movement.pathTo(target.position.x, target.position.y)) {
+      this._movement.moveTo(target.position.x, target.position.y);
+    }
   }
 
   get aabb(): AABB {

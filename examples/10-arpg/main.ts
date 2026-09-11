@@ -8,13 +8,15 @@
  *   • `HudOverlayRenderer` — the framework's `HudLayer` stacked over the GL canvas
  *   • `InputMap` + `TouchStick` — one movement axis for keyboard and thumb alike
  *   • `MovementComponent.nudge` — swept, collided player movement
+ *   • `Pathfinder.hasLineOfSight` + `pathTo` — mobs walk straight when they can
+ *     see the hero, and path around the pillars when they cannot
  *   • `WaveDirector` — the run structure, driven by kill reports, not by the loop
  *
  * Controls: WASD / arrows or the lower-left stick to move, Space / J or the
  * ATTACK button to swing, R to restart.
  */
 import {
-  Scene, Floor, TileCollider, InputManager, InputMap, TouchStick, HudLayer,
+  Scene, Floor, Boulder, TileCollider, InputManager, InputMap, TouchStick, HudLayer,
   OmniLight, DirectionalLight, SceneSerializer, Engine,
 } from '../../src/index';
 import { SceneExtractor } from '../../webgl-next/src/extraction/SceneExtractor';
@@ -47,9 +49,8 @@ registerCombatantExtractor();
 
 const collider = new TileCollider(COLS, ROWS);
 // Both halves of the save/load round trip, so anything that serializes this live
-// scene keeps its fighters instead of silently dropping them. A checkpoint would
-// additionally need the run state, and `WaveDirector` has no snapshot API yet —
-// which is why the page offers no save button.
+// scene keeps its fighters instead of silently dropping them. A checkpoint is the
+// pair: this, plus `ArenaRun.snapshot()` — K and L below.
 registerCombatantPersistence({ collider });
 
 const scene = new Scene({ name: 'Arena', tileW: 64, tileH: 32, cols: COLS, rows: ROWS });
@@ -122,6 +123,12 @@ const run = new ArenaRun({
   },
 });
 run.start();
+
+// Cover. `ArenaRun` blocked these tiles on the collider; drawing them is the
+// page's job, and a boulder is a built-in the GL extractor already knows.
+for (const { col, row } of run.pillars) {
+  scene.addObject(new Boulder(`pillar-${col}-${row}`, col + 0.5, row + 0.5, '#6b6f7e', 22));
+}
 
 /** Set by the ATTACK button, consumed by the next frame. */
 let attackQueued = false;
