@@ -122,7 +122,7 @@ npm run test:webgl # builds, then runs 9 deterministic captures + lifecycle test
 
 | Layer | Command | Scope |
 |---|---|---|
-| Unit | `npm test` | 901 tests across 71 files (Vitest 4) |
+| Unit | `npm test` | 905 tests across 71 files (Vitest 4) |
 | Coverage | `npm run test:coverage` | v8 provider + per-module ratchets |
 | Workflows | `npm run lint:workflows` | GitHub Actions YAML: unquoted colons, tab indentation, `run:` expression injection |
 | Browser | `npm run test:webgl` | 9 fixture captures + 2 context-lifecycle tests (Chromium/SwiftShader) against the built bundle |
@@ -433,7 +433,7 @@ examples/
 ├── 09-slopes/                   # Height-map terrain, bilinear interpolation, smooth voxel hills
 └── 10-arpg/                     # WebGL2 arena: 3 waves + boss + result + checkpoint; custom Entity via SceneExtractor.register, HudLayer over GL, keyboard + TouchStick
     ├── WaveDirector.ts          # Run structure (phases, waves, boss, result) + snapshot/restore — no Scene/Engine/DOM, unit-tested
-    ├── ArenaRun.ts              # The rules: spawning, hero intent, kill reporting, life on kill. Driven by `step(dt, intent)`, so a full run is a unit test
+    ├── ArenaRun.ts              # The rules: spawning, hero intent, kill reporting, life on kill, crowd separation. Driven by `step(dt, intent)`, so a full run is a unit test
     ├── Combatant.ts             # Hero / grunt / boss: Entity + HealthComponent + MovementComponent
     ├── CombatantExtractor.ts    # The SceneExtractor registration that makes it renderable on the GL path
     └── persistence.ts           # Both halves of the round trip: SceneSerializer.register (save) + Engine.registerProp (load)
@@ -1046,7 +1046,7 @@ object is unreachable and both disappear together.
 | EventBus event maps | Event names and payload types are coupled; custom maps supported |
 | Scene.toJSON(): runtime state + built-in prop serialization | Environment, camera, view, light IDs/options, collider, built-ins |
 | Lib build: ESM + CJS dual output + .d.ts (npm run build:lib) | |
-| Unit tests: 901 tests across 71 files (Vitest 4, Node ≥ 22) | |
+| Unit tests: 905 tests across 71 files (Vitest 4, Node ≥ 22) | |
 | Coverage ratchets per module (`npm run test:coverage`) | v8 provider; per-glob floors on math/physics/lighting/ecs/animation/elements/audio/core |
 | Examples: 9 progressive demos + tools gallery | |
 

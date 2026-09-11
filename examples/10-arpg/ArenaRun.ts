@@ -177,6 +177,8 @@ export class ArenaRun {
 
     this._hero.fixedUpdate(dt);
     for (const enemy of this._enemies) enemy.fixedUpdate(dt);
+    this._separate();
+
 
     // Report each death once, then drop it.
     const survivors: Combatant[] = [];
@@ -190,6 +192,51 @@ export class ArenaRun {
 
     if (this._hero.isDead) this._director.reportHeroDefeated();
     this._director.update(dt);
+  }
+
+  /**
+   * Keep living fighters from standing inside each other.
+   *
+   * `MovementComponent` collides with tiles, not with other units, so a wave used
+   * to converge into a single stack on the hero: four mobs on one tile, three of
+   * them invisible behind the fourth. Each overlapping pair is pushed apart by
+   * half the overlap, through `nudge` so a push is still swept against the
+   * collider and cannot shove anyone into a wall.
+   *
+   * O(n²) is deliberate at this scale — a wave is single digits. A framework-level
+   * version would need spatial bucketing, and that decision is not this demo's to
+   * make; this is the smallest thing that proves the behaviour is worth having.
+   */
+  private _separate(): void {
+    const units: Combatant[] = [];
+    if (!this._hero.isDead) units.push(this._hero);
+    for (const enemy of this._enemies) if (!enemy.isDead) units.push(enemy);
+
+    for (let i = 0; i < units.length; i++) {
+      for (let j = i + 1; j < units.length; j++) {
+        const a = units[i];
+        const b = units[j];
+        const minDistance = a.movement.radius + b.movement.radius;
+        let dx = b.position.x - a.position.x;
+        let dy = b.position.y - a.position.y;
+        let distance = Math.hypot(dx, dy);
+        if (distance >= minDistance) continue;
+
+        if (distance < 1e-6) {
+          // Exactly stacked — a wave can seat two mobs on the same ring point.
+          // Pick a deterministic axis rather than leaving them welded together.
+          dx = i % 2 === 0 ? 1 : 0;
+          dy = i % 2 === 0 ? 0 : 1;
+          distance = 1;
+        }
+
+        const push = (minDistance - distance) / 2;
+        const nx = dx / distance;
+        const ny = dy / distance;
+        a.movement.nudge(-nx * push, -ny * push);
+        b.movement.nudge(nx * push, ny * push);
+      }
+    }
   }
 
   private _newDirector(): WaveDirector {

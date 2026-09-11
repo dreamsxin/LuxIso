@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { TileCollider } from '../physics/TileCollider';
 import { ArenaRun, type HeroIntent } from '../../examples/10-arpg/ArenaRun';
 import type { Combatant } from '../../examples/10-arpg/Combatant';
 
@@ -182,6 +183,82 @@ describe('ArenaRun — restart', () => {
       t += DT;
     }
     expect(run.phase).toBe('victory');
+  });
+});
+
+describe('ArenaRun — crowd separation', () => {
+  /** Smallest gap any two living fighters should end a frame with. */
+  function closestPair(run: ArenaRun): number {
+    const units = [run.hero, ...run.enemies].filter((unit) => !unit.isDead);
+    let closest = Infinity;
+    for (let i = 0; i < units.length; i++) {
+      for (let j = i + 1; j < units.length; j++) {
+        closest = Math.min(closest, Math.hypot(
+          units[i].position.x - units[j].position.x,
+          units[i].position.y - units[j].position.y,
+        ));
+      }
+    }
+    return closest;
+  }
+
+  it('pushes a stack apart', () => {
+    const run = new ArenaRun();
+    run.start();
+    // Weld the whole wave onto the hero, the state a converging wave used to reach.
+    for (const enemy of run.enemies) {
+      enemy.position.x = run.hero.position.x;
+      enemy.position.y = run.hero.position.y;
+    }
+    expect(closestPair(run)).toBe(0);
+
+    for (let i = 0; i < 120; i++) run.step(DT, {});
+    const radii = run.hero.movement.radius + run.enemies[0].movement.radius;
+    expect(closestPair(run)).toBeGreaterThan(radii * 0.95);
+  });
+
+  it('keeps a converging wave from stacking', () => {
+    const run = new ArenaRun();
+    run.start();
+    // Let the mobs close in on an idle hero for a few seconds.
+    for (let i = 0; i < 300; i++) run.step(DT, {});
+    const radii = run.hero.movement.radius + run.enemies[0].movement.radius;
+    expect(closestPair(run)).toBeGreaterThan(radii * 0.9);
+  });
+
+  it('leaves the dead where they fell', () => {
+    const run = new ArenaRun();
+    run.start();
+    const victim = run.enemies[0];
+    victim.position.x = run.hero.position.x;
+    victim.position.y = run.hero.position.y;
+    victim.health.takeDamage(999);
+    const { x, y } = { x: victim.position.x, y: victim.position.y };
+
+    run.step(DT, {});
+    expect(victim.position.x).toBeCloseTo(x);
+    expect(victim.position.y).toBeCloseTo(y);
+  });
+
+  it('cannot push anyone into a wall', () => {
+    const collider = new TileCollider(14, 14);
+    for (let row = 0; row < 14; row++) collider.setWalkable(9, row, false);
+    const run = new ArenaRun({ collider });
+    run.start();
+
+    // Crowd everyone against the wall column.
+    run.hero.position.x = 8.4;
+    run.hero.position.y = 7;
+    for (const enemy of run.enemies) {
+      enemy.position.x = 8.4;
+      enemy.position.y = 7;
+    }
+    for (let i = 0; i < 120; i++) run.step(DT, {});
+
+    for (const unit of [run.hero, ...run.enemies]) {
+      // Blocked column starts at x = 9; a body of radius r stops short of it.
+      expect(unit.position.x).toBeLessThan(9 - unit.movement.radius + 0.01);
+    }
   });
 });
 
