@@ -13,6 +13,7 @@ import { Tree } from '../elements/props/Tree';
 import { FlowerPatch } from '../elements/props/FlowerPatch';
 import { Lantern } from '../elements/props/Lantern';
 import { HealthComponent } from '../ecs/components/HealthComponent';
+import type { Entity } from '../ecs/Entity';
 import { TileCollider } from '../physics/TileCollider';
 import { IsoObject } from '../elements/IsoObject';
 
@@ -284,6 +285,39 @@ export class Engine {
   }
 
   /**
+   * Apply a JSON `health` value to a freshly built prop.
+   *
+   * A prop that already owns a `HealthComponent` keeps it. `Entity.addComponent`
+   * detaches and replaces the previous component of the same type, so injecting a
+   * second one left any class that caches its own component — the usual pattern —
+   * reading a detached instance while Systems saw a different one. Only the
+   * maximum is taken from JSON in that case, which is what the field means;
+   * current hp survives, so a saved half-dead unit loads back half dead.
+   *
+   * A prop that is not an `Entity` cannot carry components at all. That used to
+   * be an unguarded `(prop as any).addComponent(...)`, which threw and aborted
+   * the whole scene load over one bad entry.
+   */
+  private static _applyPropHealth(prop: IsoObject, health: unknown, type: string): void {
+    if (health === undefined || health === null) return;
+    const max = Number(health);
+    if (!Number.isFinite(max) || max <= 0) {
+      console.warn(`[Engine] Prop '${type}' has a non-positive health ${JSON.stringify(health)}; ignoring it.`);
+      return;
+    }
+
+    const entity = prop as IsoObject & Partial<Entity>;
+    if (typeof entity.addComponent !== 'function' || typeof entity.getComponent !== 'function') {
+      console.warn(`[Engine] Prop type '${type}' declares health but is not an Entity, so it cannot carry a HealthComponent.`);
+      return;
+    }
+
+    const existing = entity.getComponent(HealthComponent);
+    if (existing) existing.setMax(max);
+    else entity.addComponent(new HealthComponent({ max }));
+  }
+
+  /**
    * Coerce a scene dimension, rejecting values that would silently poison the
    * scene. A non-numeric `cols` used to flow into `new TileCollider(NaN, NaN)`,
    * which produces an empty grid — making every tile blocked with no error.
@@ -387,11 +421,7 @@ export class Engine {
         continue;
       }
       const prop = propFactory(p);
-      if (p.health) {
-        // Built-in props extend Entity, which owns the component lifecycle.
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (prop as any).addComponent(new HealthComponent({ max: p.health }));
-      }
+      Engine._applyPropHealth(prop, p.health, p.type);
       scene.addObject(prop);
     }
 

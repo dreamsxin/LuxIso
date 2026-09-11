@@ -513,6 +513,19 @@ const bus = new EventBus<GameEvents>();
   - `ArenaRun` 最初在构造函数里就 `start()`，于是 `onSpawn` / `onPhase` 会在调用方的
     `const run = new ArenaRun(...)` 绑定完成之前触发——回调里读 `run` 直接 TDZ 抛错。
     现在 `start()` 独立成一步，与 `WaveDirector` 一致：**构造只建状态，不发事件。**
+- 顺着"存档/读档一局"往下摸，在 `Engine._buildScene` 的 props 分支上抓到两处真缺陷，
+  两处都只有自定义 prop（也就是注册表存在的理由）才会踩到：
+  - `if (p.health) (prop as any).addComponent(new HealthComponent(...))` 是**无条件注入**。
+    `Entity.addComponent` 会 detach 并替换同类型组件，于是一个自己创建并缓存了
+    `HealthComponent` 的类（这正是常见写法，`Combatant` / `Boulder` 都是）加载后
+    出现分裂：类内部持有的是已被 detach 的实例，Systems 看到的是引擎注入的另一个，
+    `onDeath` 回调也一起丢掉。现在已有组件就保留，只用 JSON 的值 `setMax()`——
+    这也让"存档里半血的怪读回来还是半血"成立。
+  - 同一行的 `as any` 对**非 Entity 的 prop** 会直接 TypeError，一个坏条目就能让整张
+    场景加载中断。现在先探测 `addComponent` / `getComponent` 再动手，并把
+    `health` 的非正数/非数值也降级为一条警告（与 `Validator` 对 `props[i].health`
+    的要求一致），而不是把 NaN 塞进组件。
+
 
 
 
@@ -543,7 +556,7 @@ const bus = new EventBus<GameEvents>();
 | 类型安全 | 9/10 | ComponentCtor 与 EventMap 覆盖核心扩展面；`tsc` 现已覆盖 examples 与 e2e |
 | 可扩展性 | 9/10 | 加载注册表、自定义事件、WebGL extractor 注册表均已就绪；序列化注册表待补 |
 | 文档质量 | 8/10 | README 与本报告已同步当前实现 |
-| 测试覆盖 | 8/10 | 868 个单测 + 11 个浏览器测试；已接入 v8 覆盖率与分模块阈值（整体 77.1% 语句 / 75.0% 分支），三个 fixture 已按 1.5% 门槛比对基线 |
+| 测试覆盖 | 8/10 | 874 个单测 + 11 个浏览器测试；已接入 v8 覆盖率与分模块阈值（整体 77.1% 语句 / 75.1% 分支），三个 fixture 已按 1.5% 门槛比对基线 |
 | 综合 | 8.3/10 | 架构短板已大幅收敛，下一阶段应由 profiling 驱动 |
 
 测试数量不等于覆盖率。`vitest.config.ts` 现已按模块设定阈值（math/physics/lighting
