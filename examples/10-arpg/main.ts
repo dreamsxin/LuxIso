@@ -21,6 +21,7 @@ import { SceneExtractor } from '../../webgl-next/src/extraction/SceneExtractor';
 import { WebGLRenderer } from '../../webgl-next/src/renderer/WebGLRenderer';
 import { HudOverlayRenderer } from '../../webgl-next/src/overlays/HudOverlayRenderer';
 import { registerCombatantExtractor } from './CombatantExtractor';
+import { registerCombatantPersistence } from './persistence';
 import { ArenaRun } from './ArenaRun';
 import { type ArpgPhase } from './WaveDirector';
 
@@ -40,9 +41,16 @@ try {
 
 registerCombatantExtractor();
 
+
 // ── Scene ─────────────────────────────────────────────────────────────────────
 
 const collider = new TileCollider(COLS, ROWS);
+// Both halves of the save/load round trip, so anything that serializes this live
+// scene keeps its fighters instead of silently dropping them. A checkpoint would
+// additionally need the run state, and `WaveDirector` has no snapshot API yet —
+// which is why the page offers no save button.
+registerCombatantPersistence({ collider });
+
 const scene = new Scene({ name: 'Arena', tileW: 64, tileH: 32, cols: COLS, rows: ROWS });
 scene.collider = collider;
 scene.dynamicLighting = true;
