@@ -128,3 +128,34 @@ describe('Pathfinder — min-heap correctness', () => {
     expect(last.y).toBeCloseTo(2.5, 1);
   });
 });
+
+describe('Pathfinder.hasLineOfSight', () => {
+  it('sees across open ground, in both directions', () => {
+    const c = makeGrid(10, 10);
+    expect(Pathfinder.hasLineOfSight(c, { x: 0.5, y: 0.5 }, { x: 9.5, y: 6.5 })).toBe(true);
+    expect(Pathfinder.hasLineOfSight(c, { x: 9.5, y: 6.5 }, { x: 0.5, y: 0.5 })).toBe(true);
+  });
+
+  it('is blocked by a single tile on the line', () => {
+    const c = makeGrid(10, 10, [[5, 5]]);
+    expect(Pathfinder.hasLineOfSight(c, { x: 2.5, y: 2.5 }, { x: 8.5, y: 8.5 })).toBe(false);
+    // A line that misses the pillar still gets through.
+    expect(Pathfinder.hasLineOfSight(c, { x: 2.5, y: 8.5 }, { x: 8.5, y: 8.5 })).toBe(true);
+  });
+
+  it('refuses to look through a corner between two blocked tiles', () => {
+    // The diagonal step from (1,1) to (2,2) is pinched by (2,1) and (1,2).
+    const c = makeGrid(5, 5, [[2, 1], [1, 2]]);
+    expect(Pathfinder.hasLineOfSight(c, { x: 1.5, y: 1.5 }, { x: 2.5, y: 2.5 })).toBe(false);
+  });
+
+  it('treats out-of-bounds as blocked', () => {
+    const c = makeGrid(5, 5);
+    expect(Pathfinder.hasLineOfSight(c, { x: 2.5, y: 2.5 }, { x: 9.5, y: 2.5 })).toBe(false);
+  });
+
+  it('sees a point from itself', () => {
+    const c = makeGrid(5, 5);
+    expect(Pathfinder.hasLineOfSight(c, { x: 2.5, y: 2.5 }, { x: 2.7, y: 2.2 })).toBe(true);
+  });
+});

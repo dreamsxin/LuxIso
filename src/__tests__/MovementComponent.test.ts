@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { MovementComponent } from '../ecs/components/MovementComponent';
 import { TileCollider } from '../physics/TileCollider';
+import { PathCache, Pathfinder } from '../physics/Pathfinder';
 import { EventBus } from '../ecs/EventBus';
 import { IsoObject } from '../elements/IsoObject';
 import { Scene } from '../core/Scene';
@@ -79,6 +80,52 @@ describe('MovementComponent — collision', () => {
 
     // Should not have crossed into col 2
     expect(owner.position.x).toBeLessThan(2);
+  });
+});
+
+describe('MovementComponent — path cache', () => {
+  /**
+   * `PathCache` asks each scene to own one, but until `pathTo()` accepted a cache
+   * no component could: every search went to the module-level default, so two
+   * scenes with different colliders flushed each other's results and one crowd
+   * could evict another's out of a 64-entry cache.
+   */
+  it('searches the cache it was given', () => {
+    const collider = new TileCollider(8, 8);
+    const cache = new PathCache(16);
+    const mv = new MovementComponent({ speed: 2, collider, pathCache: cache });
+    mv.onAttach(makeOwner(0.5, 0.5));
+
+    expect(cache.size).toBe(0);
+    expect(mv.pathTo(6.5, 6.5)).toBe(true);
+    expect(cache.size).toBe(1);
+    expect(mv.pathCache).toBe(cache);
+  });
+
+  it('leaves its own cache alone when another collider is searched', () => {
+    const arena = new TileCollider(8, 8);
+    const cache = new PathCache(16);
+    const mv = new MovementComponent({ speed: 2, collider: arena, pathCache: cache });
+    mv.onAttach(makeOwner(0.5, 0.5));
+    mv.pathTo(6.5, 6.5);
+    expect(cache.size).toBe(1);
+
+    // A second scene searching the shared default cache cannot disturb this one.
+    Pathfinder.find(new TileCollider(4, 4), { x: 0.5, y: 0.5 }, { x: 3.5, y: 3.5 });
+    expect(cache.size).toBe(1);
+  });
+
+  it('falls back to the shared default, and can be swapped later', () => {
+    const collider = new TileCollider(8, 8);
+    const mv = new MovementComponent({ speed: 2, collider });
+    mv.onAttach(makeOwner(0.5, 0.5));
+    expect(mv.pathCache).toBeNull();
+    expect(mv.pathTo(6.5, 6.5)).toBe(true);
+
+    const cache = new PathCache(16);
+    mv.setPathCache(cache);
+    mv.pathTo(0.5, 6.5);
+    expect(cache.size).toBe(1);
   });
 });
 

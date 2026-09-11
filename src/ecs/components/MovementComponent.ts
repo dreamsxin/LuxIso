@@ -1,7 +1,7 @@
 import { IsoObject } from '../../elements/IsoObject';
 import { Component } from '../Component';
 import { TileCollider } from '../../physics/TileCollider';
-import { Pathfinder, IsoVec2 } from '../../physics/Pathfinder';
+import { Pathfinder, PathCache, IsoVec2 } from '../../physics/Pathfinder';
 import type { EventEmitter, LuxIsoEventMap } from '../EventBus';
 
 type MovementEventMap = Pick<LuxIsoEventMap, 'move' | 'arrival'>;
@@ -15,6 +15,17 @@ export interface MovementOptions {
   bus?: EventEmitter<MovementEventMap>;
   /** Optional TileCollider for collision resolution and pathfinding. */
   collider?: TileCollider | null;
+  /**
+   * Path cache `pathTo()` searches through. Defaults to the module-level cache
+   * shared by every `Pathfinder.find()` call site.
+   *
+   * `PathCache`'s own documentation asks each scene to own one, but until this
+   * option existed no component could honour that: `pathTo()` always reached for
+   * the shared default, so two scenes with different colliders flushed each
+   * other's results, and one crowd of agents could evict the cache (capacity 64)
+   * out from under another.
+   */
+  pathCache?: PathCache | null;
 }
 
 /**
@@ -39,6 +50,7 @@ export class MovementComponent implements Component {
   private _waypoints: IsoVec2[] = [];   // remaining path waypoints
   private _bus:      EventEmitter<MovementEventMap> | null;
   private _collider: TileCollider | null;
+  private _pathCache: PathCache | null;
   private _lastTs: number | null = null;
   private _fixedStepActive = false;
 
@@ -47,6 +59,7 @@ export class MovementComponent implements Component {
     this.radius    = opts.radius   ?? 0.4;
     this._bus      = opts.bus      ?? null;
     this._collider = opts.collider ?? null;
+    this._pathCache = opts.pathCache ?? null;
   }
 
   onAttach(owner: IsoObject): void { this._owner = owner; }
@@ -62,13 +75,21 @@ export class MovementComponent implements Component {
 
   /**
    * Use A* to find a path to (x, y) and begin following it.
+   *
+   * Searches through the `pathCache` this component was built with, or the
+   * module-level default when none was given.
    */
   pathTo(x: number, y: number, z?: number): boolean {
     if (!this._collider || !this._owner) {
       this.moveTo(x, y, z);
       return true;
     }
-    const path = Pathfinder.find(this._collider, this._owner.position, { x, y });
+    const path = Pathfinder.find(
+      this._collider,
+      this._owner.position,
+      { x, y },
+      this._pathCache ?? undefined,
+    );
     if (!path) {
       this.stopMoving();
       return false;
@@ -115,6 +136,15 @@ export class MovementComponent implements Component {
 
   /** Attach or replace the collider. */
   setCollider(collider: TileCollider | null): void { this._collider = collider; }
+
+  /**
+   * Attach or replace the path cache `pathTo()` searches through. `null` falls
+   * back to the module-level default cache.
+   */
+  setPathCache(cache: PathCache | null): void { this._pathCache = cache; }
+
+  /** The cache `pathTo()` searches, or null when it uses the shared default. */
+  get pathCache(): PathCache | null { return this._pathCache; }
 
   // ── Per-frame update ──────────────────────────────────────────────────────
 

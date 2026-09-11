@@ -227,6 +227,20 @@ export class Pathfinder {
   }
 
   /**
+   * Whether the straight line between two world points crosses only walkable
+   * tiles — the same test string-pulling uses to straighten a path.
+   *
+   * Public because chase AI needs exactly this question and nothing else
+   * answered it: a pursuer that can see its target should walk straight at it
+   * and only pay for A* once cover breaks the line. Without this, callers either
+   * re-path every frame or reimplement Bresenham, and a hand-rolled one almost
+   * certainly omits the corner rule below (`_stringPull` shipped that bug once).
+   */
+  static hasLineOfSight(collider: TileCollider, a: IsoVec2, b: IsoVec2): boolean {
+    return Pathfinder._hasLoS(a, b, collider);
+  }
+
+  /**
    * Invalidate the module-level default path result cache.
    * For per-scene caches, call `pathCache.invalidate()` directly.
    * If `collider` is omitted, all cached results are cleared.
