@@ -2,6 +2,7 @@ import { Component } from '../Component';
 import { IsoObject } from '../../elements/IsoObject';
 import { SpriteSheet } from '../../animation/SpriteSheet';
 import { AnimationController } from '../../animation/AnimationController';
+import { FrameClock } from '../../time/FrameClock';
 
 export interface AnimationOptions {
   spriteSheet: SpriteSheet;
@@ -29,7 +30,7 @@ export class AnimationComponent implements Component {
   private _autoUpdateDirection: boolean;
   private _lastX = 0;
   private _lastY = 0;
-  private _lastTs: number | null = null;
+  private _clock = new FrameClock();
 
   constructor(opts: AnimationOptions) {
     this._controller = new AnimationController(opts.spriteSheet, opts.initialClip ?? 'idle');
@@ -58,14 +59,11 @@ export class AnimationComponent implements Component {
     if (!this._owner) return;
 
     const now = ts ?? performance.now();
-    // `null`, not 0: a timestamp of 0 is legitimate, and the old
-    // `_lastTs === 0` sentinel stayed armed through it, so the frame right
-    // after it advanced by an invented 16 ms instead of its real delta.
-    // A backwards timestamp used to rewind the clip.
-    const dt = this._lastTs === null
-      ? 0
-      : Math.min(Math.max(0, (now - this._lastTs) / 1000), 0.1);
-    this._lastTs = now;
+    // The clock's `null` baseline is what makes a timestamp of 0 an ordinary
+    // first frame: the old `_lastTs === 0` sentinel stayed armed through it, so
+    // the frame right after it advanced by an invented 16 ms instead of its real
+    // delta, and a backwards timestamp rewound the clip.
+    const dt = this._clock.sample(now);
 
     if (this._autoUpdateDirection) {
       const dx = this._owner.position.x - this._lastX;

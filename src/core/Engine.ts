@@ -1,4 +1,5 @@
 import { Scene } from './Scene';
+import { FrameClock } from '../time/FrameClock';
 import { Floor } from '../elements/Floor';
 import { Wall, WallOptions } from '../elements/Wall';
 import { OmniLight } from '../lighting/OmniLight';
@@ -171,7 +172,7 @@ export class Engine {
   private _rafId: number | null = null;
   private _running = false;
   private _onFrame: ((ts: number) => void) | null = null;
-  private _lastTs: number | null = null;
+  private _clock = new FrameClock();
   private _accumulator = 0;
   /** Fixed physics timestep in seconds. Default 1/60. */
   fixedDeltaTime = 1 / 60;
@@ -612,9 +613,9 @@ export class Engine {
       if (!this._autoPaused) return;
       this._autoPaused = false;
       // Discard the hidden interval instead of integrating it in one lump.
-      // `null`, not 0: a rAF timestamp of 0 is legitimate, and using it as the
-      // "unset" marker dropped the frame right after it.
-      this._lastTs = null;
+      // `reset()`, not a stamp of 0: a rAF timestamp of 0 is legitimate, and
+      // using it as the "unset" marker dropped the frame right after it.
+      this._clock.reset();
       this._accumulator = 0;
       if (this._running) this._scheduleLoop();
     };
@@ -632,10 +633,7 @@ export class Engine {
   private _tick(ts: number): void {
     if (!this._scene) return;
 
-    const rawDt = this._lastTs === null
-      ? 0
-      : Math.min(Math.max(0, (ts - this._lastTs) / 1000), 0.1);
-    this._lastTs = ts;
+    const rawDt = this._clock.sample(ts);
 
     this._accumulator += rawDt;
     while (this._accumulator >= this.fixedDeltaTime) {

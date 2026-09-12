@@ -4,6 +4,7 @@ import { DrawContext } from '../IsoObject';
 import { Entity } from '../../ecs/Entity';
 import { HealthComponent } from '../../ecs/components/HealthComponent';
 import { shiftColor, blendColor } from '../../math/color';
+import { FrameClock } from '../../time/FrameClock';
 
 // Local aliases matching the old private names used throughout this file
 const shift = shiftColor;
@@ -36,7 +37,7 @@ export class Chest extends Entity {
   private _lidOpen   = false;
   private _lidAngle  = 0;    // 0 = closed → 1 = fully open
   private _glowPulse = 0;
-  private _lastTs: number | null = null;
+  private _clock = new FrameClock();
 
 
   constructor(id: string, x: number, y: number, color = '#a05c18') {
@@ -105,10 +106,7 @@ export class Chest extends Entity {
    */
   private _frameDelta(ts?: number): number {
     if (ts === undefined) return 1 / 60;
-    const previous = this._lastTs;
-    this._lastTs = ts;
-    if (previous === null) return 0;
-    return Math.min(Math.max(0, (ts - previous) / 1000), 0.1);
+    return this._clock.sample(ts);
   }
 
 

@@ -176,6 +176,23 @@ describe.each(CASES)('frame-delta contract — $name', ({ make }) => {
 
     expect(jumped.read()).toBeLessThanOrEqual(clamped.read());
   });
+
+  it('does not let a non-finite timestamp poison the baseline', () => {
+    const m = make();
+    m.tick(1000);
+    m.tick(1100);
+    const before = m.read();
+
+    m.tick(NaN);
+    m.tick(Infinity);
+    expect(m.read()).toBe(before);   // nothing advanced, nothing became NaN
+
+    // And the next real stamp still measures from the last good one.
+    m.tick(1200);
+    expect(m.read()).toBeGreaterThan(before);
+    expect(Number.isFinite(m.read())).toBe(true);
+  });
 });
+
 
 

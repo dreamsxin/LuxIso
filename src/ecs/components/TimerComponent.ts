@@ -1,4 +1,5 @@
 import { Component } from '../Component';
+import { FrameClock } from '../../time/FrameClock';
 
 /**
  * TimerComponent — fires a callback after a delay, optionally repeating.
@@ -32,7 +33,7 @@ export class TimerComponent implements Component {
   private _elapsed  = 0;
   private _running: boolean;
   private _done     = false;
-  private _lastTs: number | null = null;
+  private _clock = new FrameClock(FrameClock.TIMELINE_MAX_DT);
   private _onTick:  (() => void) | undefined;
   private _onComplete: (() => void) | undefined;
 
@@ -55,19 +56,14 @@ export class TimerComponent implements Component {
    * is not credited to the timer — without that, a stale `_lastTs` turned the
    * pause into a jump of up to the dt clamp (0.5 s) on the first frame back.
    */
-  pause():  void { this._running = false; this._lastTs = null; }
+  pause():  void { this._running = false; this._clock.reset(); }
   reset():  void { this._elapsed = 0; this._done = false; }
-  restart():void { this._elapsed = 0; this._done = false; this._running = true; this._lastTs = null; }
+  restart():void { this._elapsed = 0; this._done = false; this._running = true; this._clock.reset(); }
 
   update(ts?: number): void {
     if (!this._running || this._done) return;
     const now = ts ?? performance.now();
-    // `null`, not 0: a timestamp of 0 is legitimate, and the old
-    // `_lastTs === 0` sentinel stayed armed through it, dropping the next frame.
-    const dt = this._lastTs === null
-      ? 0
-      : Math.min(Math.max(0, (now - this._lastTs) / 1000), 0.5);
-    this._lastTs = now;
+    const dt = this._clock.sample(now);
     if (dt === 0) return;
 
     this._elapsed += dt;

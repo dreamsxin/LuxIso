@@ -1,7 +1,7 @@
 # LuxIso 架构分析报告 v5
 
 > 更新日期：2026-09-12
-> 基线：Canvas 2D 默认 + WebGL2 预览，956 个 Vitest 测试 / 73 个测试文件（含 v8 覆盖率阈值），11 个 Playwright WebGL 测试
+> 基线：Canvas 2D 默认 + WebGL2 预览，974 个 Vitest 测试 / 74 个测试文件（含 v8 覆盖率阈值），11 个 Playwright WebGL 测试
 
 ## 执行摘要
 
@@ -21,6 +21,7 @@ core/SceneSerializer      内置 schema 与运行态导出
 ecs/                      Entity、Component、System、EventBus、组件
 elements/lighting         可渲染对象与光源
 physics/animation/audio   碰撞寻路、动画粒子、音频
+time/                     FrameClock：帧时间契约的唯一实现
 math/                     投影、颜色、深度排序
 ```
 
@@ -127,7 +128,7 @@ const bus = new EventBus<GameEvents>();
 | P2 | WebGL context-loss 尚未覆盖完整浏览器矩阵 | Chromium/SwiftShader 自动化已完成；Phase 5 扩展到 Firefox、Safari 和真实 GPU |
 | P2 | `EditorRenderer` 每次状态变更全量重建场景 | 按帧防抖，或对纯变换编辑原地改对象 |
 | P2 | `webgl-next` `TextureRegistry` 不淘汰 | 按帧引用计数或 LRU 淘汰；`dispose()` 应删除自己创建的 GL 纹理 |
-| P2 | 十二处模块各自手写同一段 `dt` 推导 | `FrameDeltaContract.test.ts` 已把契约立成门禁；抽一个共享 `FrameClock` 会一次性改动十几个模块，单独决定 |
+| P2 | 十二处模块各自手写同一段 `dt` 推导 | 已抽成 `src/time/FrameClock`，十处消费者全部迁移；`DebugRenderer` 是有意的例外（FPS 表需要未钳制的毫秒差） |
 | P3 | `AudioManager.spatialVolume()` 仍是手算距离衰减 | `playSfx({ spatial })` 已走 `PannerNode` + HRTF，该静态方法是遗留路径 |
 | P3 | 地图未分块 | 大地图引入 tile chunks 与脏区重绘 |
 
@@ -606,6 +607,27 @@ const bus = new EventBus<GameEvents>();
   下一步不是再抄一遍这三行：真正的根因是**没有共享的 `FrameClock`**，十二处各写一遍
   同样的 `null` 判断 + 双重钳制。抽取它会一次性改动十几个模块，属于单独一个决定，
   这里先把门禁立起来——第十三次会在 CI 里失败，而不是等谁发现云不飘了。
+- **紧接着就做了那个"单独的决定"：`src/time/FrameClock` 落地，十处消费者全部迁移。**
+  顺序是刻意的：**先有契约表，再做重构**。974 个用例（其中 28 条是契约表本身）就是这次
+  改动十个模块的安全网，否则「行为完全等价」只能靠人眼逐处比对。
+  - 消费者：`Engine`、`Scene`、`MovementComponent`、`TimerComponent`、`TweenComponent`、
+    `AnimationComponent`、`ParticleSystem`、`FloatingText`、`Cloud`、`Chest`，外加
+    `src/main.ts` 的示例主循环。`pause()` / `restart()` / 标签页恢复那几处把
+    `_lastTs = null` 换成 `clock.reset()`，语义反而写明白了：**重置是"下一帧重新算首帧"，
+    不是"把时间戳设成 0"**——后者正是十二次缺陷的源头。
+  - `DebugRenderer` **有意不迁**：FPS 表要的是未钳制的毫秒差（`1000 / dt`），钳到 0.1 秒
+    会让读数永远不低于 10 fps。这是真实的差异，写进注释和文档而不是硬套。
+  - 抽取过程中补上了第四条规则，十二处手写版本**全都没有**：非有限时间戳。
+    `Math.min(Math.max(0, NaN), 0.1)` 得到 `NaN`，而 `NaN` 一旦成为基线就再也回不来
+    ——之后每一帧的 dt 都是 `NaN`，积分出来的坐标永久变成 `NaN`。现在非有限戳返回 0
+    且**不更新基线**，下一个正常戳仍从上一个好戳算起。契约表也加了这一条。
+  - `TweenComponent` / `Cloud` 原本是"首帧提前 return"的写法，与"首帧 dt=0 继续往下走"
+    并不完全等价（后者会让首帧也跑一遍绕行/换行逻辑）。迁移时用
+    `const first = !clock.started` 把这个差异显式保留下来，而不是顺手统一掉——
+    **重构不该偷偷改行为。**
+  - `FrameClock` 自身 11 个用例、100% 语句/分支覆盖，阈值直接钉在 100 而不是设成棘轮：
+    一个 30 行、被十个模块依赖的契约类没有理由留缺口。
+
 
 
 
@@ -631,13 +653,13 @@ const bus = new EventBus<GameEvents>();
 
 | 维度 | 评分 | 说明 |
 |---|:---:|---|
-| 模块分层 | 9/10 | Scene 渲染与序列化职责已拆分 |
+| 模块分层 | 9/10 | Scene 渲染与序列化职责已拆分；`time/` 作为叶子层承载帧时间契约 |
 | ECS 设计 | 8/10 | 构造函数查询、System、生命周期完整；尚无 archetype |
 | 渲染管线 | 8/10 | Canvas 完整；WebGL 预览已覆盖核心 pass，尚待 golden 和浏览器矩阵 |
 | 类型安全 | 9/10 | ComponentCtor 与 EventMap 覆盖核心扩展面；`tsc` 现已覆盖 examples 与 e2e |
 | 可扩展性 | 9/10 | 加载注册表、自定义事件、WebGL extractor 注册表、序列化注册表均已就绪 |
 | 文档质量 | 8/10 | README 与本报告已同步当前实现 |
-| 测试覆盖 | 8/10 | 956 个单测 + 11 个浏览器测试；已接入 v8 覆盖率与分模块阈值（整体 78.6% 语句 / 75.6% 分支），三个 fixture 已按 1.5% 门槛比对基线；帧时间契约由一份共享用例表统一钉住 |
+| 测试覆盖 | 8/10 | 974 个单测 + 11 个浏览器测试；已接入 v8 覆盖率与分模块阈值（整体 78.6% 语句 / 75.6% 分支），三个 fixture 已按 1.5% 门槛比对基线；帧时间契约由 `FrameClock` 单点实现 + 一份共享用例表钉住 |
 | 综合 | 8.3/10 | 架构短板已大幅收敛，下一阶段应由 profiling 驱动 |
 
 测试数量不等于覆盖率。`vitest.config.ts` 现已按模块设定阈值（math/physics/lighting

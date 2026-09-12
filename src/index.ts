@@ -75,6 +75,9 @@ export { TileCollider } from './physics/TileCollider';
 export { Pathfinder, PathCache } from './physics/Pathfinder';
 export type { IsoVec2 } from './physics/Pathfinder';
 
+// Time
+export { FrameClock } from './time/FrameClock';
+
 // Audio
 export { AudioManager } from './audio/AudioManager';
 export type { PlayOptions, SpatialOptions } from './audio/AudioManager';

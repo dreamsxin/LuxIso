@@ -1,5 +1,6 @@
 import { IsoObject } from '../../elements/IsoObject';
 import { Component } from '../Component';
+import { FrameClock } from '../../time/FrameClock';
 
 /** Easing functions — all take t in [0,1] and return a value in [0,1]. */
 export const Easing = {
@@ -77,7 +78,7 @@ export class TweenComponent implements Component {
   private _iteration = 0;
   private _forward   = true;
   private _owner:    IsoObject | null = null;
-  private _lastTs: number | null = null;
+  private _clock = new FrameClock(FrameClock.TIMELINE_MAX_DT);
 
   constructor(opts: TweenOptions) {
     this._opts  = opts;
@@ -96,7 +97,7 @@ export class TweenComponent implements Component {
    * paused is not credited — otherwise the first frame back jumped by up to the
    * dt clamp (0.5 s).
    */
-  pause():   void { this._running = false; this._lastTs = null; }
+  pause():   void { this._running = false; this._clock.reset(); }
   resume():  void { this._running = true; }
   restart(): void {
     this._elapsed = 0;
@@ -105,22 +106,19 @@ export class TweenComponent implements Component {
     this._iteration = 0;
     this._forward = true;
     this._delay = this._opts.delay ?? 0;
-    // `null`, not 0: with 0 the next frame's delta was measured against
-    // timestamp 0 and clamped to 0.5 s, so a restarted tween instantly leapt
-    // half a second in.
-    this._lastTs = null;
+    // `reset()`, not a stamp of 0: with 0 the next frame's delta was measured
+    // against timestamp 0 and clamped to 0.5 s, so a restarted tween instantly
+    // leapt half a second in.
+    this._clock.reset();
   }
 
   update(ts?: number): void {
     if (!this._owner || !this._running || this._done) return;
 
     const now = ts ?? performance.now();
-    if (this._lastTs === null) {
-      this._lastTs = now;
-      return;
-    }
-    let dt = Math.min(Math.max(0, (now - this._lastTs) / 1000), 0.5);
-    this._lastTs = now;
+    const first = !this._clock.started;
+    let dt = this._clock.sample(now);
+    if (first) return;
 
     // Handle delay, carrying whatever is left of this frame into the tween.
     // Discarding the remainder made every delayed tween start a frame late.

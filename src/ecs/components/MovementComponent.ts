@@ -2,6 +2,7 @@ import { IsoObject } from '../../elements/IsoObject';
 import { Component } from '../Component';
 import { TileCollider } from '../../physics/TileCollider';
 import { Pathfinder, PathCache, IsoVec2 } from '../../physics/Pathfinder';
+import { FrameClock } from '../../time/FrameClock';
 import type { EventEmitter, LuxIsoEventMap } from '../EventBus';
 
 type MovementEventMap = Pick<LuxIsoEventMap, 'move' | 'arrival'>;
@@ -51,7 +52,7 @@ export class MovementComponent implements Component {
   private _bus:      EventEmitter<MovementEventMap> | null;
   private _collider: TileCollider | null;
   private _pathCache: PathCache | null;
-  private _lastTs: number | null = null;
+  private _clock = new FrameClock();
   private _fixedStepActive = false;
 
   constructor(opts: MovementOptions = {}) {
@@ -237,16 +238,12 @@ export class MovementComponent implements Component {
     if (ts === undefined) return; 
     const now = ts;
     if (this._fixedStepActive) {
-      this._lastTs = now;
+      // Keep the baseline current so a later switch back to timestamp stepping
+      // measures from this frame rather than from whenever fixed stepping began.
+      this._clock.sample(now);
       return;
     }
-    // `null`, not 0: a timestamp of 0 is legitimate (it is what `Engine` hands
-    // out on its first tick), and the old `_lastTs === 0` sentinel stayed armed
-    // through it, so the frame right after it was silently dropped.
-    const dt = this._lastTs === null
-      ? 0
-      : Math.min(Math.max(0, (now - this._lastTs) / 1000), 0.1);
-    this._lastTs = now;
+    const dt = this._clock.sample(now);
     if (dt > 0) this._integrate(dt);
   }
 

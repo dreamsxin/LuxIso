@@ -1,6 +1,7 @@
 import { IsoObject, DrawContext } from '../../elements/IsoObject';
 import { AABB } from '../../math/depthSort';
 import { project } from '../../math/IsoProjection';
+import { FrameClock } from '../../time/FrameClock';
 
 export interface FloatingTextOptions {
   id: string;
@@ -37,11 +38,12 @@ export class FloatingText extends IsoObject {
   private _elapsed = 0;
   private _alpha = 1;
   /**
-   * Null until the first update. A `0` sentinel would collide with a legitimate
-   * timestamp of 0 — the text then read "first frame" forever, never rising,
-   * fading or expiring, so `Scene` never removed it either.
+   * Frame clock for the rise and the fade. Its `null` baseline is what makes a
+   * legitimate timestamp of 0 an ordinary first frame — with a `0` sentinel the
+   * text read "first frame" forever, never rising, fading or expiring, so
+   * `Scene` never removed it either.
    */
-  private _lastTs: number | null = null;
+  private _clock = new FrameClock();
 
 
   constructor(opts: FloatingTextOptions) {
@@ -79,19 +81,12 @@ export class FloatingText extends IsoObject {
   }
 
   update(ts?: number): void {
-    const now = ts ?? performance.now();
     // dt 0 on the first call, matching Engine / ClickMover / DirectionalAnimator.
     // The old 0.016 fallback invented a frame of elapsed time, so a text was
-    // already slightly faded before it had been drawn once.
-    //
-    // `Math.max(0, …)` is the other half of the contract, and this module was
-    // missing it: a timestamp that moves backwards produced a negative dt, which
-    // pushed the text back *down* and un-faded it — found by the shared contract
-    // test in `FrameDeltaContract.test.ts`, not by this module's own suite.
-    const dt = this._lastTs === null
-      ? 0
-      : Math.min(Math.max(0, (now - this._lastTs) / 1000), 0.1);
-    this._lastTs = now;
+    // already slightly faded before it had been drawn once. `FrameClock` also
+    // supplies the lower clamp this module was missing: a timestamp that moves
+    // backwards used to push the text back *down* and un-fade it.
+    const dt = this._clock.sample(ts ?? performance.now());
 
     this._elapsed += dt * 1000;
     this.position.z += this.speed * dt;

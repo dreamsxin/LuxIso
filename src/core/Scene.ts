@@ -4,6 +4,7 @@ import { OmniLight } from '../lighting/OmniLight';
 import { DirectionalLight } from '../lighting/DirectionalLight';
 import { Camera } from './Camera';
 import { Entity } from '../ecs/Entity';
+import { FrameClock } from '../time/FrameClock';
 import { System } from '../ecs/System';
 import { FloatingText, FloatingTextOptions } from '../elements/props/FloatingText';
 import { DEFAULT_ISO_VIEW } from '../math/IsoProjection';
@@ -39,7 +40,7 @@ export class Scene {
   private _systems: System[] = [];
   private _systemMatches: Entity[][] = [];
   private _renderer = new SceneRenderer();
-  private _lastTs: number | null = null;
+  private _clock = new FrameClock();
 
   private _viewFrom: IsoView | null = null;
   private _viewTo: IsoView | null = null;
@@ -169,12 +170,12 @@ export class Scene {
 
   update(ts?: number): void {
     const now = ts ?? performance.now();
-    // dt 0 on the first call, matching Engine. The previous `_lastTs === 0`
-    // sentinel collided with a legitimate timestamp of 0 — `update(0)` left the
-    // sentinel armed, so the *second* frame also got the invented 1/60 instead
-    // of its real delta, shifting every view transition and system by a frame.
-    const dt = this._lastTs === null ? 0 : Math.min(Math.max(0, (now - this._lastTs) / 1000), 0.1);
-    this._lastTs = now;
+    // dt 0 on the first call, matching Engine. The clock's `null` baseline is why
+    // that works: the previous `_lastTs === 0` sentinel collided with a legitimate
+    // timestamp of 0 — `update(0)` left it armed, so the *second* frame also got
+    // the invented 1/60 instead of its real delta, shifting every view transition
+    // and system by a frame.
+    const dt = this._clock.sample(now);
 
     if (this._viewFrom && this._viewTo) {
       this._viewT = Math.min(1, this._viewT + dt / this._viewDur);

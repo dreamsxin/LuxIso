@@ -1,4 +1,5 @@
 import { Engine } from './core/Engine';
+import { FrameClock } from './time/FrameClock';
 import { OmniLight } from './lighting/OmniLight';
 import { Character } from './elements/Character';
 import { Crystal } from './elements/props/Crystal';
@@ -688,8 +689,8 @@ function drawPropHighlight(ctx: CanvasRenderingContext2D, ts: number): void {
   }
 }
 
-/** First-frame sentinel. `null`, not 0 — `Engine`'s first timestamp *is* 0. */
-let _lastTs: number | null = null;
+/** Frame clock for the demo's own per-frame bookkeeping (combo decay, glow). */
+const frameClock = new FrameClock();
 
 engine.start(
   // postFrame — overlays
@@ -763,10 +764,7 @@ engine.start(
 
   // preFrame — input + update + background glow
   (ts) => {
-    const dt = _lastTs === null
-      ? 0
-      : Math.min(Math.max(0, (ts - _lastTs) / 1000), 0.1);
-    _lastTs = ts;
+    const dt = frameClock.sample(ts);
 
     // Combo decay
     if (combo > 0) {
