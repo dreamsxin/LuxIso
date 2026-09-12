@@ -83,7 +83,14 @@ export class FloatingText extends IsoObject {
     // dt 0 on the first call, matching Engine / ClickMover / DirectionalAnimator.
     // The old 0.016 fallback invented a frame of elapsed time, so a text was
     // already slightly faded before it had been drawn once.
-    const dt = this._lastTs === null ? 0 : Math.min((now - this._lastTs) / 1000, 0.1);
+    //
+    // `Math.max(0, …)` is the other half of the contract, and this module was
+    // missing it: a timestamp that moves backwards produced a negative dt, which
+    // pushed the text back *down* and un-faded it — found by the shared contract
+    // test in `FrameDeltaContract.test.ts`, not by this module's own suite.
+    const dt = this._lastTs === null
+      ? 0
+      : Math.min(Math.max(0, (now - this._lastTs) / 1000), 0.1);
     this._lastTs = now;
 
     this._elapsed += dt * 1000;

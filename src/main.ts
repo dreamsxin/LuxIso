@@ -688,7 +688,8 @@ function drawPropHighlight(ctx: CanvasRenderingContext2D, ts: number): void {
   }
 }
 
-let _lastTs = 0;
+/** First-frame sentinel. `null`, not 0 — `Engine`'s first timestamp *is* 0. */
+let _lastTs: number | null = null;
 
 engine.start(
   // postFrame — overlays
@@ -762,7 +763,9 @@ engine.start(
 
   // preFrame — input + update + background glow
   (ts) => {
-    const dt = _lastTs === 0 ? 0.016 : Math.min((ts - _lastTs) / 1000, 0.1);
+    const dt = _lastTs === null
+      ? 0
+      : Math.min(Math.max(0, (ts - _lastTs) / 1000), 0.1);
     _lastTs = ts;
 
     // Combo decay

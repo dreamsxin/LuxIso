@@ -126,7 +126,7 @@ export class ParticleSystem extends IsoObject {
   static poolLimit = 512;
   private _emitters: { config: EmitterConfig, accumulator: number }[] = [];
   onExhausted: (() => void) | null = null;
-  private _lastTs = 0;
+  private _lastTs: number | null = null;
   private _sawParticles = false;
   private _exhaustedFired = false;
 
@@ -226,7 +226,15 @@ export class ParticleSystem extends IsoObject {
 
   update(ts?: number): void {
     const now = ts ?? performance.now();
-    const dt  = this._lastTs === 0 ? 1 / 60 : Math.min((now - this._lastTs) / 1000, 0.1);
+    // `null`, not 0: a timestamp of 0 is legitimate — it is what `Engine` hands
+    // out on its first tick — and the old `_lastTs === 0` sentinel stayed armed
+    // through it, so the first *two* frames of a scene starting at 0 got a
+    // fabricated 1/60 instead of the real delta. `Math.max(0, …)` matters just as
+    // much: `Particle.update` does `life -= dt`, so a backwards timestamp used to
+    // make every particle *younger*, drift in reverse, and never expire.
+    const dt = this._lastTs === null
+      ? 0
+      : Math.min(Math.max(0, (now - this._lastTs) / 1000), 0.1);
     this._lastTs = now;
 
     for (const e of this._emitters) {

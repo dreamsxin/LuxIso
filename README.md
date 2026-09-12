@@ -122,7 +122,7 @@ npm run test:webgl # builds, then runs 9 deterministic captures + lifecycle test
 
 | Layer | Command | Scope |
 |---|---|---|
-| Unit | `npm test` | 935 tests across 72 files (Vitest 4) |
+| Unit | `npm test` | 956 tests across 73 files (Vitest 4) |
 | Coverage | `npm run test:coverage` | v8 provider + per-module ratchets |
 | Workflows | `npm run lint:workflows` | GitHub Actions YAML: unquoted colons, tab indentation, `run:` expression injection |
 | Browser | `npm run test:webgl` | 9 fixture captures + 2 context-lifecycle tests (Chromium/SwiftShader) against the built bundle |
@@ -146,6 +146,33 @@ Correctness-critical modules carry their own floors:
 Raise a floor when you add tests; never lower one to make a build pass. Test
 count is not coverage — every P0/P1 defect found in the last audit sat in a
 branch that no test reached, not in a module with a low overall percentage.
+
+### The frame-delta contract
+
+Any module that derives its own `dt` from a timestamp obeys three rules, and
+`src/__tests__/FrameDeltaContract.test.ts` asserts all three for every such
+module in one table:
+
+1. **A timestamp of 0 is an ordinary first frame.** The sentinel is `null`, never
+   `0` — `Engine`'s first tick really does hand out `0`, so a `_lastTs === 0`
+   sentinel never disarms and the frame after it is silently wrong. This exact
+   bug has been found and fixed twelve times in this repository.
+2. **Time going backwards never rewinds state.** Clamp with
+   `Math.max(0, now - last)`.
+3. **A long gap is clamped, not integrated.** `Math.min(…, 0.1)` for motion,
+   `0.5` for timers and tweens, so a hidden tab or a breakpoint does not
+   teleport anything.
+
+```ts
+const dt = this._lastTs === null
+  ? 0
+  : Math.min(Math.max(0, (now - this._lastTs) / 1000), 0.1);
+this._lastTs = now;
+```
+
+A new time-accumulating module belongs in that test's `CASES` list. Eleven
+per-module regression tests did not stop the twelfth occurrence; a shared
+contract test fails for a module whose own suite was never written.
 
 `src/main.ts` and the two editor entry points are excluded: they are DOM-driven
 and covered by the browser suite and by hand, so counting them would only dilute
@@ -1061,7 +1088,7 @@ object is unreachable and both disappear together.
 | EventBus event maps | Event names and payload types are coupled; custom maps supported |
 | Scene.toJSON(): runtime state + built-in prop serialization | Environment, camera, view, light IDs/options, collider, built-ins |
 | Lib build: ESM + CJS dual output + .d.ts (npm run build:lib) | |
-| Unit tests: 935 tests across 72 files (Vitest 4, Node ≥ 22) | |
+| Unit tests: 956 tests across 73 files (Vitest 4, Node ≥ 22) | |
 | Coverage ratchets per module (`npm run test:coverage`) | v8 provider; per-glob floors on math/physics/lighting/ecs/animation/elements/audio/core |
 | Examples: 10 progressive demos + tools gallery | |
 
@@ -1078,6 +1105,7 @@ See [FRAMEWORK_ANALYSIS.md](FRAMEWORK_ANALYSIS.md) for a detailed comparison wit
 | P2 | Custom serialization needs one registration per direction | `Engine.registerProp()` / `registerLight()` load, `SceneSerializer.register()` / `registerLight()` save. Registering only one side is a silent half-round-trip (the save side warns once per type) |
 | P2 | `EditorRenderer` rebuilds the whole scene on every state change | Debounce to one rebuild per frame, or mutate objects in place for transform-only edits |
 | P2 | `webgl-next` `TextureRegistry` never evicts | Reference-count or LRU-evict per frame; `dispose()` should delete its own GL textures |
+| P2 | Twelve modules each hand-write the same `dt` derivation | `FrameDeltaContract.test.ts` pins the contract for all of them; extracting a shared `FrameClock` would touch every one of them and is a separate decision |
 | P3 | System queries scan all Entity instances | Add archetype/query cache if profiling shows a bottleneck |
 | P3 | Spatial audio `spatialVolume()` helper is a manual falloff calc | `playSfx({ spatial })` already uses a `PannerNode` + HRTF; the static helper is the legacy path |
 | P3 | Editor: snap/grid toggle for fine-grained object placement | Sub-tile precision mode |
