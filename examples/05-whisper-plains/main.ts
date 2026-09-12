@@ -16,6 +16,7 @@ import { buildPlainsScene, PLAINS_COLS, PLAINS_ROWS, PORTAL_X, PORTAL_Y } from '
 import { buildLakeScene, LAKE_PORTAL_X, LAKE_PORTAL_Y, LAKE_SPAWN_X, LAKE_SPAWN_Y } from './scenes/LakeScene';
 import { buildDeepSeaScene, DEEP_COLS, DEEP_ROWS, DEEP_PORTAL_X, DEEP_PORTAL_Y, DEEP_SPAWN_X, DEEP_SPAWN_Y } from './scenes/DeepSeaScene';
 import { DayNightCycle } from './environment/DayNightCycle';
+import { drawPlainsSky, drawLakeSky, drawDeepSky } from './environment/skies';
 import { Portal } from './entities/Portal';
 
 
@@ -184,7 +185,7 @@ mgr.register('plains', () => ({
     _dustTimer += dt; if (_dustTimer > 0.7) { _dustTimer = 0; _spawnDust(plainsScene, PLAINS_COLS, PLAINS_ROWS); }
     if (n < 0.5) { _dreamTimer += dt; if (_dreamTimer > 0.5) { _dreamTimer = 0; _spawnDream(plainsScene, PLAINS_COLS, PLAINS_ROWS); } }
   },
-  onDrawBackground: (ctx, w, h, ts) => _drawPlainsSky(ctx, w, h, ts, dayNight),
+  onDrawBackground: (ctx, w, h, ts) => drawPlainsSky(ctx, w, h, ts, dayNight),
   onDrawOverlay: (ctx, _w, _h, ts) => plainsMover.drawMarker(ctx, plainsScene.camera, plainsScene.tileW, plainsScene.tileH, engine.originX, engine.originY, ts),
 }));
 
@@ -217,7 +218,7 @@ mgr.register('lake', () => ({
       teleport(lakeScene, lakeHero, lakePortal, LAKE_PORTAL_X, LAKE_PORTAL_Y, 'deep', '#001830', '#000a18');
     }
   },
-  onDrawBackground: _drawLakeSky,
+  onDrawBackground: drawLakeSky,
   onDrawOverlay: (ctx, _w, _h, ts) => lakeMover.drawMarker(ctx, lakeScene.camera, lakeScene.tileW, lakeScene.tileH, engine.originX, engine.originY, ts),
 }));
 
@@ -250,7 +251,7 @@ mgr.register('deep', () => ({
       });
     }
   },
-  onDrawBackground: _drawDeepSky,
+  onDrawBackground: drawDeepSky,
   onDrawOverlay: (ctx, _w, _h, ts) => deepMover.drawMarker(ctx, deepScene.camera, deepScene.tileW, deepScene.tileH, engine.originX, engine.originY, ts),
 }));
 
@@ -314,83 +315,5 @@ function _spawnMist(scene: Scene, cols: number, rows: number): void {
 }
 
 // ── 背景绘制 ─────────────────────────────────────────────────────────────
+// 三个天空的绘制在 environment/skies.ts，本文件只负责接线。
 
-function _drawPlainsSky(ctx: CanvasRenderingContext2D, w: number, h: number, ts: number, dn: DayNightCycle): void {
-  const c = dn.getColors();
-  const grad = ctx.createLinearGradient(0, 0, 0, h * 0.72);
-  grad.addColorStop(0, c.skyTop); grad.addColorStop(0.6, c.skyBottom); grad.addColorStop(1, c.skyBottom);
-  ctx.fillStyle = grad; ctx.fillRect(0, 0, w, h);
-
-  const cx = c.celestialX * w, cy = c.celestialY * h;
-  ctx.save();
-  ctx.beginPath(); ctx.arc(cx, cy, c.celestialRadius, 0, Math.PI * 2);
-  ctx.fillStyle = c.celestialColor; ctx.shadowColor = c.celestialGlowColor; ctx.shadowBlur = c.celestialRadius * 2.5;
-  ctx.fill(); ctx.shadowBlur = 0; ctx.restore();
-
-  const glowR = c.celestialRadius * 5.5;
-  const glow = ctx.createRadialGradient(cx, cy, c.celestialRadius * 0.5, cx, cy, glowR);
-  glow.addColorStop(0, _rgba(c.celestialGlowColor, c.celestialGlowAlpha)); glow.addColorStop(1, 'rgba(0,0,0,0)');
-  ctx.fillStyle = glow; ctx.fillRect(0, 0, w, h);
-
-  const day = 1 - c.nightOverlay;
-  if (day > 0.3) {
-    const rb = ctx.createRadialGradient(cx, cy, c.celestialRadius*2, cx, cy, c.celestialRadius*14);
-    rb.addColorStop(0, `rgba(255,220,180,${(day*0.12).toFixed(3)})`); rb.addColorStop(0.5, `rgba(180,200,255,${(day*0.10).toFixed(3)})`); rb.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.fillStyle = rb; ctx.fillRect(0, 0, w, h);
-  }
-  if (c.nightOverlay > 0.02) { ctx.fillStyle = `rgba(4,9,26,${(c.nightOverlay*0.82).toFixed(3)})`; ctx.fillRect(0, 0, w, h); }
-
-  if (day > 0.15) {
-    const t2 = ts * 0.001;
-    const cols2 = ['255,200,255','200,220,255','220,255,220','255,240,180','200,180,255'];
-    for (let i = 0; i < 18; i++) {
-      const fx = (Math.sin(i*73.1+t2*(0.12+i*0.008))*0.5+0.5)*w;
-      const fy = (Math.sin(i*137.5+t2*(0.09+i*0.006))*0.5+0.5)*h*0.75;
-      ctx.globalAlpha = Math.max(0, 0.4+Math.sin(t2*(1.2+i*0.3)+i*2.1)*0.35)*day*0.55;
-      ctx.beginPath(); ctx.arc(fx, fy, 1.2+(i%4)*0.5, 0, Math.PI*2); ctx.fillStyle = `rgb(${cols2[i%cols2.length]})`; ctx.fill();
-    }
-    ctx.globalAlpha = 1;
-  }
-  if (c.showStars) {
-    const t = ts * 0.001;
-    for (let i = 0; i < 60; i++) {
-      ctx.globalAlpha = Math.max(0, 0.3+Math.sin(t*(0.7+i*0.22)+i*1.3)*0.45)*c.starAlpha;
-      ctx.fillStyle = i%9===0?'#ffd0a0':i%13===0?'#c0e0ff':'#ffffff';
-      ctx.beginPath(); ctx.arc((Math.sin(i*127.1)*0.5+0.5)*w, (Math.sin(i*311.7)*0.5+0.5)*h*0.52, 0.5+(i%5)*0.28, 0, Math.PI*2); ctx.fill();
-    }
-    ctx.globalAlpha = 1;
-  }
-}
-
-function _drawLakeSky(ctx: CanvasRenderingContext2D, w: number, h: number, ts: number): void {
-  const grad = ctx.createLinearGradient(0, 0, 0, h * 0.75);
-  grad.addColorStop(0, '#04091a'); grad.addColorStop(0.25, '#080f28'); grad.addColorStop(0.6, '#0c1e48'); grad.addColorStop(1, '#102060');
-  ctx.fillStyle = grad; ctx.fillRect(0, 0, w, h);
-  const mx = w * 0.76, my = h * 0.09;
-  ctx.save(); ctx.beginPath(); ctx.arc(mx, my, 14, 0, Math.PI * 2);
-  ctx.fillStyle = '#e8f0ff'; ctx.shadowColor = '#c0d8ff'; ctx.shadowBlur = 20; ctx.fill(); ctx.shadowBlur = 0; ctx.restore();
-  const mg = ctx.createRadialGradient(mx, my, 10, mx, my, 80);
-  mg.addColorStop(0, 'rgba(200,220,255,0.25)'); mg.addColorStop(1, 'rgba(100,140,255,0)');
-  ctx.fillStyle = mg; ctx.fillRect(0, 0, w, h);
-  const t = ts * 0.001;
-  for (let i = 0; i < 60; i++) {
-    ctx.globalAlpha = Math.max(0, 0.3+Math.sin(t*(0.7+i*0.22)+i*1.3)*0.45);
-    ctx.fillStyle = i%9===0?'#ffd0a0':'#ffffff';
-    ctx.beginPath(); ctx.arc((Math.sin(i*127.1)*0.5+0.5)*w, (Math.sin(i*311.7)*0.5+0.5)*h*0.52, 0.5+(i%5)*0.28, 0, Math.PI*2); ctx.fill();
-  }
-  ctx.globalAlpha = 1;
-}
-
-function _drawDeepSky(ctx: CanvasRenderingContext2D, w: number, h: number, ts: number): void {
-  const grad = ctx.createLinearGradient(0, 0, 0, h);
-  grad.addColorStop(0, '#000810'); grad.addColorStop(0.4, '#001020'); grad.addColorStop(1, '#001830');
-  ctx.fillStyle = grad; ctx.fillRect(0, 0, w, h);
-  const t = ts * 0.0005, gy = h * 0.7;
-  const glow = ctx.createRadialGradient(w*0.5, gy, 0, w*0.5, gy, w*0.6);
-  glow.addColorStop(0, `rgba(0,180,160,${(0.06+Math.sin(t)*0.02).toFixed(3)})`); glow.addColorStop(1, 'rgba(0,80,100,0)');
-  ctx.fillStyle = glow; ctx.fillRect(0, 0, w, h);
-}
-
-function _rgba(hex: string, a: number): string {
-  return `rgba(${parseInt(hex.slice(1,3),16)},${parseInt(hex.slice(3,5),16)},${parseInt(hex.slice(5,7),16)},${a.toFixed(2)})`;
-}

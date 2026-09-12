@@ -122,7 +122,7 @@ npm run test:webgl # builds, then runs 9 deterministic captures + lifecycle test
 
 | Layer | Command | Scope |
 |---|---|---|
-| Unit | `npm test` | 974 tests across 74 files (Vitest 4) |
+| Unit | `npm test` | 989 tests across 75 files (Vitest 4) |
 | Coverage | `npm run test:coverage` | v8 provider + per-module ratchets |
 | Workflows | `npm run lint:workflows` | GitHub Actions YAML: unquoted colons, tab indentation, `run:` expression injection |
 | Browser | `npm run test:webgl` | 9 fixture captures + 2 context-lifecycle tests (Chromium/SwiftShader) against the built bundle |
@@ -464,6 +464,7 @@ examples/
 ├── 03-combat-system/            # HealthComponent, damage events, particles
 ├── 04-hud-debug-inputmap/       # HudLayer, DebugRenderer, InputMap
 ├── 05-whisper-plains/           # Full demo: day/night, multi-scene, animals, portals
+│   └── environment/skies.ts     #   Plains / lake / deep-sea backdrops + shared star field
 │   ├── scenes/                  # PlainsScene, LakeScene, DeepSeaScene
 │   ├── entities/                # CubeHero, Portal, Animals, AquaticLife
 │   └── environment/             # LowPolyTree, DayNightCycle
@@ -1117,7 +1118,7 @@ object is unreachable and both disappear together.
 | EventBus event maps | Event names and payload types are coupled; custom maps supported |
 | Scene.toJSON(): runtime state + built-in prop serialization | Environment, camera, view, light IDs/options, collider, built-ins |
 | Lib build: ESM + CJS dual output + .d.ts (npm run build:lib) | |
-| Unit tests: 974 tests across 74 files (Vitest 4, Node ≥ 22) | |
+| Unit tests: 989 tests across 75 files (Vitest 4, Node ≥ 22) | |
 | Coverage ratchets per module (`npm run test:coverage`) | v8 provider; per-glob floors on math/physics/lighting/ecs/animation/elements/audio/core |
 | Examples: 10 progressive demos + tools gallery | |
 
@@ -1127,7 +1128,6 @@ See [FRAMEWORK_ANALYSIS.md](FRAMEWORK_ANALYSIS.md) for a detailed comparison wit
 
 | Priority | Item | Notes |
 |----------|------|-------|
-| P1 | `example-05` sky draw functions (400+ lines) inline in `main.ts` | Split to `environment/*.ts` |
 | P2 | `webgl-next` HUD is a stacked 2D canvas, not GL geometry | `HudOverlayRenderer` mounts the tested `HudLayer` on a transparent canvas above the GL one (DPR-aware, `pointer-events: none`), and its `paint` hook hosts widgets that draw themselves such as `TouchStick`. Fine for bars/buttons/labels; a HUD that needs to blend with the 3D scene still wants a GL path |
 | P2 | Six of nine WebGL fixtures are not baseline-gated | `day-ne` / `low-angle` / `night-lanterns` compare against committed baselines at 1.5%; extending the set means adding IDs to `PIXEL_GATED_FIXTURES` and regenerating through the `webgl-baselines` workflow |
 | P2 | `src/elements/**` (68% branches 69%) is still the lowest-covered module | `src/__tests__/helpers/canvas.ts` gives the draw paths a recording 2D context, which is how `Cloud` went from 18% to covered. `Boulder` (12%) and `Chest` (18%) are the remaining large draw bodies |

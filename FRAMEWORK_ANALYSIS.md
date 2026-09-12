@@ -1,7 +1,7 @@
 # LuxIso 架构分析报告 v5
 
 > 更新日期：2026-09-12
-> 基线：Canvas 2D 默认 + WebGL2 预览，974 个 Vitest 测试 / 74 个测试文件（含 v8 覆盖率阈值），11 个 Playwright WebGL 测试
+> 基线：Canvas 2D 默认 + WebGL2 预览，989 个 Vitest 测试 / 75 个测试文件（含 v8 覆盖率阈值），11 个 Playwright WebGL 测试
 
 ## 执行摘要
 
@@ -118,7 +118,6 @@ const bus = new EventBus<GameEvents>();
 
 | 优先级 | 问题 | 建议 |
 |---|---|---|
-| P1 | example-05 天空绘制函数仍集中在 main.ts | 拆到 environment 模块 |
 | P2 | `webgl-next` HUD 是叠加的 2D 画布，不是 GL 几何 | 已通过 `HudOverlayRenderer` 把受测的 `HudLayer` 挂在 GL canvas 之上（DPR 感知、`pointer-events: none`、`paint` 钩子承载自绘控件）；条形/按钮/标签够用，需要与 3D 场景混合的 HUD 仍要 GL 通路 |
 | P2 | 自定义类型需要两侧各注册一次 | `SceneSerializer.register()` 写、`Engine.registerProp()` 读，已都到位；只注册一侧仍是静默的半个往返（写侧每类型告警一次），示例把两者绑在同一个函数里避免遗漏 |
 | P2 | 9 个 WebGL fixture 中有 6 个未接入基线比对 | `day-ne` / `low-angle` / `night-lanterns` 已按 1.5% 门槛比对committed 基线；扩展只需往 `PIXEL_GATED_FIXTURES` 加 ID 并重新生成 |
@@ -627,6 +626,29 @@ const bus = new EventBus<GameEvents>();
     **重构不该偷偷改行为。**
   - `FrameClock` 自身 11 个用例、100% 语句/分支覆盖，阈值直接钉在 100 而不是设成棘轮：
     一个 30 行、被十个模块依赖的契约类没有理由留缺口。
+- **清掉挂了很久的唯一一条 P1：example-05 的天空绘制。** 三个 `onDrawBackground` 回调
+  （草原日夜、湖面永夜、深海微光）连同一个本地颜色解析器一起躺在示例的 `main.ts` 里，
+  而那个文件是"页面"：引擎、输入、HUD、场景管理、传送流程都在其中。搬到
+  `environment/skies.ts` 之后，每个函数只接收它真正画得着的东西（上下文、尺寸、时间戳），
+  于是 recording canvas 第一次能测到它们。
+  - **顺手改正了这条 P1 自己的描述**：它写着"400+ 行"，实际是 79 行。文档里的数字也会腐坏，
+    而一条夸大四倍的条目会让人一直不敢动手——这本身就是它挂了这么久的原因之一。
+  - 删掉了本地的 `_rgba()`：它只认 `#rrggbb`，而框架的 `hexToRgba` 早就支持 `rgb()` 与短
+    十六进制（`5f99bcf` 那次就是为此修的）。**第二个颜色解析器就是第二个要修的地方**，
+    这和 `Pathfinder._hasLoS` 逼人手搓 Bresenham 是同一类问题。
+  - 60 颗星的循环在草原与湖面是逐字重复的两份，合成一个 `drawStarField` + 调色板回调，
+    两边的调色差异显式保留。
+  - 15 个用例钉住的是"背景该守的约"而不是画风：铺满画布、`globalAlpha` 用完还原成 1、
+    写出的每个 alpha 都合法、同一时间戳两次绘制完全一致（星位来自 `sin(i*k)` 而非
+    `Math.random()`）、以及水下没有星星。
+  - **有一条断言我写错了，代码是对的**：最初写的是"夜里只有星、白天只有尘"，实测在
+    dusk 两者同时出现。看代码才明白这是刻意的交叉淡入——星从 10% 夜度开始淡入，尘到
+    85% 才停。于是把这条改成钉住交叉淡入，并在注释里写明"never both"是错的断言，
+    以免下一个人照着它去"修"一个不存在的缺陷。
+  - 还有一条是**我自己的工具用错**：用 PowerShell 的 `Set-Content -Encoding UTF8` 批量替换
+    `Array.at`（该项目 lib 目标不含它），结果写进了 BOM，被 `encoding:check` 当场拦下。
+    这道门禁是有效的；教训是文本改写要走编辑工具，不要走 shell 重写整个文件。
+
 
 
 
@@ -659,7 +681,7 @@ const bus = new EventBus<GameEvents>();
 | 类型安全 | 9/10 | ComponentCtor 与 EventMap 覆盖核心扩展面；`tsc` 现已覆盖 examples 与 e2e |
 | 可扩展性 | 9/10 | 加载注册表、自定义事件、WebGL extractor 注册表、序列化注册表均已就绪 |
 | 文档质量 | 8/10 | README 与本报告已同步当前实现 |
-| 测试覆盖 | 8/10 | 974 个单测 + 11 个浏览器测试；已接入 v8 覆盖率与分模块阈值（整体 78.6% 语句 / 75.6% 分支），三个 fixture 已按 1.5% 门槛比对基线；帧时间契约由 `FrameClock` 单点实现 + 一份共享用例表钉住 |
+| 测试覆盖 | 8/10 | 989 个单测 + 11 个浏览器测试；已接入 v8 覆盖率与分模块阈值（整体 78.6% 语句 / 75.6% 分支），三个 fixture 已按 1.5% 门槛比对基线；帧时间契约由 `FrameClock` 单点实现 + 一份共享用例表钉住 |
 | 综合 | 8.3/10 | 架构短板已大幅收敛，下一阶段应由 profiling 驱动 |
 
 测试数量不等于覆盖率。`vitest.config.ts` 现已按模块设定阈值（math/physics/lighting
