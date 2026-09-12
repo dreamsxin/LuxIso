@@ -122,7 +122,7 @@ npm run test:webgl # builds, then runs 9 deterministic captures + lifecycle test
 
 | Layer | Command | Scope |
 |---|---|---|
-| Unit | `npm test` | 1035 tests across 78 files (Vitest 4) |
+| Unit | `npm test` | 1044 tests across 78 files (Vitest 4) |
 | Coverage | `npm run test:coverage` | v8 provider + per-module ratchets |
 | Workflows | `npm run lint:workflows` | GitHub Actions YAML: unquoted colons, tab indentation, `run:` expression injection |
 | Browser | `npm run test:webgl` | 9 fixture captures + 2 context-lifecycle tests (Chromium/SwiftShader) against the built bundle |
@@ -141,10 +141,10 @@ Correctness-critical modules carry their own floors:
 | `src/animation/**` | 88% | 80% |
 | `src/core/**` | 95% | 84% |
 | `src/time/**` | 100% | 100% |
-| `src/elements/**` | 74% | 72% |
+| `src/elements/**` | 94% | 80% |
 | `webgl-next/src/resources/**` | 94% | 84% |
 | `webgl-next/src/device/**` | 100% | 100% |
-| Whole project | 81.8% | 77.6% |
+| Whole project | 84.6% | 78.1% |
 
 Raise a floor when you add tests; never lower one to make a build pass. Test
 count is not coverage — every P0/P1 defect found in the last audit sat in a
@@ -1127,7 +1127,7 @@ object is unreachable and both disappear together.
 | EventBus event maps | Event names and payload types are coupled; custom maps supported |
 | Scene.toJSON(): runtime state + built-in prop serialization | Environment, camera, view, light IDs/options, collider, built-ins |
 | Lib build: ESM + CJS dual output + .d.ts (npm run build:lib) | |
-| Unit tests: 1035 tests across 78 files (Vitest 4, Node ≥ 22) | |
+| Unit tests: 1044 tests across 78 files (Vitest 4, Node ≥ 22) | |
 | Coverage ratchets per module (`npm run test:coverage`) | v8 provider; per-glob floors on math/physics/lighting/ecs/animation/elements/audio/core |
 | Examples: 10 progressive demos + tools gallery | |
 
@@ -1139,8 +1139,9 @@ See [FRAMEWORK_ANALYSIS.md](FRAMEWORK_ANALYSIS.md) for a detailed comparison wit
 |----------|------|-------|
 | P2 | `webgl-next` HUD is a stacked 2D canvas, not GL geometry | `HudOverlayRenderer` mounts the tested `HudLayer` on a transparent canvas above the GL one (DPR-aware, `pointer-events: none`), and its `paint` hook hosts widgets that draw themselves such as `TouchStick`. Fine for bars/buttons/labels; a HUD that needs to blend with the 3D scene still wants a GL path |
 | P2 | Six of nine WebGL fixtures are not baseline-gated | `day-ne` / `low-angle` / `night-lanterns` compare against committed baselines at 1.5%; extending the set means adding IDs to `PIXEL_GATED_FIXTURES` and regenerating through the `webgl-baselines` workflow |
-| P2 | `Chest` is the last large uncovered draw body (14% statements) | `src/__tests__/helpers/canvas.ts` gives the draw paths a recording 2D context, which took `Cloud` and then `Boulder` (11% → 100%) to covered. `Chest`'s 250-line `draw` is what remains |
+| P2 | `src/elements/**` branch coverage (80%) now trails its statement coverage | The draw bodies are covered; what is left is per-branch lighting and edge cases inside `Floor` (62% branches) and `Wall` (73%) |
 | P2 | `Boulder.aabb.maxZ` is `radius * 2` but the rock draws ~`0.55 * radius` tall | Measured and pinned in `src/__tests__/Boulder.test.ts`. `maxZ` feeds `depthSort` and `ShadowCaster`, so the rock occludes and shadows as a column it does not fill. Correcting it changes gated fixture pixels (`mossy-boulder`), so it belongs with a baseline regeneration |
+| P2 | `Chest.aabb.maxZ` ignores the lid swinging up | Measured and pinned in `src/__tests__/Chest.test.ts`: closed it fits the declared 51.2 px, open it does not. Same constraint as the boulder — `garden-chest` is in a gated fixture |
 | P2 | Custom serialization needs one registration per direction | `Engine.registerProp()` / `registerLight()` load, `SceneSerializer.register()` / `registerLight()` save. Registering only one side is a silent half-round-trip (the save side warns once per type) |
 | P2 | `EditorRenderer` rebuilds the whole scene on every state change | Debounce to one rebuild per frame, or mutate objects in place for transform-only edits |
 | P2 | `webgl-next` renderer and extraction layers are the remaining coverage gap | `device/**` and `resources/**` are now unit-tested through `src/__tests__/helpers/gl.ts`; `WebGLRenderer` itself still needs the fake context extended to uniforms, buffers and framebuffer binds |

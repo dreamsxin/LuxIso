@@ -38,10 +38,10 @@ export default defineConfig({
        * reporter, which only counts files sitting directly in the folder.
        */
       thresholds: {
-        statements: 81.8,
-        branches: 77.6,
-        functions: 84.1,
-        lines: 83.5,
+        statements: 84.6,
+        branches: 78.1,
+        functions: 85,
+        lines: 86,
         // Isometric projection, depth sort, colour math — fully unit-testable.
         'src/math/**':     { statements: 90, branches: 88, functions: 92, lines: 92 },
         // Collision and A*: where the tunnelling and corner-cut bugs lived.
@@ -56,7 +56,7 @@ export default defineConfig({
         'src/time/**':     { statements: 100, branches: 100, functions: 100, lines: 100 },
         // Renderable objects: much of the body is canvas drawing code, reachable
         // through the recording context in `src/__tests__/helpers/canvas.ts`.
-        'src/elements/**': { statements: 74, branches: 72, functions: 86, lines: 77 },
+        'src/elements/**': { statements: 94, branches: 80, functions: 94, lines: 95 },
         // GPU resource ownership: the texture cache and the handle registry are
         // pure bookkeeping, so they are unit-testable through a fake GL context
         // (`src/__tests__/helpers/gl.ts`) despite living in the WebGL package.

@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { Chest } from '../elements/props/Chest';
+import { createDrawContext } from './helpers/canvas';
+import { HealthComponent } from '../ecs/components/HealthComponent';
+import { OmniLight } from '../lighting/OmniLight';
+import { project } from '../math/IsoProjection';
 
 /**
  * Chest lid tests.
@@ -150,3 +154,178 @@ describe('Chest — lidLerpFactor', () => {
     expect(chest.lidAngle).toBe(0);
   });
 });
+
+/**
+ * The draw path, which was 14% covered — the last large uncovered draw body.
+ *
+ * `garden-chest` sits in the WebGL fixture and the demo hands chests to players,
+ * so what matters is the geometry contract: the body diamond is centred on the
+ * chest's own tile, the lid hinges at the back, the glow only exists while open,
+ * and nothing paints an illegal colour or alpha at any lid angle.
+ */
+const TILE_W = 64, TILE_H = 32;
+const ORIGIN_X = 200, ORIGIN_Y = 150;
+
+function drawAt(chest: Chest, lights: OmniLight[] = []) {
+  const dc = createDrawContext({
+    omniLights: lights, originX: ORIGIN_X, originY: ORIGIN_Y, tileW: TILE_W, tileH: TILE_H,
+  });
+  chest.draw(dc);
+  return dc.recorder;
+}
+
+/** Screen position of a world point under the test draw context. */
+function screen(wx: number, wy: number): { x: number; y: number } {
+  const p = project(wx, wy, 0, TILE_W, TILE_H);
+  return { x: ORIGIN_X + p.sx, y: ORIGIN_Y + p.sy };
+}
+
+/** Every y the painting touches, across path building and rectangles. */
+function paintedYs(recorder: ReturnType<typeof drawAt>): number[] {
+  const ys: number[] = [];
+  for (const call of recorder.calls) {
+    if (call.fn === 'moveTo' || call.fn === 'lineTo') ys.push(call.args[1]);
+    if (call.fn === 'arc' || call.fn === 'ellipse') ys.push(call.args[1]);
+  }
+  return ys;
+}
+
+/** Open the lid fully without waiting out the lerp. */
+function opened(chest: Chest): Chest {
+  chest.open();
+  for (let i = 0; i < 200; i++) chest.update(i * 16);
+  return chest;
+}
+
+describe('Chest — draw geometry', () => {
+  it('centres the body diamond on its own tile', () => {
+    const chest = new Chest('c', 3, 4);
+    const recorder = drawAt(chest);
+
+    // hs = 0.38, so the ground corners are ±0.38 tiles from the centre. The
+    // painting must stay inside that footprint horizontally.
+    const west = screen(3 - 0.38, 4 + 0.38);
+    const east = screen(3 + 0.38, 4 - 0.38);
+    const xs = recorder.calls
+      .filter((c) => c.fn === 'moveTo' || c.fn === 'lineTo')
+      .map((c) => c.args[0]);
+    expect(Math.min(...xs)).toBeGreaterThanOrEqual(west.x - 1);
+    expect(Math.max(...xs)).toBeLessThanOrEqual(east.x + 1);
+  });
+
+  it('draws two body faces, four metal bands, four rivets and a latch', () => {
+    const recorder = drawAt(new Chest('c', 2, 2));
+    // Two wood faces + 2 bands x 2 faces = 6 quads, plus the lid quad and its
+    // front band. Rivets and the latch are arcs and ellipses.
+    expect(recorder.argsOf('fill').length).toBeGreaterThanOrEqual(8);
+    // Four rivets, each a highlight arc plus a white speck.
+    expect(recorder.argsOf('arc').length).toBeGreaterThanOrEqual(8);
+    expect(recorder.argsOf('ellipse').length).toBe(1);   // the latch plate
+  });
+
+  it('lays the lid flat on the body top while closed', () => {
+    const chest = new Chest('c', 2, 2);
+    const recorder = drawAt(chest);
+    const ground = screen(2 - 0.38, 2 - 0.38);
+    // Body height is tileH * 1.1; a closed lid adds no height of its own, so the
+    // highest painted point is the body top, not something above it.
+    const highest = Math.min(...paintedYs(recorder));
+    expect(highest).toBeGreaterThan(ground.y - TILE_H * 1.1 - 20);
+  });
+});
+
+describe('Chest — draw when open', () => {
+  it('adds the lid underside and the inner glow only once open', () => {
+    const closed = drawAt(new Chest('c', 2, 2));
+    const open = drawAt(opened(new Chest('c', 2, 2)));
+
+    // The glow is a radial gradient; a closed chest creates none.
+    expect(closed.argsOf('createRadialGradient').length).toBe(0);
+    expect(open.argsOf('createRadialGradient').length).toBe(1);
+    // Screen blending is scoped to the glow.
+    expect(closed.valuesOf('globalCompositeOperation')).toEqual([]);
+    expect(open.valuesOf('globalCompositeOperation')).toEqual(['screen']);
+    // And the open chest paints strictly more.
+    expect(open.argsOf('fill').length).toBeGreaterThan(closed.argsOf('fill').length);
+  });
+
+  it('keeps every alpha and colour legal at every lid angle', () => {
+    for (let step = 0; step <= 10; step++) {
+      const chest = new Chest('c', 2, 2);
+      chest.open();
+      for (let i = 0; i < step; i++) chest.update(i * 16);
+      const recorder = drawAt(chest);
+
+      for (const alpha of recorder.valuesOf('globalAlpha').map(Number)) {
+        expect(alpha).toBeGreaterThanOrEqual(0);
+        expect(alpha).toBeLessThanOrEqual(1);
+      }
+      for (const value of recorder.valuesOf('fillStyle')) {
+        if (typeof value === 'string') expect(value).not.toContain('NaN');
+      }
+    }
+  });
+
+  it('brightens with a light and never overflows a channel', () => {
+    const lit = drawAt(new Chest('c', 2, 2, '#ffffff'), Array.from(
+      { length: 8 },
+      (_, i) => new OmniLight({
+        id: `l${i}`, x: 2, y: 2, z: 40, color: '#ffffff', intensity: 1, radius: 400,
+      }),
+    ));
+    for (const value of lit.valuesOf('fillStyle')) {
+      if (typeof value !== 'string') continue;
+      for (const channel of value.match(/\d+/g) ?? []) {
+        expect(Number(channel)).toBeLessThanOrEqual(255);
+      }
+    }
+  });
+
+  /**
+   * A measurement, like `Boulder`'s.
+   *
+   * `aabb.maxZ` is a constant 51.2 px — body plus lid thickness at the standard
+   * `tileH = 32`, which the comment on `aabb` is explicit about. It does not
+   * account for the lid swinging up: a fully open lid lifts its front corners by
+   * roughly the diamond's own screen width, so the silhouette rises well past
+   * the declared height and depth sorting under-states an open chest.
+   *
+   * Pinned rather than changed: `maxZ` feeds `depthSort` and `ShadowCaster`, and
+   * `garden-chest` sits in a pixel-gated fixture.
+   */
+  it('draws above its declared maxZ once the lid is open', () => {
+    const chest = new Chest('c', 3, 4);
+    const closedTop = Math.min(...paintedYs(drawAt(new Chest('c', 3, 4))));
+    const openTop = Math.min(...paintedYs(drawAt(opened(chest))));
+    const centre = screen(3, 4);
+    // `AABB.maxZ` is optional on the type; a chest always declares one.
+    const maxZ = chest.aabb.maxZ ?? 0;
+
+    // Closed, the painting stays within the declared height.
+    expect(closedTop).toBeGreaterThan(centre.y - maxZ);
+    // Open, it does not.
+    expect(openTop).toBeLessThan(centre.y - maxZ);
+    expect(maxZ).toBeCloseTo(51.2, 6);
+  });
+});
+
+describe('Chest — health bar', () => {
+  it('draws nothing extra without a HealthComponent', () => {
+    const recorder = drawAt(new Chest('c', 2, 2));
+    expect(recorder.argsOf('fillRect').length).toBe(0);
+  });
+
+  it('draws a track and a fill above the lid, and drops both when destroyed', () => {
+    const chest = new Chest('c', 2, 2);
+    const health = chest.addComponent(new HealthComponent({ max: 40 }));
+    health.takeDamage(10);   // 75%
+
+    const rects = drawAt(chest).argsOf('fillRect');
+    expect(rects.length).toBe(2);
+    expect(rects[1][2]).toBeCloseTo(34 * 0.75, 6);
+
+    health.takeDamage(30);
+    expect(drawAt(chest).argsOf('fillRect').length).toBe(0);
+  });
+});
+

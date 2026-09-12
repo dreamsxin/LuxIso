@@ -1,7 +1,7 @@
 # LuxIso 架构分析报告 v5
 
 > 更新日期：2026-09-12
-> 基线：Canvas 2D 默认 + WebGL2 预览，1035 个 Vitest 测试 / 78 个测试文件（含 v8 覆盖率阈值），11 个 Playwright WebGL 测试
+> 基线：Canvas 2D 默认 + WebGL2 预览，1044 个 Vitest 测试 / 78 个测试文件（含 v8 覆盖率阈值），11 个 Playwright WebGL 测试
 
 ## 执行摘要
 
@@ -121,7 +121,8 @@ const bus = new EventBus<GameEvents>();
 | P2 | `webgl-next` HUD 是叠加的 2D 画布，不是 GL 几何 | 已通过 `HudOverlayRenderer` 把受测的 `HudLayer` 挂在 GL canvas 之上（DPR 感知、`pointer-events: none`、`paint` 钩子承载自绘控件）；条形/按钮/标签够用，需要与 3D 场景混合的 HUD 仍要 GL 通路 |
 | P2 | 自定义类型需要两侧各注册一次 | `SceneSerializer.register()` 写、`Engine.registerProp()` 读，已都到位；只注册一侧仍是静默的半个往返（写侧每类型告警一次），示例把两者绑在同一个函数里避免遗漏 |
 | P2 | 9 个 WebGL fixture 中有 6 个未接入基线比对 | `day-ne` / `low-angle` / `night-lanterns` 已按 1.5% 门槛比对committed 基线；扩展只需往 `PIXEL_GATED_FIXTURES` 加 ID 并重新生成 |
-| P2 | `Chest` 是最后一块大面积未覆盖的绘制体（语句 14%） | `src/__tests__/helpers/canvas.ts` 的 recording 上下文先后带覆盖了 `Cloud` 与 `Boulder`（11% → 100%）；剩下的是 `Chest` 那 250 行 `draw` |
+| P2 | `src/elements/**` 的分支覆盖（80%）已落后于语句覆盖 | 绘制主体都覆盖了，剩下的是 `Floor`（分支 62%）与 `Wall`（73%）里逐分支的光照与边界情况 |
+| P2 | `Chest.aabb.maxZ` 没算上掀起的箱盖 | 已在 `src/__tests__/Chest.test.ts` 实测并钉住：关着时符合声明的 51.2px，开着时超出。约束与石头相同——`garden-chest` 也在被门禁的 fixture 里 |
 | P2 | `Boulder.aabb.maxZ` 是 `radius * 2`，实际只画到约 `0.55 * radius` 高 | 已在 `src/__tests__/Boulder.test.ts` 里实测并钉住。`maxZ` 同时喂给 `depthSort` 与 `ShadowCaster`，于是石头按一根它并未填满的柱子去遮挡和投影。修正会改动被门禁的 fixture 像素（`mossy-boulder`），必须与基线重生成一起做 |
 | P2 | System 每次调度扫描所有 Entity × System | 达到千级实体后引入 query/archetype 缓存 |
 | P2 | 稠密深度桶仍可能 O(n²) | 基准验证后考虑 sweep-and-prune 或分层 chunk |
@@ -725,6 +726,22 @@ const bus = new EventBus<GameEvents>();
     交叉淡出后只拆退场节点而保留在播的 fade-in、`stopBgm(0)` 不创建任何 fade 节点、
     并发请求只留一个 source 且仍可停、dispose 后解析的 decode 不起 source。
   - `src/audio/**` 从 78/71/77/80 提到 94/84/86/94，整体 81.3/77.2 → 81.8/77.7。
+- **最后一块大面积未覆盖的绘制体 `Chest` 补完（语句 14% → 100%）。**
+  它的 14 个原有用例只测了箱盖状态与帧率无关性，那 250 行 `draw` 一行没跑到。
+  `garden-chest` 也在 WebGL fixture 里，和 `Boulder` 一样承重。
+  - 钉住的是几何契约：箱体菱形以自己那格为中心（`hs = 0.38`）、盖子铰在后沿、
+    关着的盖子平铺在箱顶不额外增高、内部光晕只在 `_lidAngle > 0.04` 时存在且
+    `screen` 混合模式被 save/restore 圈住、任意开合角度下 alpha 合法且颜色不出 NaN、
+    多光源叠加后通道不越 255、血条按 fraction 分段且无 `HealthComponent` 时不画。
+  - **又量出一处同类缺陷**：`aabb.maxZ` 是常量 51.2px（`tileH=32` 下的箱体+盖厚，
+    `aabb` 的注释对这个近似很坦诚），但**没算盖子掀起后的高度**——盖子全开时前沿两角
+    抬起约等于菱形自身的屏幕宽度，轮廓远超声明高度，于是**开着的箱子在深度排序里被低估**。
+    与 Boulder 那条一样只做测量、不改：`maxZ` 喂给 `depthSort` 与 `ShadowCaster`，
+    而 `garden-chest` 在被门禁的 fixture 里。测试同时钉住"关着时符合、开着时超出"两侧。
+  - `src/elements/**` 阈值从 74/72/86/77 提到 94/80/94/95，整体 81.8/77.7 → 84.6/78.2。
+    **绘制体覆盖这条线至此走完**：`Cloud`、`Boulder`、`Chest` 三块都从两位数补到近满，
+    剩下的分支缺口在 `Floor`（62%）与 `Wall`（73%）的光照分支里，性质不同。
+
 
 
 
@@ -762,7 +779,7 @@ const bus = new EventBus<GameEvents>();
 | 类型安全 | 9/10 | ComponentCtor 与 EventMap 覆盖核心扩展面；`tsc` 现已覆盖 examples 与 e2e |
 | 可扩展性 | 9/10 | 加载注册表、自定义事件、WebGL extractor 注册表、序列化注册表均已就绪 |
 | 文档质量 | 8/10 | README 与本报告已同步当前实现 |
-| 测试覆盖 | 8/10 | 1035 个单测 + 11 个浏览器测试；已接入 v8 覆盖率与分模块阈值（整体 81.8% 语句 / 77.7% 分支），三个 fixture 已按 1.5% 门槛比对基线；帧时间契约由 `FrameClock` 单点实现 + 一份共享用例表钉住 |
+| 测试覆盖 | 8/10 | 1044 个单测 + 11 个浏览器测试；已接入 v8 覆盖率与分模块阈值（整体 84.6% 语句 / 78.2% 分支），三个 fixture 已按 1.5% 门槛比对基线；帧时间契约由 `FrameClock` 单点实现 + 一份共享用例表钉住 |
 | 综合 | 8.3/10 | 架构短板已大幅收敛，下一阶段应由 profiling 驱动 |
 
 测试数量不等于覆盖率。`vitest.config.ts` 现已按模块设定阈值（math/physics/lighting
