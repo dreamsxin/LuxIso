@@ -1,7 +1,7 @@
 # LuxIso 架构分析报告 v5
 
 > 更新日期：2026-09-12
-> 基线：Canvas 2D 默认 + WebGL2 预览，1014 个 Vitest 测试 / 77 个测试文件（含 v8 覆盖率阈值），11 个 Playwright WebGL 测试
+> 基线：Canvas 2D 默认 + WebGL2 预览，1024 个 Vitest 测试 / 78 个测试文件（含 v8 覆盖率阈值），11 个 Playwright WebGL 测试
 
 ## 执行摘要
 
@@ -121,7 +121,8 @@ const bus = new EventBus<GameEvents>();
 | P2 | `webgl-next` HUD 是叠加的 2D 画布，不是 GL 几何 | 已通过 `HudOverlayRenderer` 把受测的 `HudLayer` 挂在 GL canvas 之上（DPR 感知、`pointer-events: none`、`paint` 钩子承载自绘控件）；条形/按钮/标签够用，需要与 3D 场景混合的 HUD 仍要 GL 通路 |
 | P2 | 自定义类型需要两侧各注册一次 | `SceneSerializer.register()` 写、`Engine.registerProp()` 读，已都到位；只注册一侧仍是静默的半个往返（写侧每类型告警一次），示例把两者绑在同一个函数里避免遗漏 |
 | P2 | 9 个 WebGL fixture 中有 6 个未接入基线比对 | `day-ne` / `low-angle` / `night-lanterns` 已按 1.5% 门槛比对committed 基线；扩展只需往 `PIXEL_GATED_FIXTURES` 加 ID 并重新生成 |
-| P2 | `src/elements/**` 57% / 分支 53% 是当前最低的一块 | 主体是 canvas 绘制代码，未覆盖分支集中在绘制路径；再往上需要给 `Engine` / `Scene` 搭 canvas 测试夹具 |
+| P2 | `Chest` 是最后一块大面积未覆盖的绘制体（语句 14%） | `src/__tests__/helpers/canvas.ts` 的 recording 上下文先后带覆盖了 `Cloud` 与 `Boulder`（11% → 100%）；剩下的是 `Chest` 那 250 行 `draw` |
+| P2 | `Boulder.aabb.maxZ` 是 `radius * 2`，实际只画到约 `0.55 * radius` 高 | 已在 `src/__tests__/Boulder.test.ts` 里实测并钉住。`maxZ` 同时喂给 `depthSort` 与 `ShadowCaster`，于是石头按一根它并未填满的柱子去遮挡和投影。修正会改动被门禁的 fixture 像素（`mossy-boulder`），必须与基线重生成一起做 |
 | P2 | System 每次调度扫描所有 Entity × System | 达到千级实体后引入 query/archetype 缓存 |
 | P2 | 稠密深度桶仍可能 O(n²) | 基准验证后考虑 sweep-and-prune 或分层 chunk |
 | P2 | WebGL context-loss 尚未覆盖完整浏览器矩阵 | Chromium/SwiftShader 自动化已完成；Phase 5 扩展到 Firefox、Safari 和真实 GPU |
@@ -684,6 +685,22 @@ const bus = new EventBus<GameEvents>();
     整体从 79.7/76.3 抬到 80.1/76.9。
   - 同时把散在 `TextureRegistry.test.ts` 里的 `releaseTexture` 用例挪进
     `GLResourceRegistry.test.ts`，测试文件与被测模块一一对应。
+- **覆盖率地图上最后一块 11% 的 `Boulder` 补完，顺手量出一处不能马上改的缺陷。**
+  `Boulder.ts` 语句 11%、行 12%，是全仓最低，而它现在同时是 ARPG 竞技场的柱子和
+  WebGL fixture 里的 `mossy-boulder`——两处承重。10 个用例后到 100% 语句/分支。
+  - 钉住的是绘制契约：三个面 + 两道裂纹、位置对齐投影原点、多光源叠加后通道不越 255
+    （`illum` 钳到 1）、血条按 fraction 分段变色、没有 `HealthComponent` 的石头**不画血条**
+    （它是布景不是靶子）、死后血条消失但石头照画。
+  - **量出来的缺陷**：`aabb.maxZ` 是 `radius * 2`，注释还写着"完整竖直范围约 2*radius"，
+    而实测轮廓只到锚点上方约 `0.55 * radius`——每个顶点都乘了 0.55 的等距压扁系数。
+    声明高度约是实际的 3.6 倍，于是石头按一根它并未填满的柱子去遮挡、去投影阴影。
+  - **没有当场修**：`maxZ` 同时喂给 `depthSort` 与 `ShadowCaster`，而 `mossy-boulder`
+    就在被 1.5% 门槛门禁的 fixture 里，改它必然动像素，而我这里没有 GPU 无法本地验证。
+    所以写成一条**测量断言**（实测范围 + `maxZ > drawnAbove * 3`）并在注释里写明
+    "这两个数要一起改，且要重生成基线，不能只改一个"。
+    **把猜测变成钉住的事实，比留一句 TODO 有用。**
+  - `src/elements/**` 阈值从 68/69/84/71 提到 74/72/86/77，整体从 80.1/76.8 到 81.3/77.2。
+
 
 
 
@@ -719,7 +736,7 @@ const bus = new EventBus<GameEvents>();
 | 类型安全 | 9/10 | ComponentCtor 与 EventMap 覆盖核心扩展面；`tsc` 现已覆盖 examples 与 e2e |
 | 可扩展性 | 9/10 | 加载注册表、自定义事件、WebGL extractor 注册表、序列化注册表均已就绪 |
 | 文档质量 | 8/10 | README 与本报告已同步当前实现 |
-| 测试覆盖 | 8/10 | 1014 个单测 + 11 个浏览器测试；已接入 v8 覆盖率与分模块阈值（整体 80.1% 语句 / 76.9% 分支），三个 fixture 已按 1.5% 门槛比对基线；帧时间契约由 `FrameClock` 单点实现 + 一份共享用例表钉住 |
+| 测试覆盖 | 8/10 | 1024 个单测 + 11 个浏览器测试；已接入 v8 覆盖率与分模块阈值（整体 81.3% 语句 / 77.2% 分支），三个 fixture 已按 1.5% 门槛比对基线；帧时间契约由 `FrameClock` 单点实现 + 一份共享用例表钉住 |
 | 综合 | 8.3/10 | 架构短板已大幅收敛，下一阶段应由 profiling 驱动 |
 
 测试数量不等于覆盖率。`vitest.config.ts` 现已按模块设定阈值（math/physics/lighting
