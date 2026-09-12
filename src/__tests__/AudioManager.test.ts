@@ -403,6 +403,206 @@ describe('AudioManager — page lifecycle binding', () => {
   });
 });
 
+/**
+ * A fetch stub whose responses are resolved by hand, so a test can interleave
+ * two in-flight `playBgm` calls the way rapid scene switches do.
+ */
+function deferredFetch() {
+  const waiting = new Map<string, () => void>();
+  fetchImpl = (url: string) => new Promise((resolve) => {
+    waiting.set(url, () => resolve(okResponse()));
+  });
+  return {
+    /** Let `url`'s fetch resolve, then drain the decode microtasks. */
+    async settle(url: string): Promise<void> {
+      waiting.get(url)?.();
+      waiting.delete(url);
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    },
+  };
+}
+
+describe('AudioManager — playBgm', () => {
+  it('starts a looping source on the bgm bus, with no fade-in for the first track', async () => {
+    const audio = new AudioManager();
+    audio.resume();
+    await audio.playBgm('/bgm/plains.ogg');
+
+    const ctx = latest();
+    expect(ctx.sources.length).toBe(1);
+    expect(ctx.sources[0].loop).toBe(true);
+    expect(ctx.sources[0].started).toBe(true);
+    // Straight onto the bus: fading the first track in from silence would just
+    // delay the music with nothing to cross from.
+    expect(ctx.sources[0].outputs.length).toBe(1);
+    audio.dispose();
+  });
+
+  it('ignores a repeat request for the track already playing', async () => {
+    const audio = new AudioManager();
+    audio.resume();
+    await audio.playBgm('/bgm/plains.ogg');
+    await audio.playBgm('/bgm/plains.ogg');
+    expect(latest().sources.length).toBe(1);
+    audio.dispose();
+  });
+
+  it('does nothing before a context exists', async () => {
+    const audio = new AudioManager();
+    await audio.playBgm('/bgm/plains.ogg');
+    expect(contexts.length).toBe(0);
+  });
+});
+
+describe('AudioManager — bgm crossfade teardown', () => {
+  beforeEach(() => { vi.useFakeTimers(); });
+  afterEach(() => { vi.useRealTimers(); });
+
+  it('unwires the outgoing track and its fade nodes once the fade ends', async () => {
+    const audio = new AudioManager();
+    audio.resume();
+    await audio.playBgm('/bgm/a.ogg', 1);
+    await audio.playBgm('/bgm/b.ogg', 1);
+
+    const ctx = latest();
+    const [first, second] = ctx.sources;
+    expect(ctx.sources.length).toBe(2);
+    expect(second.started).toBe(true);
+    // Outgoing source is still audible during the fade.
+    expect(first.stopped).toBe(false);
+
+    vi.advanceTimersByTime(1200);
+    expect(first.stopped).toBe(true);
+    // The leak this fixes: the fade gains used to stay wired to the bus for the
+    // lifetime of the context, two per track change, with a looping source that
+    // never fires `onended` to hang cleanup on.
+    expect(first.disconnectCount).toBeGreaterThan(0);
+    // gains[0..2] are master/sfx/bgm; [3] is a's fade-out, [4] is b's fade-in.
+    const [fadeOutA, fadeInB] = ctx.gains.slice(3);
+    expect(fadeOutA.disconnectCount).toBeGreaterThan(0);
+    // b is still playing, so its fade-in stays wired. Only retired nodes go.
+    expect(fadeInB.disconnectCount).toBe(0);
+    expect(second.stopped).toBe(false);
+    audio.dispose();
+  });
+
+  it('retires the previous track fade-in as well as the fade-out', async () => {
+    const audio = new AudioManager();
+    audio.resume();
+    await audio.playBgm('/bgm/a.ogg', 1);
+    await audio.playBgm('/bgm/b.ogg', 1);   // b gets a fade-in gain
+    await audio.playBgm('/bgm/c.ogg', 1);   // b retires: fade-in must go too
+    vi.advanceTimersByTime(1200);
+
+    const ctx = latest();
+    const [fadeOutA, fadeInB, fadeOutB, fadeInC] = ctx.gains.slice(3);
+    expect(fadeOutA.disconnectCount).toBeGreaterThan(0);
+    // The one that used to be stranded: b's fade-in outlived b itself, still
+    // connected to the bus with nothing feeding it.
+    expect(fadeInB.disconnectCount).toBeGreaterThan(0);
+    expect(fadeOutB.disconnectCount).toBeGreaterThan(0);
+    expect(fadeInC.disconnectCount).toBe(0);   // c is playing
+    audio.dispose();
+  });
+
+  it('stops and unwires immediately when asked not to fade', async () => {
+    const audio = new AudioManager();
+    audio.resume();
+    await audio.playBgm('/bgm/a.ogg', 0);
+    audio.stopBgm(0);
+
+    const ctx = latest();
+    expect(ctx.sources[0].stopped).toBe(true);
+    expect(ctx.sources[0].disconnectCount).toBeGreaterThan(0);
+    // No fade gain is created at all on this path.
+    expect(ctx.gains.length).toBe(3);
+    audio.dispose();
+  });
+
+  it('fades out on stopBgm, then stops and unwires', async () => {
+    const audio = new AudioManager();
+    audio.resume();
+    await audio.playBgm('/bgm/a.ogg', 1);
+    audio.stopBgm(0.5);
+
+    const ctx = latest();
+    expect(ctx.sources[0].stopped).toBe(false);
+    vi.advanceTimersByTime(700);
+    expect(ctx.sources[0].stopped).toBe(true);
+    for (const gain of ctx.gains.slice(3)) {
+      expect(gain.disconnectCount).toBeGreaterThan(0);
+    }
+    audio.dispose();
+  });
+
+  it('stopBgm is a no-op with nothing playing', async () => {
+    const audio = new AudioManager();
+    audio.resume();
+    audio.stopBgm();
+    expect(latest().gains.length).toBe(3);
+    audio.dispose();
+  });
+});
+
+describe('AudioManager — concurrent playBgm', () => {
+  it('lets the newest request win, leaving no orphan source playing', async () => {
+    const audio = new AudioManager();
+    audio.resume();
+    const fetches = deferredFetch();
+
+    // Two scene switches in the same frame, each starting its own track.
+    const first = audio.playBgm('/bgm/a.ogg', 0);
+    const second = audio.playBgm('/bgm/b.ogg', 0);
+
+    // The older decode finishes last — the order that used to break this.
+    await fetches.settle('/bgm/b.ogg');
+    await fetches.settle('/bgm/a.ogg');
+    await Promise.all([first, second]);
+
+    const ctx = latest();
+    // Exactly one source: the loser must not start. It would keep looping with
+    // nothing referencing it, so neither stopBgm() nor dispose() could stop it.
+    expect(ctx.sources.length).toBe(1);
+    expect(ctx.sources[0].started).toBe(true);
+
+    // And the survivor is still stoppable.
+    audio.stopBgm(0);
+    expect(ctx.sources[0].stopped).toBe(true);
+    audio.dispose();
+  });
+
+  it('abandons a decode that resolves after dispose', async () => {
+    const audio = new AudioManager();
+    audio.resume();
+    const fetches = deferredFetch();
+    const pending = audio.playBgm('/bgm/a.ogg', 0);
+
+    audio.dispose();
+    await fetches.settle('/bgm/a.ogg');
+    await pending;
+
+    // The context is gone; starting a source on it would throw or leak.
+    expect(contexts[0].sources.length).toBe(0);
+    expect(contexts[0].closed).toBe(true);
+  });
+});
+
+describe('AudioManager.spatialVolume — defaults', () => {
+  it('uses the refDistance and maxDistance the interface documents', () => {
+    // 1 and 10, matching `playSfx({ spatial })`. They were 2 and 12 here, so the
+    // same options object produced two different falloff curves depending on
+    // which path played the sound.
+    expect(AudioManager.spatialVolume({ x: 1, y: 0, listenerX: 0, listenerY: 0 })).toBe(1);
+    expect(AudioManager.spatialVolume({ x: 10, y: 0, listenerX: 0, listenerY: 0 })).toBe(0);
+
+    const half = AudioManager.spatialVolume({ x: 5.5, y: 0, listenerX: 0, listenerY: 0 });
+    expect(half).toBeCloseTo(0.5, 6);
+  });
+});
+
+
 
 
 

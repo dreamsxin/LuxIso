@@ -122,7 +122,7 @@ npm run test:webgl # builds, then runs 9 deterministic captures + lifecycle test
 
 | Layer | Command | Scope |
 |---|---|---|
-| Unit | `npm test` | 1024 tests across 78 files (Vitest 4) |
+| Unit | `npm test` | 1035 tests across 78 files (Vitest 4) |
 | Coverage | `npm run test:coverage` | v8 provider + per-module ratchets |
 | Workflows | `npm run lint:workflows` | GitHub Actions YAML: unquoted colons, tab indentation, `run:` expression injection |
 | Browser | `npm run test:webgl` | 9 fixture captures + 2 context-lifecycle tests (Chromium/SwiftShader) against the built bundle |
@@ -137,14 +137,14 @@ Correctness-critical modules carry their own floors:
 | `src/physics/**` | 90% | 85% |
 | `src/lighting/**` | 90% | 84% |
 | `src/ecs/**` | 92% | 88% |
-| `src/audio/**` | 78% | 71% |
+| `src/audio/**` | 94% | 84% |
 | `src/animation/**` | 88% | 80% |
 | `src/core/**` | 95% | 84% |
 | `src/time/**` | 100% | 100% |
 | `src/elements/**` | 74% | 72% |
 | `webgl-next/src/resources/**` | 94% | 84% |
 | `webgl-next/src/device/**` | 100% | 100% |
-| Whole project | 81.2% | 77.1% |
+| Whole project | 81.8% | 77.6% |
 
 Raise a floor when you add tests; never lower one to make a build pass. Test
 count is not coverage — every P0/P1 defect found in the last audit sat in a
@@ -939,7 +939,12 @@ audio.sfxVolume = 1
 audio.bgmVolume = 0.6
 audio.playSfx(url, { volume?, rate?, loop?, spatial? }): AudioBufferSourceNode | null
 audio.playBgm(url, fadeDuration?): Promise<void>
+// Crossfades from the current track. Concurrent calls are safe: the newest
+// request wins and the loser never starts, so two scene switches in one frame
+// cannot leave a second track playing with nothing able to stop it.
 audio.stopBgm(fadeDuration?)
+// Both retire the outgoing chain — source and fade gains are disconnected once
+// the fade ends, since a looping source never fires `onended` on its own.
 audio.preload(url): Promise<void>
 audio.preloadAll(urls): Promise<void>
 audio.suspend(): void
@@ -948,6 +953,8 @@ audio.dispose(): void   // stop BGM, close the AudioContext, drop the buffer cac
 AudioManager.spatialVolume({ x, y, listenerX, listenerY, refDistance?, maxDistance? }): number
 // Legacy manual falloff helper. `playSfx(url, { spatial })` uses a real
 // Web Audio PannerNode with HRTF instead and should be preferred.
+// refDistance defaults to 1 and maxDistance to 10 — the same values the panner
+// path uses, so both give the same curve for the same options object.
 ```
 
 Call `dispose()` when tearing down a game instance: browsers cap the number of
@@ -1120,7 +1127,7 @@ object is unreachable and both disappear together.
 | EventBus event maps | Event names and payload types are coupled; custom maps supported |
 | Scene.toJSON(): runtime state + built-in prop serialization | Environment, camera, view, light IDs/options, collider, built-ins |
 | Lib build: ESM + CJS dual output + .d.ts (npm run build:lib) | |
-| Unit tests: 1024 tests across 78 files (Vitest 4, Node ≥ 22) | |
+| Unit tests: 1035 tests across 78 files (Vitest 4, Node ≥ 22) | |
 | Coverage ratchets per module (`npm run test:coverage`) | v8 provider; per-glob floors on math/physics/lighting/ecs/animation/elements/audio/core |
 | Examples: 10 progressive demos + tools gallery | |
 
@@ -1138,7 +1145,7 @@ See [FRAMEWORK_ANALYSIS.md](FRAMEWORK_ANALYSIS.md) for a detailed comparison wit
 | P2 | `EditorRenderer` rebuilds the whole scene on every state change | Debounce to one rebuild per frame, or mutate objects in place for transform-only edits |
 | P2 | `webgl-next` renderer and extraction layers are the remaining coverage gap | `device/**` and `resources/**` are now unit-tested through `src/__tests__/helpers/gl.ts`; `WebGLRenderer` itself still needs the fake context extended to uniforms, buffers and framebuffer binds |
 | P3 | System queries scan all Entity instances | Add archetype/query cache if profiling shows a bottleneck |
-| P3 | Spatial audio `spatialVolume()` helper is a manual falloff calc | `playSfx({ spatial })` already uses a `PannerNode` + HRTF; the static helper is the legacy path |
+| P3 | Spatial audio `spatialVolume()` helper is a manual falloff calc | `playSfx({ spatial })` already uses a `PannerNode` + HRTF; the static helper is the legacy path. Its defaults now match the panner's (1 / 10) — they were 2 / 12, so the same options object gave two different curves |
 | P3 | Editor: snap/grid toggle for fine-grained object placement | Sub-tile precision mode |
 | P3 | Sprite editor: multi-sheet support, frame-range trimming | Advanced animation authoring |
 

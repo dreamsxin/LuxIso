@@ -1,7 +1,7 @@
 # LuxIso 架构分析报告 v5
 
 > 更新日期：2026-09-12
-> 基线：Canvas 2D 默认 + WebGL2 预览，1024 个 Vitest 测试 / 78 个测试文件（含 v8 覆盖率阈值），11 个 Playwright WebGL 测试
+> 基线：Canvas 2D 默认 + WebGL2 预览，1035 个 Vitest 测试 / 78 个测试文件（含 v8 覆盖率阈值），11 个 Playwright WebGL 测试
 
 ## 执行摘要
 
@@ -129,7 +129,7 @@ const bus = new EventBus<GameEvents>();
 | P2 | `EditorRenderer` 每次状态变更全量重建场景 | 按帧防抖，或对纯变换编辑原地改对象 |
 | P2 | `webgl-next` renderer / extraction 层仍是覆盖率缺口 | `device/**` 与 `resources/**` 已通过 `src/__tests__/helpers/gl.ts` 单测覆盖；`WebGLRenderer` 本身需要把 fake 上下文扩展到 uniform、buffer 与 framebuffer 绑定 |
 | P2 | 十二处模块各自手写同一段 `dt` 推导 | 已抽成 `src/time/FrameClock`，十处消费者全部迁移；`DebugRenderer` 是有意的例外（FPS 表需要未钳制的毫秒差） |
-| P3 | `AudioManager.spatialVolume()` 仍是手算距离衰减 | `playSfx({ spatial })` 已走 `PannerNode` + HRTF，该静态方法是遗留路径 |
+| P3 | `AudioManager.spatialVolume()` 仍是手算距离衰减 | `playSfx({ spatial })` 已走 `PannerNode` + HRTF，该静态方法是遗留路径。其默认值已与 panner 对齐（1 / 10）——此前是 2 / 12，同一个 options 对象经两条路径得到两条不同曲线 |
 | P3 | 地图未分块 | 大地图引入 tile chunks 与脏区重绘 |
 
 ## v5.1 修复（审计驱动）
@@ -700,6 +700,32 @@ const bus = new EventBus<GameEvents>();
     "这两个数要一起改，且要重生成基线，不能只改一个"。
     **把猜测变成钉住的事实，比留一句 TODO 有用。**
   - `src/elements/**` 阈值从 68/69/84/71 提到 74/72/86/77，整体从 80.1/76.8 到 81.3/77.2。
+- **音效模块：BGM 路径是整个 audio 的盲区，里面藏着一个会同时放两首曲子的竞态。**
+  `AudioManager` 已有 22 个用例，但全部落在加载重试、`playSfx`、`dispose`、音量总线和
+  页面生命周期上——`playBgm` / `stopBgm` **一行都没覆盖**（正是 lcov 报的 231-235、244-255）。
+  - **竞态（最严重的一处）**：`playBgm` 中间 `await _loadBuffer(url)`。两次调用同时在飞时，
+    两者都会越过 await、都会 `createBufferSource().start()`、都会往 `_bgmSource` 赋值。
+    **后赋值的那个赢，前一个的音轨继续循环播放，而没有任何引用指向它**——`stopBgm()`
+    停不掉，`dispose()` 也停不掉。结果是两首曲子永远叠在一起。
+    快速切场景（每个场景 `playBgm` 一次）就能触发。
+    修法是请求代号：入口 `const request = ++this._bgmRequest`，await 之后
+    `if (request !== this._bgmRequest) return`。`dispose()` 也自增一次，让 teardown
+    之后才解析的 decode 不去碰已关闭的 context。
+    **实测对照**：把这行守卫短路掉，用例立刻报 `expected 2 to be 1`——两个 source 都起了。
+  - **节点泄漏**：淡入淡出用的 GainNode 从来不 disconnect。`_playBuffer` 早就给 SFX 做了
+    （`onended` 里拆整条链），但 BGM 没有——**而循环 source 永远不会自己触发 `onended`**，
+    所以没有可挂载清理的时机。每次换曲留下两个常驻节点：退场的 fade-out，以及**上一首的
+    fade-in**（source 被改接到新 fadeGain 后，那个 fade-in 就悬在总线上没人喂）。
+    现在统一走 `_retireBgm(src, fadeIn, seconds)`：淡出结束后停 source 并拆掉三者。
+  - **文档与实现分叉**：`spatialVolume()` 的默认值是 ref 2 / max 12，而同一个
+    `SpatialOptions` 接口注释写着「Default: 1」「Default: 10」，`playSfx({ spatial })`
+    的 panner 用的也正是 1 / 10。**同一个 options 对象走两条路径得到两条不同的衰减曲线。**
+    已把 helper 对齐到 1 / 10。
+  - 11 个新用例覆盖 BGM 全路径：首曲不淡入（没有可交叉的对象）、同曲重复请求被忽略、
+    交叉淡出后只拆退场节点而保留在播的 fade-in、`stopBgm(0)` 不创建任何 fade 节点、
+    并发请求只留一个 source 且仍可停、dispose 后解析的 decode 不起 source。
+  - `src/audio/**` 从 78/71/77/80 提到 94/84/86/94，整体 81.3/77.2 → 81.8/77.7。
+
 
 
 
@@ -736,7 +762,7 @@ const bus = new EventBus<GameEvents>();
 | 类型安全 | 9/10 | ComponentCtor 与 EventMap 覆盖核心扩展面；`tsc` 现已覆盖 examples 与 e2e |
 | 可扩展性 | 9/10 | 加载注册表、自定义事件、WebGL extractor 注册表、序列化注册表均已就绪 |
 | 文档质量 | 8/10 | README 与本报告已同步当前实现 |
-| 测试覆盖 | 8/10 | 1024 个单测 + 11 个浏览器测试；已接入 v8 覆盖率与分模块阈值（整体 81.3% 语句 / 77.2% 分支），三个 fixture 已按 1.5% 门槛比对基线；帧时间契约由 `FrameClock` 单点实现 + 一份共享用例表钉住 |
+| 测试覆盖 | 8/10 | 1035 个单测 + 11 个浏览器测试；已接入 v8 覆盖率与分模块阈值（整体 81.8% 语句 / 77.7% 分支），三个 fixture 已按 1.5% 门槛比对基线；帧时间契约由 `FrameClock` 单点实现 + 一份共享用例表钉住 |
 | 综合 | 8.3/10 | 架构短板已大幅收敛，下一阶段应由 profiling 驱动 |
 
 测试数量不等于覆盖率。`vitest.config.ts` 现已按模块设定阈值（math/physics/lighting

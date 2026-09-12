@@ -50,6 +50,17 @@ export class AudioManager {
 
   private _bgmSource: AudioBufferSourceNode | null = null;
   private _bgmUrl = '';
+  /** Fade-in node of the current track, if it faded in. Needs retiring with it. */
+  private _bgmFadeIn: GainNode | null = null;
+  /**
+   * Monotonic id of the newest `playBgm` request.
+   *
+   * `playBgm` awaits a decode, so two calls can be in flight at once. Without
+   * this, both would start a source and both would assign `_bgmSource`: the
+   * loser's track keeps playing with nothing holding a reference, so neither
+   * `stopBgm()` nor `dispose()` can ever stop it. Two tracks, forever.
+   */
+  private _bgmRequest = 0;
 
   private _masterVol = 1;
   private _sfxVol    = 1;
@@ -212,23 +223,23 @@ export class AudioManager {
   async playBgm(url: string, fadeDuration = 1.0): Promise<void> {
     if (!this._ctx) return;
     if (url === this._bgmUrl && this._bgmSource) return;
+    const request = ++this._bgmRequest;
     const buffer = await this._loadBuffer(url);
     const ctx = this._ctx;
     if (!ctx) return;
-    if (this._bgmSource) {
-      const old = this._bgmSource;
-      const fadeGain = ctx.createGain();
-      fadeGain.gain.setValueAtTime(1, ctx.currentTime);
-      fadeGain.gain.linearRampToValueAtTime(0, ctx.currentTime + fadeDuration);
-      old.disconnect();
-      old.connect(fadeGain);
-      fadeGain.connect(this._bgmGain);
-      setTimeout(() => { try { old.stop(); } catch {} }, fadeDuration * 1000 + 100);
-    }
+    // A newer request started while this one was decoding, so that one owns the
+    // BGM slot. Starting this source anyway would leave it audible and
+    // unreachable — see `_bgmRequest`.
+    if (request !== this._bgmRequest) return;
+
+    const previous = this._bgmSource;
+    if (previous) this._retireBgm(previous, this._bgmFadeIn, fadeDuration);
+
     const src = ctx.createBufferSource();
     src.buffer = buffer; src.loop = true;
-    if (fadeDuration > 0 && this._bgmSource) {
-      const fadeIn = ctx.createGain();
+    let fadeIn: GainNode | null = null;
+    if (fadeDuration > 0 && previous) {
+      fadeIn = ctx.createGain();
       fadeIn.gain.setValueAtTime(0, ctx.currentTime);
       fadeIn.gain.linearRampToValueAtTime(1, ctx.currentTime + fadeDuration);
       src.connect(fadeIn);
@@ -237,32 +248,73 @@ export class AudioManager {
       src.connect(this._bgmGain);
     }
     src.start();
-    this._bgmSource = src; this._bgmUrl = url;
+    this._bgmSource = src; this._bgmUrl = url; this._bgmFadeIn = fadeIn;
   }
 
   stopBgm(fadeDuration = 0.5): void {
-    const ctx = this._ctx;
-    if (!ctx || !this._bgmSource) return;
-    const src = this._bgmSource; this._bgmSource = null; this._bgmUrl = '';
-    if (fadeDuration > 0) {
-      const fadeGain = ctx.createGain();
-      fadeGain.gain.setValueAtTime(1, ctx.currentTime);
-      fadeGain.gain.linearRampToValueAtTime(0, ctx.currentTime + fadeDuration);
-      src.disconnect(); src.connect(fadeGain);
-      fadeGain.connect(this._bgmGain);
-      setTimeout(() => { try { src.stop(); } catch {} }, fadeDuration * 1000 + 100);
-    } else {
-      try { src.stop(); } catch {}
-    }
+    if (!this._ctx || !this._bgmSource) return;
+    const src = this._bgmSource;
+    const fadeIn = this._bgmFadeIn;
+    this._bgmSource = null; this._bgmUrl = ''; this._bgmFadeIn = null;
+    this._retireBgm(src, fadeIn, fadeDuration);
   }
 
-  /** Backwards compatibility for manual spatial calculations. */
+  /**
+   * Fade a retiring track out, then stop it and unwire its whole chain.
+   *
+   * The disconnects are the point. `_playBuffer` already tears the SFX chain
+   * down in `onended`, but the BGM path never did: each track change stranded
+   * the outgoing fade gain — and the previous track's fade-in gain — connected
+   * to the bus for the lifetime of the context. A looping source never fires
+   * `onended` by itself, so there was nothing to hang the cleanup on.
+   */
+  private _retireBgm(
+    src: AudioBufferSourceNode,
+    fadeIn: GainNode | null,
+    fadeDuration: number,
+  ): void {
+    const ctx = this._ctx;
+    if (!ctx) return;
+    const drop = (node: AudioNode | null): void => {
+      if (!node) return;
+      try { node.disconnect(); } catch { /* already detached */ }
+    };
+
+    if (fadeDuration <= 0) {
+      try { src.stop(); } catch { /* already stopped */ }
+      drop(src);
+      drop(fadeIn);
+      return;
+    }
+
+    const fadeOut = ctx.createGain();
+    fadeOut.gain.setValueAtTime(1, ctx.currentTime);
+    fadeOut.gain.linearRampToValueAtTime(0, ctx.currentTime + fadeDuration);
+    drop(src);
+    drop(fadeIn);
+    src.connect(fadeOut);
+    fadeOut.connect(this._bgmGain);
+    setTimeout(() => {
+      try { src.stop(); } catch { /* already stopped */ }
+      drop(src);
+      drop(fadeOut);
+    }, fadeDuration * 1000 + 100);
+  }
+
+  /**
+   * Backwards compatibility for manual spatial calculations.
+   *
+   * Defaults match `SpatialOptions` and the `PannerNode` path. They used to be
+   * 2 and 12 here against the 1 and 10 documented on the interface and used by
+   * `playSfx({ spatial })`, so the same options object gave one falloff through
+   * the panner and a different one through this helper.
+   */
   static spatialVolume(opts: SpatialOptions): number {
     const dx = opts.x - (opts.listenerX ?? 0);
     const dy = opts.y - (opts.listenerY ?? 0);
     const dist = Math.hypot(dx, dy);
-    const ref = opts.refDistance ?? 2;
-    const max = opts.maxDistance ?? 12;
+    const ref = opts.refDistance ?? 1;
+    const max = opts.maxDistance ?? 10;
     if (dist <= ref) return 1;
     if (dist >= max) return 0;
     return 1 - (dist - ref) / (max - ref);
@@ -344,10 +396,17 @@ export class AudioManager {
    */
   dispose(): void {
     this._detachLifecycle?.();
+    // Invalidate any decode still in flight, so a `playBgm` that resolves after
+    // teardown does not start a source on a context this method just closed.
+    this._bgmRequest++;
     if (this._bgmSource) {
       try { this._bgmSource.stop(); } catch { /* already stopped */ }
       try { this._bgmSource.disconnect(); } catch { /* already detached */ }
       this._bgmSource = null;
+    }
+    if (this._bgmFadeIn) {
+      try { this._bgmFadeIn.disconnect(); } catch { /* already detached */ }
+      this._bgmFadeIn = null;
     }
     this._bgmUrl = '';
     this._bufferCache.clear();
