@@ -61,10 +61,26 @@ export class GLResourceRegistry {
   }
 
   program(vertexSource: string, fragmentSource: string): WebGLProgram {
+    // The two shaders are compiled before the program handle exists, so every
+    // early exit from here on has to delete what has already been made. Both
+    // paths below used to leak: a fragment shader that would not compile left
+    // the vertex shader stranded, and a refused `createProgram` stranded both.
+    // A developer iterating on a shader hits the first one on every save.
     const vertex = this._shader(this._gl.VERTEX_SHADER, vertexSource);
-    const fragment = this._shader(this._gl.FRAGMENT_SHADER, fragmentSource);
+    let fragment: WebGLShader;
+    try {
+      fragment = this._shader(this._gl.FRAGMENT_SHADER, fragmentSource);
+    } catch (error) {
+      this._gl.deleteShader(vertex);
+      throw error;
+    }
+
     const program = this._gl.createProgram();
-    if (!program) throw new Error('Unable to create WebGL program.');
+    if (!program) {
+      this._gl.deleteShader(vertex);
+      this._gl.deleteShader(fragment);
+      throw new Error('Unable to create WebGL program.');
+    }
     this._gl.attachShader(program, vertex);
     this._gl.attachShader(program, fragment);
     this._gl.linkProgram(program);

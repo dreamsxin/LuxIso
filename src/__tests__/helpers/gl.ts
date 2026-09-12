@@ -11,16 +11,44 @@
 /** A GL handle stand-in. Distinguishable by id when a test needs to name one. */
 export interface FakeHandle { readonly id: number; }
 
+/** Resource kinds whose `create*` call can be made to fail. */
+export type FakeGLResource =
+  | 'buffer' | 'vertexArray' | 'texture' | 'framebuffer' | 'program' | 'shader';
+
+export interface FakeGLOptions {
+  /** Kinds whose create call returns null, as a real driver does under pressure. */
+  failCreate?: readonly FakeGLResource[];
+  /** Fail `getShaderParameter(COMPILE_STATUS)`. */
+  failCompile?: boolean;
+  /** Fail `getProgramParameter(LINK_STATUS)`. */
+  failLink?: boolean;
+  /**
+   * Info log for a compile or link failure. Defaults to a message; pass `''` to
+   * exercise the caller's own fallback text.
+   */
+  infoLog?: string;
+}
+
 export interface FakeGL {
   gl: WebGL2RenderingContext;
   /** Textures created, in order. */
   created: FakeHandle[];
   /** Textures passed to `deleteTexture`, in order. Duplicates are kept. */
   deleted: FakeHandle[];
+  /** Shaders created, in order. */
+  shaders: FakeHandle[];
+  /** Shaders passed to `deleteShader`, in order. */
+  deletedShaders: FakeHandle[];
+  /** Programs created, in order. */
+  programs: FakeHandle[];
+  /** Programs passed to `deleteProgram`, in order. */
+  deletedPrograms: FakeHandle[];
   /** Names of every call, in order. */
   calls: string[];
   /** Textures created but not yet deleted. */
   live(): FakeHandle[];
+  /** Shaders created but not yet deleted — a leak shows up here. */
+  liveShaders(): FakeHandle[];
 }
 
 /** GL enum values a test never inspects — any stable number will do. */
@@ -41,26 +69,53 @@ const ENUMS: Record<string, number> = {
   COMPILE_STATUS: 0x8b81,
 };
 
-export function createFakeGL(): FakeGL {
+export function createFakeGL(options: FakeGLOptions = {}): FakeGL {
   const created: FakeHandle[] = [];
   const deleted: FakeHandle[] = [];
+  const shaders: FakeHandle[] = [];
+  const deletedShaders: FakeHandle[] = [];
+  const programs: FakeHandle[] = [];
+  const deletedPrograms: FakeHandle[] = [];
   const calls: string[] = [];
   let nextId = 1;
+
+  const fails = new Set(options.failCreate ?? []);
+  const infoLog = options.infoLog ?? 'fake GL failure';
+  const handle = (): FakeHandle => ({ id: nextId++ });
 
   const api: Record<string, unknown> = {
     ...ENUMS,
     createTexture: () => {
-      const handle: FakeHandle = { id: nextId++ };
-      created.push(handle);
-      return handle;
+      if (fails.has('texture')) return null;
+      const texture = handle();
+      created.push(texture);
+      return texture;
     },
-    deleteTexture: (handle: FakeHandle) => { deleted.push(handle); },
-    createBuffer: () => ({ id: nextId++ }),
+    deleteTexture: (texture: FakeHandle) => { deleted.push(texture); },
+    createBuffer: () => (fails.has('buffer') ? null : handle()),
     deleteBuffer: () => {},
-    createVertexArray: () => ({ id: nextId++ }),
+    createVertexArray: () => (fails.has('vertexArray') ? null : handle()),
     deleteVertexArray: () => {},
-    createFramebuffer: () => ({ id: nextId++ }),
+    createFramebuffer: () => (fails.has('framebuffer') ? null : handle()),
     deleteFramebuffer: () => {},
+    createShader: () => {
+      if (fails.has('shader')) return null;
+      const shader = handle();
+      shaders.push(shader);
+      return shader;
+    },
+    deleteShader: (shader: FakeHandle) => { deletedShaders.push(shader); },
+    getShaderParameter: () => !options.failCompile,
+    getShaderInfoLog: () => infoLog,
+    createProgram: () => {
+      if (fails.has('program')) return null;
+      const program = handle();
+      programs.push(program);
+      return program;
+    },
+    deleteProgram: (program: FakeHandle) => { deletedPrograms.push(program); },
+    getProgramParameter: () => !options.failLink,
+    getProgramInfoLog: () => infoLog,
   };
 
   const gl = new Proxy(api, {
@@ -82,7 +137,12 @@ export function createFakeGL(): FakeGL {
     gl,
     created,
     deleted,
+    shaders,
+    deletedShaders,
+    programs,
+    deletedPrograms,
     calls,
-    live: () => created.filter((handle) => !deleted.includes(handle)),
+    live: () => created.filter((texture) => !deleted.includes(texture)),
+    liveShaders: () => shaders.filter((shader) => !deletedShaders.includes(shader)),
   };
 }

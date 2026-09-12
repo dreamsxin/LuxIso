@@ -1,7 +1,7 @@
 # LuxIso 架构分析报告 v5
 
 > 更新日期：2026-09-12
-> 基线：Canvas 2D 默认 + WebGL2 预览，1002 个 Vitest 测试 / 76 个测试文件（含 v8 覆盖率阈值），11 个 Playwright WebGL 测试
+> 基线：Canvas 2D 默认 + WebGL2 预览，1014 个 Vitest 测试 / 77 个测试文件（含 v8 覆盖率阈值），11 个 Playwright WebGL 测试
 
 ## 执行摘要
 
@@ -126,7 +126,7 @@ const bus = new EventBus<GameEvents>();
 | P2 | 稠密深度桶仍可能 O(n²) | 基准验证后考虑 sweep-and-prune 或分层 chunk |
 | P2 | WebGL context-loss 尚未覆盖完整浏览器矩阵 | Chromium/SwiftShader 自动化已完成；Phase 5 扩展到 Firefox、Safari 和真实 GPU |
 | P2 | `EditorRenderer` 每次状态变更全量重建场景 | 按帧防抖，或对纯变换编辑原地改对象 |
-| P2 | `webgl-next` device 层覆盖率偏薄（分支 27%） | `GLResourceRegistry` 的 context-loss 与着色器失败路径还需扩展 fake GL 上下文；`TextureRegistry` 已覆盖到 94% |
+| P2 | `webgl-next` renderer / extraction 层仍是覆盖率缺口 | `device/**` 与 `resources/**` 已通过 `src/__tests__/helpers/gl.ts` 单测覆盖；`WebGLRenderer` 本身需要把 fake 上下文扩展到 uniform、buffer 与 framebuffer 绑定 |
 | P2 | 十二处模块各自手写同一段 `dt` 推导 | 已抽成 `src/time/FrameClock`，十处消费者全部迁移；`DebugRenderer` 是有意的例外（FPS 表需要未钳制的毫秒差） |
 | P3 | `AudioManager.spatialVolume()` 仍是手算距离衰减 | `playSfx({ spatial })` 已走 `PannerNode` + HRTF，该静态方法是遗留路径 |
 | P3 | 地图未分块 | 大地图引入 tile chunks 与脏区重绘 |
@@ -667,6 +667,24 @@ const bus = new EventBus<GameEvents>();
     抬到 79.7/76.3。
   - 顺手多修一处：淘汰记录时同时清掉 `_reportedFailures`，于是一个曾经 404 的 URL
     在记录被回收后还有一次机会——之前它会被永久判死。
+- **上一轮记为"下一步"的 device 层覆盖率补完，代价是抓到两处着色器泄漏。**
+  `GLResourceRegistry` 是 61% 语句 / **27% 分支**，没覆盖的那一半正是**全部失败面**：
+  `create*` 返回 null、着色器编译失败、程序链接失败。这些路径只在出问题时才跑，
+  而那正是泄漏和无用错误信息代价最大的时刻。
+  - 把 fake GL 上下文扩展成可注入失败（`failCreate` / `failCompile` / `failLink` /
+    `infoLog`）并跟踪 shader / program 句柄之后，两处泄漏当场暴露：
+    - **片元着色器编译失败会漏掉已编译的顶点着色器**——`_shader` 抛异常时顶点句柄还在
+      局部变量里，没人删。改着色器的人**每保存一次就漏两个 GL 对象**，这是所有失败路径里
+      触发最频繁的一条。
+    - `createProgram()` 返回 null 时**两个着色器一起漏**。
+  - 修法是显式清理而不是靠 `finally` 猜：片元编译放进 try/catch，捕获后删顶点再重抛；
+    `createProgram` 失败时两个都删。`infoLog` 为空时的兜底文案（"Unknown shader compile
+    error."）也各配了一条用例——那是用户唯一能看到的信息。
+  - `webgl-next/src/device/**` 因此从 61/27 到 **100% 语句/分支**，阈值钉在 100。
+    整体从 79.7/76.3 抬到 80.1/76.9。
+  - 同时把散在 `TextureRegistry.test.ts` 里的 `releaseTexture` 用例挪进
+    `GLResourceRegistry.test.ts`，测试文件与被测模块一一对应。
+
 
 
 
@@ -701,7 +719,7 @@ const bus = new EventBus<GameEvents>();
 | 类型安全 | 9/10 | ComponentCtor 与 EventMap 覆盖核心扩展面；`tsc` 现已覆盖 examples 与 e2e |
 | 可扩展性 | 9/10 | 加载注册表、自定义事件、WebGL extractor 注册表、序列化注册表均已就绪 |
 | 文档质量 | 8/10 | README 与本报告已同步当前实现 |
-| 测试覆盖 | 8/10 | 1002 个单测 + 11 个浏览器测试；已接入 v8 覆盖率与分模块阈值（整体 79.7% 语句 / 76.3% 分支），三个 fixture 已按 1.5% 门槛比对基线；帧时间契约由 `FrameClock` 单点实现 + 一份共享用例表钉住 |
+| 测试覆盖 | 8/10 | 1014 个单测 + 11 个浏览器测试；已接入 v8 覆盖率与分模块阈值（整体 80.1% 语句 / 76.9% 分支），三个 fixture 已按 1.5% 门槛比对基线；帧时间契约由 `FrameClock` 单点实现 + 一份共享用例表钉住 |
 | 综合 | 8.3/10 | 架构短板已大幅收敛，下一阶段应由 profiling 驱动 |
 
 测试数量不等于覆盖率。`vitest.config.ts` 现已按模块设定阈值（math/physics/lighting

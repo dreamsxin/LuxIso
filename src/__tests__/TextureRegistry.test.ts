@@ -254,26 +254,5 @@ describe('TextureRegistry — eviction', () => {
   });
 });
 
-describe('GLResourceRegistry — releaseTexture', () => {
-  it('deletes the handle and stops counting it', () => {
-    const fake = createFakeGL();
-    const resources = new GLResourceRegistry(fake.gl);
-    const a = resources.texture();
-    const b = resources.texture();
-    expect(resources.counts.textures).toBe(2);
-
-    expect(resources.releaseTexture(a)).toBe(true);
-    expect(resources.counts.textures).toBe(1);
-    expect(fake.deleted).toEqual([a]);
-
-    // A second release is a no-op rather than a double delete.
-    expect(resources.releaseTexture(a)).toBe(false);
-    expect(fake.deleted).toEqual([a]);
-
-    resources.dispose();
-    expect(fake.deleted).toEqual([a, b]);
-    expect(resources.counts.total).toBe(0);
-  });
-});
 
 

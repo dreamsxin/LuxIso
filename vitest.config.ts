@@ -38,10 +38,10 @@ export default defineConfig({
        * reporter, which only counts files sitting directly in the folder.
        */
       thresholds: {
-        statements: 79.6,
-        branches: 76.3,
-        functions: 83.2,
-        lines: 81.4,
+        statements: 80.1,
+        branches: 76.8,
+        functions: 83.5,
+        lines: 81.9,
         // Isometric projection, depth sort, colour math — fully unit-testable.
         'src/math/**':     { statements: 90, branches: 88, functions: 92, lines: 92 },
         // Collision and A*: where the tunnelling and corner-cut bugs lived.
@@ -61,6 +61,10 @@ export default defineConfig({
         // pure bookkeeping, so they are unit-testable through a fake GL context
         // (`src/__tests__/helpers/gl.ts`) despite living in the WebGL package.
         'webgl-next/src/resources/**': { statements: 94, branches: 84, functions: 100, lines: 97 },
+        // The handle registry: every GPU object the renderer owns passes through
+        // it, and the context-loss story depends on its counts. Held complete —
+        // the failure paths are where the shader leaks were hiding.
+        'webgl-next/src/device/**': { statements: 100, branches: 100, functions: 100, lines: 100 },
       },
     },
   },

@@ -122,7 +122,7 @@ npm run test:webgl # builds, then runs 9 deterministic captures + lifecycle test
 
 | Layer | Command | Scope |
 |---|---|---|
-| Unit | `npm test` | 1002 tests across 76 files (Vitest 4) |
+| Unit | `npm test` | 1014 tests across 77 files (Vitest 4) |
 | Coverage | `npm run test:coverage` | v8 provider + per-module ratchets |
 | Workflows | `npm run lint:workflows` | GitHub Actions YAML: unquoted colons, tab indentation, `run:` expression injection |
 | Browser | `npm run test:webgl` | 9 fixture captures + 2 context-lifecycle tests (Chromium/SwiftShader) against the built bundle |
@@ -143,7 +143,8 @@ Correctness-critical modules carry their own floors:
 | `src/time/**` | 100% | 100% |
 | `src/elements/**` | 68% | 69% |
 | `webgl-next/src/resources/**` | 94% | 84% |
-| Whole project | 79.6% | 76.3% |
+| `webgl-next/src/device/**` | 100% | 100% |
+| Whole project | 80.1% | 76.8% |
 
 Raise a floor when you add tests; never lower one to make a build pass. Test
 count is not coverage — every P0/P1 defect found in the last audit sat in a
@@ -1119,7 +1120,7 @@ object is unreachable and both disappear together.
 | EventBus event maps | Event names and payload types are coupled; custom maps supported |
 | Scene.toJSON(): runtime state + built-in prop serialization | Environment, camera, view, light IDs/options, collider, built-ins |
 | Lib build: ESM + CJS dual output + .d.ts (npm run build:lib) | |
-| Unit tests: 1002 tests across 76 files (Vitest 4, Node ≥ 22) | |
+| Unit tests: 1014 tests across 77 files (Vitest 4, Node ≥ 22) | |
 | Coverage ratchets per module (`npm run test:coverage`) | v8 provider; per-glob floors on math/physics/lighting/ecs/animation/elements/audio/core |
 | Examples: 10 progressive demos + tools gallery | |
 
@@ -1134,7 +1135,7 @@ See [FRAMEWORK_ANALYSIS.md](FRAMEWORK_ANALYSIS.md) for a detailed comparison wit
 | P2 | `src/elements/**` (68% branches 69%) is still the lowest-covered module | `src/__tests__/helpers/canvas.ts` gives the draw paths a recording 2D context, which is how `Cloud` went from 18% to covered. `Boulder` (12%) and `Chest` (18%) are the remaining large draw bodies |
 | P2 | Custom serialization needs one registration per direction | `Engine.registerProp()` / `registerLight()` load, `SceneSerializer.register()` / `registerLight()` save. Registering only one side is a silent half-round-trip (the save side warns once per type) |
 | P2 | `EditorRenderer` rebuilds the whole scene on every state change | Debounce to one rebuild per frame, or mutate objects in place for transform-only edits |
-| P2 | `webgl-next` device layer is thinly covered (27% branches) | `GLResourceRegistry` context-loss and shader-failure paths still need the fake GL context extended; `TextureRegistry` is covered at 94% |
+| P2 | `webgl-next` renderer and extraction layers are the remaining coverage gap | `device/**` and `resources/**` are now unit-tested through `src/__tests__/helpers/gl.ts`; `WebGLRenderer` itself still needs the fake context extended to uniforms, buffers and framebuffer binds |
 | P3 | System queries scan all Entity instances | Add archetype/query cache if profiling shows a bottleneck |
 | P3 | Spatial audio `spatialVolume()` helper is a manual falloff calc | `playSfx({ spatial })` already uses a `PannerNode` + HRTF; the static helper is the legacy path |
 | P3 | Editor: snap/grid toggle for fine-grained object placement | Sub-tile precision mode |
