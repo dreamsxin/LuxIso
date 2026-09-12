@@ -4,26 +4,38 @@ interface TextureRecord {
   texture: WebGLTexture | null;
   loading: boolean;
   failed: boolean;
+  /** Frame index of the last `resolve()`. Drives eviction. */
+  lastFrame: number;
 }
 
 /**
  * Lazy URL-to-texture registry. CPU image loading survives normal render frames.
  *
- * GPU handles are owned by `GLResourceRegistry`, not by this class: `dispose()`
- * only drops JS references, because the renderer either deletes the whole
- * registry (`GLResourceRegistry.dispose`) or abandons already-invalidated
- * handles after context loss (`GLResourceRegistry.abandon`).
+ * GPU handles are created through `GLResourceRegistry`, so a context loss can
+ * abandon them all at once (`GLResourceRegistry.abandon`) and teardown can delete
+ * them all at once (`dispose`). Eviction of a single idle texture goes through
+ * `GLResourceRegistry.releaseTexture`, which keeps the resource count honest —
+ * the lifecycle harness asserts it reaches zero.
  *
- * Records are never evicted within a renderer lifetime, so a URL that stops
- * being referenced stays resident. Tracked as a roadmap item; fixing it needs
- * per-frame reference counting.
+ * Records used to be kept for the renderer's whole lifetime, so a URL that
+ * stopped being referenced stayed resident on the GPU forever. `beginFrame()` and
+ * `evictIdle()` bracket a frame: anything not resolved for `maxIdleFrames`
+ * consecutive frames is deleted, and re-resolving it later simply loads it again.
  */
 export class TextureRegistry {
+  /**
+   * Frames a texture may go unreferenced before it is deleted. Two seconds at
+   * 60 Hz: long enough that walking out of and back into a textured area does not
+   * pay for a reload, short enough that a scene change reclaims its atlases.
+   */
+  static readonly DEFAULT_IDLE_FRAMES = 120;
+
   readonly white: WebGLTexture;
   private readonly _records = new Map<string, TextureRecord>();
   private readonly _loadingImages = new Set<HTMLImageElement>();
   private readonly _reportedFailures = new Set<string>();
   private _disposed = false;
+  private _frame = 0;
 
   constructor(
     private readonly _gl: WebGL2RenderingContext,
@@ -46,14 +58,46 @@ export class TextureRegistry {
     this._gl.bindTexture(this._gl.TEXTURE_2D, null);
   }
 
+  /** Open a frame. Every `resolve()` after this marks its URL as still in use. */
+  beginFrame(): void {
+    if (this._disposed) return;
+    this._frame++;
+  }
+
+  /**
+   * Delete every texture not resolved for `maxIdleFrames` consecutive frames.
+   *
+   * A record still loading is never evicted — its image callback would then write
+   * a texture into a record nobody is tracking, which is the leak this method
+   * exists to prevent. A failed record is dropped, so a URL that 404'd gets one
+   * more chance if the scene asks for it again.
+   *
+   * @returns how many records were removed.
+   */
+  evictIdle(maxIdleFrames: number = TextureRegistry.DEFAULT_IDLE_FRAMES): number {
+    if (this._disposed) return 0;
+    const limit = Math.max(0, maxIdleFrames);
+    let evicted = 0;
+    for (const [url, record] of [...this._records]) {
+      if (record.loading) continue;
+      if (this._frame - record.lastFrame <= limit) continue;
+      if (record.texture) this._resources.releaseTexture(record.texture);
+      this._records.delete(url);
+      this._reportedFailures.delete(url);
+      evicted++;
+    }
+    return evicted;
+  }
+
   resolve(url: string): WebGLTexture | null {
     if (this._disposed) return null;
     let record = this._records.get(url);
     if (!record) {
-      record = { texture: null, loading: true, failed: false };
+      record = { texture: null, loading: true, failed: false, lastFrame: this._frame };
       this._records.set(url, record);
       this._load(url, record);
     }
+    record.lastFrame = this._frame;
     if (record.failed) {
       // `failed` used to be set and never read, so the caller's
       // `if (!resolved) continue` silently dropped every segment using this URL:

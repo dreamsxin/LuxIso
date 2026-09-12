@@ -1,7 +1,7 @@
 # LuxIso 架构分析报告 v5
 
 > 更新日期：2026-09-12
-> 基线：Canvas 2D 默认 + WebGL2 预览，989 个 Vitest 测试 / 75 个测试文件（含 v8 覆盖率阈值），11 个 Playwright WebGL 测试
+> 基线：Canvas 2D 默认 + WebGL2 预览，1002 个 Vitest 测试 / 76 个测试文件（含 v8 覆盖率阈值），11 个 Playwright WebGL 测试
 
 ## 执行摘要
 
@@ -126,7 +126,7 @@ const bus = new EventBus<GameEvents>();
 | P2 | 稠密深度桶仍可能 O(n²) | 基准验证后考虑 sweep-and-prune 或分层 chunk |
 | P2 | WebGL context-loss 尚未覆盖完整浏览器矩阵 | Chromium/SwiftShader 自动化已完成；Phase 5 扩展到 Firefox、Safari 和真实 GPU |
 | P2 | `EditorRenderer` 每次状态变更全量重建场景 | 按帧防抖，或对纯变换编辑原地改对象 |
-| P2 | `webgl-next` `TextureRegistry` 不淘汰 | 按帧引用计数或 LRU 淘汰；`dispose()` 应删除自己创建的 GL 纹理 |
+| P2 | `webgl-next` device 层覆盖率偏薄（分支 27%） | `GLResourceRegistry` 的 context-loss 与着色器失败路径还需扩展 fake GL 上下文；`TextureRegistry` 已覆盖到 94% |
 | P2 | 十二处模块各自手写同一段 `dt` 推导 | 已抽成 `src/time/FrameClock`，十处消费者全部迁移；`DebugRenderer` 是有意的例外（FPS 表需要未钳制的毫秒差） |
 | P3 | `AudioManager.spatialVolume()` 仍是手算距离衰减 | `playSfx({ spatial })` 已走 `PannerNode` + HRTF，该静态方法是遗留路径 |
 | P3 | 地图未分块 | 大地图引入 tile chunks 与脏区重绘 |
@@ -648,6 +648,26 @@ const bus = new EventBus<GameEvents>();
   - 还有一条是**我自己的工具用错**：用 PowerShell 的 `Set-Content -Encoding UTF8` 批量替换
     `Array.at`（该项目 lib 目标不含它），结果写进了 BOM，被 `encoding:check` 当场拦下。
     这道门禁是有效的；教训是文本改写要走编辑工具，不要走 shell 重写整个文件。
+- **`TextureRegistry` 的 GPU 泄漏补掉了，代价是先给 WebGL 层造一个 fake GL 上下文。**
+  这条 P2 的原文是"不淘汰"：记录在渲染器的整个生命周期内只增不减，换过场景、换过图集之后，
+  那张纹理仍然常驻显存直到渲染器销毁。
+  - 做法是按帧引用计数而不是 LRU：`render()` 开头 `beginFrame()`、结尾 `evictIdle()`，
+    连续 `DEFAULT_IDLE_FRAMES`（120 帧，60Hz 下两秒）没被 `resolve()` 过的记录就删。
+    两秒这个值是有理由的：走出再走回一片贴图区域不该付重新加载的代价，而切场景应当回收。
+  - 删除必须走新增的 `GLResourceRegistry.releaseTexture()`，而不是直接 `gl.deleteTexture`
+    ——否则 `counts.textures` 不会下降，而 lifecycle 那套 e2e 断言的正是"dispose 后归零"。
+    重复释放返回 false 而不是二次删除。
+  - **仍在加载中的记录永不淘汰**：淘汰它会让 image 回调把纹理写进一条已经没人跟踪的记录，
+    正是这个方法要防的那种泄漏。这条单独写了一个用例。
+  - 对像素门禁无风险：fixture 每帧都 resolve 同一批 URL，永远不会进入 idle。
+  - 真正的前置成本是**测试基础设施**：`src/__tests__/helpers/gl.ts` 提供一个记录
+    创建/删除句柄的 fake WebGL2 上下文，加上测试里手动驱动的 fake `Image`。有了它，
+    加载失败路径（回退白纹理 + 只告警一次 + `failedUrls`）第一次有了覆盖——此前是 0。
+    `webgl-next/src/resources/**` 因此从无阈值到 94% 语句 / 84% 分支，整体从 78.6/75.6
+    抬到 79.7/76.3。
+  - 顺手多修一处：淘汰记录时同时清掉 `_reportedFailures`，于是一个曾经 404 的 URL
+    在记录被回收后还有一次机会——之前它会被永久判死。
+
 
 
 
@@ -681,7 +701,7 @@ const bus = new EventBus<GameEvents>();
 | 类型安全 | 9/10 | ComponentCtor 与 EventMap 覆盖核心扩展面；`tsc` 现已覆盖 examples 与 e2e |
 | 可扩展性 | 9/10 | 加载注册表、自定义事件、WebGL extractor 注册表、序列化注册表均已就绪 |
 | 文档质量 | 8/10 | README 与本报告已同步当前实现 |
-| 测试覆盖 | 8/10 | 989 个单测 + 11 个浏览器测试；已接入 v8 覆盖率与分模块阈值（整体 78.6% 语句 / 75.6% 分支），三个 fixture 已按 1.5% 门槛比对基线；帧时间契约由 `FrameClock` 单点实现 + 一份共享用例表钉住 |
+| 测试覆盖 | 8/10 | 1002 个单测 + 11 个浏览器测试；已接入 v8 覆盖率与分模块阈值（整体 79.7% 语句 / 76.3% 分支），三个 fixture 已按 1.5% 门槛比对基线；帧时间契约由 `FrameClock` 单点实现 + 一份共享用例表钉住 |
 | 综合 | 8.3/10 | 架构短板已大幅收敛，下一阶段应由 profiling 驱动 |
 
 测试数量不等于覆盖率。`vitest.config.ts` 现已按模块设定阈值（math/physics/lighting

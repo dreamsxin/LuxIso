@@ -79,6 +79,23 @@ export class GLResourceRegistry {
     return program;
   }
 
+  /**
+   * Delete one texture and stop tracking it.
+   *
+   * `dispose()` is all-or-nothing, which is right for teardown but leaves no way
+   * to reclaim a single texture that is no longer referenced — the reason
+   * `TextureRegistry` could only ever grow. Returns false for a handle this
+   * registry never created, so a double release is a no-op rather than a
+   * double `deleteTexture`.
+   */
+  releaseTexture(texture: WebGLTexture): boolean {
+    const index = this._textures.indexOf(texture);
+    if (index < 0) return false;
+    this._textures.splice(index, 1);
+    this._gl.deleteTexture(texture);
+    return true;
+  }
+
   dispose(): void {
     for (const resource of this._buffers) this._gl.deleteBuffer(resource);
     for (const resource of this._vertexArrays) this._gl.deleteVertexArray(resource);

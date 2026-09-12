@@ -137,6 +137,11 @@ opaque batches -> composite <-----+
 - `GLResourceRegistry` owns buffers, programs, framebuffers, textures, and VAOs
   created by the renderer; `TextureRegistry` owns lazy image-backed textures.
 - Texture URLs are extraction records, not Scene/ECS GPU handles.
+- `render()` brackets each frame with `TextureRegistry.beginFrame()` and
+  `evictIdle()`. A texture unreferenced for `DEFAULT_IDLE_FRAMES` (120, two
+  seconds at 60 Hz) is deleted through `GLResourceRegistry.releaseTexture`, so the
+  resource count drops with it and a swapped-out atlas does not stay resident for
+  the renderer's lifetime. A record still loading is never evicted.
 - The renderer exposes explicit `dispose()` and rebuilds registered resources
   after context restore.
 - Context loss abandons invalid GPU handles, detaches outstanding image callbacks,

@@ -179,6 +179,9 @@ export class WebGLRenderer implements RenderBackend {
     if (this._contextLost) return;
     const startedAt = performance.now();
     const gl = this._gl;
+    // Open the texture frame before anything resolves a URL, so this frame's
+    // references are what keeps a texture alive.
+    this._textures.beginFrame();
     const geometry = snapshot.geometry;
     const byteLength = geometry.vertexCount * RENDER_VERTEX_FLOATS * Float32Array.BYTES_PER_ELEMENT;
     this._uploadGeometry(geometry.data, byteLength);
@@ -209,6 +212,10 @@ export class WebGLRenderer implements RenderBackend {
     const pickingDrawCalls = this._renderPicking(snapshot);
     gl.bindVertexArray(null);
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+    // Every resolve for this frame has happened, so anything still idle is idle.
+    this._textures.evictIdle();
+
 
     this._lastSnapshot = snapshot;
     this._statsValue.frame = snapshot.frame;
