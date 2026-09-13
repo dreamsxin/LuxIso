@@ -10,7 +10,8 @@ final cutover gate.
 | 0 - Baseline/contracts | Implemented | Benchmark reports; three baselines are committed and pixel-gated |
 | 1 - Device/resources | Implemented | Cross-browser/real-GPU restore matrix moves to Phase 5 |
 | 2 - Geometry parity | Implemented preview | Golden diff approval and large-scene performance recording |
-| 3 - Lighting/shadows | Implemented preview | Six of the nine fixtures still need baselines behind the 1.5% gate |
+| 3 - Lighting/shadows | Implemented preview | Six of the nine fixtures still need baselines behind the 2,500-pixel gate |
+
 | 4 - Effects/editor | In progress | Editor move parity screenshots and sprite-editor integration; HUD path and the extractor registry are in |
 | 5 - Preview release | Not started | Browser matrix, package checks, and `0.2.0-webgl.0` publication |
 | 6 - Default cutover | Not started | Requires two accepted preview iterations |
@@ -76,7 +77,8 @@ now exposes nine deterministic URL-selectable cases covering four rotations,
 low/top elevation, night, global-only, and disabled lights. Golden screenshot
 candidate capture runs all cases in fixed Chromium/SwiftShader, checks nonblank
 pixels and exact cross-frame stability, and uploads CI artifacts. Baseline
-approval and the 1.5% diff gate remain open.
+approval and the pixel-budget gate remain open for six of the nine fixtures.
+
 
 Exit: lighting fixtures pass tolerance at all supported camera views; moving a
 caster/light cannot leave stale shadows.

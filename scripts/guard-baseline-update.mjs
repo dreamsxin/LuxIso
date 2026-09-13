@@ -5,9 +5,10 @@
  * pinned CI runner (Chromium/SwiftShader, 1280x720, DPR 1, ubuntu-latest).
  * `playwright.webgl.config.ts` deliberately uses one baseline directory with no
  * platform suffix, so a set regenerated on a developer machine lands in exactly
- * the path CI reads — and Linux vs Windows/macOS rasterisation differs by more
- * than the 1.5% threshold allows. Committing local captures therefore turns the
- * gate red (or, worse, quietly re-baselines a real regression).
+ * the path CI reads — and Linux vs Windows/macOS rasterisation differs by far
+ * more than the pixel budget allows. Committing local captures therefore turns
+ * the gate red (or, worse, quietly re-baselines a real regression).
+
  *
  * Baselines come from the `webgl-baselines` workflow. This script makes that
  * rule enforced rather than merely documented.
@@ -32,8 +33,9 @@ console.error(
     `Refusing to regenerate WebGL baselines on ${process.platform} outside CI.`,
     '',
     'The gate compares against one baseline set captured on the pinned CI',
-    'runner. Local captures land in the same directory but differ by more than',
-    'the 1.5% threshold, so committing them breaks the gate.',
+    'runner. Local captures land in the same directory but differ by far more',
+    'than the pixel budget, so committing them breaks the gate.',
+
     '',
     'Regenerate via the manual workflow, then commit the reviewed artifact:',
     '',

@@ -19,8 +19,11 @@
 - Deterministic fixtures cover day/night, 0/90/180/270-degree views, low/top
   elevation, overlapping walls/characters, stacked Z ranges, clouds, particles,
   and disabled/global lights.
-- Pixel-diff failure threshold: at most 1.5% changed pixels after ignoring a
-  two-pixel edge tolerance and approved shader antialiasing differences.
+- Pixel-diff failure budget: at most **2,500 changed pixels** on the
+  1028x672 GL canvas, after ignoring a two-pixel edge tolerance and approved
+  shader antialiasing differences. This replaced a 1.5% ratio, which allowed
+  10,362 pixels — measured to be too loose to mean much (see below).
+
 - No blank frame, stale shadow, missing batch, halo misalignment, or editor
   picking offset at desktop and mobile DPR values.
 
@@ -59,7 +62,7 @@ Chromium/SwiftShader at 1280×720 and DPR 1. What it asserts:
   overlays are visible.
 - **`day-ne`, `low-angle`, `night-lanterns`:** additionally compared against a
   committed baseline in `webgl-next/e2e/__screenshots__/` with
-  `maxDiffPixelRatio: 0.015`. The three PNGs are committed, so the gate is armed
+  `maxDiffPixels: 2500`. The three PNGs are committed, so the gate is armed
   in CI. The spec still checks for the baseline file and, when one is absent,
   records a `pixel-gate-skipped` annotation instead of asserting:
   `toHaveScreenshot` treats a missing snapshot as a failure, so adding an ID to
@@ -71,11 +74,39 @@ Chromium/SwiftShader at 1280×720 and DPR 1. What it asserts:
   keeps the colour histogram plausible will still pass. Extending the set is a
   matter of adding IDs to `PIXEL_GATED_FIXTURES` and regenerating.
 
+### What the budget can and cannot catch
+
+Measured with `maxDiffPixels: 0` to force the exact counts out of the matcher,
+against the committed baselines and a build that only differs in the stated way:
+
+- `mossy-boulder` at 120 px radius instead of 19 — six times the size:
+  **4,574** pixels. The old 1.5% ratio allowed 10,362, so it passed.
+- The same boulder at 34 px, nearly double: **1,102** pixels.
+- The `Boulder`/`Chest` `maxZ` corrections, which shortened the boulder's
+  shadow: **935** (`day-ne`), **976** (`low-angle`), **919**
+  (`night-lanterns`).
+
+The renderer is bit-deterministic here — repeated runs of one build report
+identical counts — so these numbers are stable, not samples.
+
+Two consequences. The budget is now tight enough to catch a scene-wide
+regression that the ratio waved through, and it is **structurally incapable** of
+protecting a single prop: doubling the boulder (1,102) is 167 pixels away from a
+legitimate shadow correction (935) on a canvas of 690,816. Prop-level protection
+needs a clipped baseline or a computed invariant, not a smaller global number.
+
+2,500 is a ratchet, set above the current known-good delta and only ever
+tightened. Once `webgl-baselines` regenerates the three PNGs that delta drops to
+zero and the budget should come down to a few hundred.
+
+
 Baselines are produced only by the manual `webgl-baselines` workflow, which runs
 the suite with `--update-snapshots` and uploads the PNGs as an artifact for human
 review; nothing commits them automatically. The comparison is CI-only by design —
-Linux and Windows rasterisation differ by more than 1.5%, so allowing a developer
-machine to write baselines would create a second, conflicting set.
+Linux and Windows rasterisation differ by far more than the budget allows, so
+letting a developer machine write baselines would create a second, conflicting
+set.
+
 
 That rule is enforced, not just documented: `npm run test:webgl:update` refuses to
 run outside CI (`scripts/guard-baseline-update.mjs`), because the captures it

@@ -13,9 +13,36 @@ export default defineConfig({
   timeout: 30_000,
   expect: {
     timeout: 10_000,
-    // The approved-baseline gate from webgl-next/ACCEPTANCE.md.
-    toHaveScreenshot: { maxDiffPixelRatio: 0.015 },
+    /**
+     * The approved-baseline gate from webgl-next/ACCEPTANCE.md, as an absolute
+     * pixel budget rather than the 1.5% ratio it started as.
+     *
+     * The ratio was 0.015 of a 1028x672 canvas — 10,362 pixels — and that was
+     * measured to be far too loose to mean anything. With
+     * `maxDiffPixelRatio: 0` to force the number out, a `mossy-boulder` rebuilt
+     * at 120 px radius instead of 19 (six times the size) changed only 4,574
+     * pixels and sailed through. The renderer is bit-deterministic here — two
+     * runs of the same build report identical counts — so an absolute budget is
+     * the honest instrument.
+     *
+     * 2,500 is a ratchet in the same spirit as the coverage floors in
+     * vitest.config.ts: set above the known-good delta, only ever tightened.
+     * Today the three baselines sit 935 / 976 / 919 pixels away from the current
+     * build (the `maxZ` corrections shortened the boulder's shadow), so the
+     * headroom is real and deliberate. **Once `webgl-baselines` regenerates
+     * them that delta goes to zero and this should drop to a few hundred.**
+     *
+     * What no whole-canvas number can do is protect a single prop. A boulder at
+     * 34 px instead of 19 moves 1,102 pixels against the same baseline the
+     * `maxZ` fix moves 935 — 167 pixels apart on a canvas of 690,816. Prop-level
+     * regressions need a clipped baseline or a computed invariant, not a
+     * stricter global budget; see the P2 row in README.
+     */
+    toHaveScreenshot: { maxDiffPixels: 2500 },
+
+
   },
+
   // One baseline set, not one per OS/project. The runner is pinned
   // (Chromium/SwiftShader, 1280x720, DPR 1) and baselines are produced only by
   // CI via the `webgl-baselines` workflow, so a platform suffix would just invite
