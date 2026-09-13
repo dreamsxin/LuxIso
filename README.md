@@ -122,7 +122,8 @@ npm run test:webgl # builds, then runs 9 deterministic captures + lifecycle test
 
 | Layer | Command | Scope |
 |---|---|---|
-| Unit | `npm test` | 1068 tests across 80 files (Vitest 4) |
+| Unit | `npm test` | 1074 tests across 80 files (Vitest 4) |
+
 
 | Coverage | `npm run test:coverage` | v8 provider + per-module ratchets |
 | Workflows | `npm run lint:workflows` | GitHub Actions YAML: unquoted colons, tab indentation, `run:` expression injection |
@@ -481,13 +482,19 @@ examples/
     ├── Combatant.ts             # Hero / grunt / boss: Entity + HealthComponent + MovementComponent
     ├── CombatantExtractor.ts    # The SceneExtractor registration that makes it renderable on the GL path
     ├── sfx.ts                   # WAV synthesis into `data:` URLs — the demo ships no binary audio assets
-    ├── ArenaAudio.ts            # Event → cue policy: per-frame voice budget, per-cue gap, phase-driven BGM bed
+    ├── ArenaAudio.ts            # Event → cue policy: per-frame voice budget, per-cue gap, phase-driven BGM bed, optional local pack
+
     └── persistence.ts           # Both halves of the round trip: SceneSerializer.register (save) + Engine.registerProp (load)
 
 
 public/
-└── scenes/
-    └── level1.json              # 16×10 demo scene: floor + walkable map, 4 walls, OmniLight + DirectionalLight, player, 3 props
+├── scenes/
+│   └── level1.json              # 16×10 demo scene: floor + walkable map, 4 walls, OmniLight + DirectionalLight, player, 3 props
+└── sfx/
+    ├── hit.mp3                  # The one shipped sound, used by src/main.ts
+    └── arpg-cues.json           # Optional sound pack manifest for 10-arpg. Names no cues as committed, so the demo runs on its synthesized ones; `public/sfx/arpg/` is gitignored
+
+
 ```
 
 ## API Reference
@@ -976,6 +983,14 @@ the moment a wave dies at once:
 - Cues **synthesized into `data:audio/wav` URLs** at startup (`sfx.ts`), so the
   demo ships no binary audio. `fetch` accepts a data URL, so `AudioManager`
   needs no special path for them.
+- An **optional local pack** on top: `resolveCues` reads
+  `public/sfx/arpg-cues.json` and substitutes any file it can load, per cue, so
+  a half-filled pack falls back rather than going silent. The committed manifest
+  names no cues, which is why the default path costs zero requests, and
+  `public/sfx/arpg/` is gitignored so third-party audio cannot be committed by
+  accident. Note that a dev server may answer a missing file with `index.html`
+  and a 200, so the fallback has to hang off the decode failure, not the status.
+
 
 
 
@@ -1144,7 +1159,8 @@ object is unreachable and both disappear together.
 | EventBus event maps | Event names and payload types are coupled; custom maps supported |
 | Scene.toJSON(): runtime state + built-in prop serialization | Environment, camera, view, light IDs/options, collider, built-ins |
 | Lib build: ESM + CJS dual output + .d.ts (npm run build:lib) | |
-| Unit tests: 1068 tests across 80 files (Vitest 4, Node ≥ 22) | |
+| Unit tests: 1074 tests across 80 files (Vitest 4, Node ≥ 22) | |
+
 
 | Coverage ratchets per module (`npm run test:coverage`) | v8 provider; per-glob floors on math/physics/lighting/ecs/animation/elements/audio/core |
 | Examples: 10 progressive demos + tools gallery | |

@@ -1,7 +1,9 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import {
-  ArenaAudio, ARENA_CUES, ARENA_TRACKS, type ArenaAudioSink,
+  ArenaAudio, ARENA_CUES, ARENA_TRACKS, resolveCues, CUE_BASE_URL,
+  type ArenaAudioSink,
 } from '../../examples/10-arpg/ArenaAudio';
+
 import type { ArenaEvent, ArenaEventType } from '../../examples/10-arpg/ArenaRun';
 import { ArenaRun } from '../../examples/10-arpg/ArenaRun';
 
@@ -231,6 +233,108 @@ describe('ArenaAudio — wired to a real run', () => {
     expect(sink.sfx.length).toBeGreaterThan(10);
   });
 });
+
+describe('ArenaAudio — the optional sound pack', () => {
+  /** A manifest source whose files all load, recording what was asked for. */
+  function pack(manifest: Record<string, unknown> | null, missing: string[] = []) {
+    const asked: string[] = [];
+    return {
+      asked,
+      source: {
+        fetchJson: async () => manifest,
+        preload: async (url: string) => {
+          asked.push(url);
+          if (missing.includes(url)) throw new Error(`404 ${url}`);
+        },
+      },
+    };
+  }
+
+  it('keeps the synthesized table when no pack is installed', async () => {
+    const { source, asked } = pack(null);
+    // The committed manifest declares no cues, so this is the default path: it
+    // must not cost one request per cue.
+    expect(await resolveCues(source)).toBe(ARENA_CUES);
+    expect(asked).toEqual([]);
+  });
+
+  it('substitutes only the cues a pack actually names', async () => {
+    const { source, asked } = pack({ 'hero-hit': 'hit.mp3', kill: 'die.ogg' });
+    const cues = await resolveCues(source);
+
+    expect(asked).toEqual([`${CUE_BASE_URL}hit.mp3`, `${CUE_BASE_URL}die.ogg`]);
+    expect(cues['hero-hit'].url).toBe(`${CUE_BASE_URL}hit.mp3`);
+    expect(cues.kill.url).toBe(`${CUE_BASE_URL}die.ogg`);
+    // Volume and panning are the demo's decision, not the pack's.
+    expect(cues['hero-hit'].volume).toBe(ARENA_CUES['hero-hit'].volume);
+    expect(cues.kill.spatial).toBe(ARENA_CUES.kill.spatial);
+    // Everything else is untouched, and the shared table was not mutated.
+    expect(cues.boss).toEqual(ARENA_CUES.boss);
+    expect(ARENA_CUES['hero-hit'].url.startsWith('data:')).toBe(true);
+  });
+
+  it('falls back per cue, so a half-filled pack is not silence', async () => {
+    // Failure is modelled as a rejecting preload rather than a 404 on purpose.
+    // Checked against a real server: `vite preview` answers a missing file with
+    // index.html and a 200, so what actually rejects is `decodeAudioData` being
+    // handed HTML. A resolver that only tested `res.ok` would have shipped
+    // broken.
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    const { source } = pack(
+      { 'hero-hit': 'hit.mp3', kill: 'missing.mp3' },
+      [`${CUE_BASE_URL}missing.mp3`],
+    );
+    const cues = await resolveCues(source);
+
+    expect(cues['hero-hit'].url).toBe(`${CUE_BASE_URL}hit.mp3`);
+    expect(cues.kill).toEqual(ARENA_CUES.kill);
+    expect(warn).toHaveBeenCalledTimes(1);
+    warn.mockRestore();
+  });
+
+  it('ignores the manifest keys that are not cues', async () => {
+    const { source, asked } = pack({
+      _readme: 'prose that is not a filename',
+      _example: { 'hero-hit': 'nested.mp3' },
+      unknownCue: 'nope.mp3',
+      boss: 42,
+      victory: '',
+    });
+    expect(await resolveCues(source)).toEqual(ARENA_CUES);
+    expect(asked).toEqual([]);
+  });
+
+  it('passes an absolute path or a URL through unchanged', async () => {
+    const { source, asked } = pack({
+      'hero-hit': '/audio/shared/hit.mp3',
+      kill: 'https://example.test/die.mp3',
+      boss: 'boss.mp3',
+    });
+    await resolveCues(source);
+    expect(asked).toEqual([
+      '/audio/shared/hit.mp3',
+      'https://example.test/die.mp3',
+      `${CUE_BASE_URL}boss.mp3`,
+    ]);
+  });
+
+  it('plays the substituted file once the table is swapped in', async () => {
+    const sink = new RecordingSink();
+    const audio = new ArenaAudio(sink);
+    const { source } = pack({ kill: 'die.mp3' });
+
+    audio.beginFrame(0, 0, 0);
+    audio.handle(at('kill'));
+    audio.setCues(await resolveCues(source));
+    audio.beginFrame(1, 0, 0);
+    audio.handle(at('kill'));
+
+    expect(sink.sfx.map((call) => call.url))
+      .toEqual([ARENA_CUES.kill.url, `${CUE_BASE_URL}die.mp3`]);
+  });
+});
+
 
 
 

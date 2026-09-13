@@ -1,0 +1,9 @@
+{
+  "_readme": "Optional sound pack for examples/10-arpg. The demo synthesizes every cue at startup (examples/10-arpg/sfx.ts), so it is audible with this file exactly as committed — declaring nothing here costs zero requests. To use real audio instead, drop files into public/sfx/arpg/ (gitignored) and name them below.",
+  "_keys": "hero-hit, hero-hurt, kill, wave-start, boss, victory, defeat",
+  "_values": "A bare filename resolves against /sfx/arpg/; a value starting with / or a scheme is used as-is. Any format the browser can decodeAudioData: mp3, ogg, wav.",
+  "_example": { "hero-hit": "hit-monster.mp3", "kill": "mob-die.ogg" },
+  "_note": "A cue whose file fails to load keeps its synthesized version, so a half-filled pack cannot leave the arena silent. Note that a dev server may answer a missing file with index.html and a 200 rather than a 404, so the fallback triggers on the decode failure, not on the status."
+}
+
+

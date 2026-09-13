@@ -29,7 +29,8 @@ import { registerCombatantExtractor } from './CombatantExtractor';
 import { registerCombatantPersistence } from './persistence';
 import { Combatant } from './Combatant';
 import { ArenaRun, type ArenaRunSnapshot } from './ArenaRun';
-import { ArenaAudio, ARENA_CUES, ARENA_TRACKS } from './ArenaAudio';
+import { ArenaAudio, ARENA_CUES, ARENA_TRACKS, resolveCues } from './ArenaAudio';
+
 import { type ArpgPhase } from './WaveDirector';
 
 
@@ -125,6 +126,21 @@ void audio.preloadAll([
   ...Object.values(ARENA_TRACKS),
 ]);
 const arenaAudio = new ArenaAudio(audio);
+// A local pack, if one is installed. The run starts on the synthesized cues and
+// swaps in whatever `/sfx/arpg-cues.json` names and the browser can decode, so a
+// missing or half-filled pack costs nothing. See that file for the format.
+void resolveCues({
+  fetchJson: async (url) => {
+    try {
+      const res = await fetch(url);
+      return res.ok ? ((await res.json()) as Record<string, unknown>) : null;
+    } catch {
+      return null;
+    }
+  },
+  preload: (url) => audio.preload(url),
+}).then((cues) => arenaAudio.setCues(cues));
+
 
 // ── Run ───────────────────────────────────────────────────────────────────────
 

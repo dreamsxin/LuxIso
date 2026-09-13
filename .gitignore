@@ -17,4 +17,11 @@ nul
 # because PowerShell has no heredoc and multi-line `-m` is unreliable there.
 .commitmsg.tmp
 
+# Optional local sound pack for examples/10-arpg. The demo synthesizes its cues
+# (examples/10-arpg/sfx.ts) and only substitutes files named in
+# public/sfx/arpg-cues.json, so nothing here is required to run it — and no
+# third-party audio ends up committed by accident.
+public/sfx/arpg/
+
+
 

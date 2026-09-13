@@ -1,7 +1,8 @@
 # LuxIso 架构分析报告 v5
 
 > 更新日期：2026-09-12
-> 基线：Canvas 2D 默认 + WebGL2 预览，1068 个 Vitest 测试 / 80 个测试文件（含 v8 覆盖率阈值），11 个 Playwright WebGL 测试
+> 基线：Canvas 2D 默认 + WebGL2 预览，1074 个 Vitest 测试 / 80 个测试文件（含 v8 覆盖率阈值），11 个 Playwright WebGL 测试
+
 
 
 ## 执行摘要
@@ -780,9 +781,19 @@ const bus = new EventBus<GameEvents>();
   - **实测到浏览器为止**：临时写了一个 Playwright 用例，让 Chromium 真的
     `decodeAudioData` 这两种合成波形——时长 0.14s / 2.0s 都对得上，示例页零 console 错误。
     验证完即删，不留在套件里。这一步是必要的，因为手写的 RIFF 头**只有真解码器能判对错**。
-  - 新增 30 个用例（`ArpgSfx` 7、`ArenaAudio` 12、`ArenaRun` 事件 5 + 6），
-    整体 1044/78 → 1068/80。这些文件都在 `examples/` 下，按既有策略不进覆盖率 glob，
-    所以覆盖率数字不动（84.63/78.15/85.05/86.03），阈值这轮不抬。
+  - **可选本地音源包,但仓库仍然零二进制**。合成音就是合成音,所以 `resolveCues` 会读
+    `public/sfx/arpg-cues.json`,把能真正加载成功的文件逐条替换进 cue 表;**加载失败的那条
+    保留合成版**——半装好的包不能让竞技场在它漏掉的地方变哑。已提交的 manifest 一条 cue 都
+    不声明,所以默认路径是**零请求**而不是七个 404;`public/sfx/arpg/` 进 .gitignore,
+    第三方音频不会被误提交。
+  - **又一次被真实服务器纠正**:我本以为"文件不存在"意味着 `res.ok === false`。
+    实测 `vite preview` 对未知路径返回的是 **index.html + 200**,于是真正抛错的是
+    `decodeAudioData` 拿到一段 HTML。**只判 `res.ok` 的写法会带着这个洞发布**;
+    好在 `_loadBuffer` 的 decode 也在 try 里,回退照样触发。这条已写进用例注释。
+  - 新增 36 个用例（`ArpgSfx` 7、`ArenaAudio` 18、`ArenaRun` 事件 11),
+    整体 1044/78 → 1074/80。这些文件都在 `examples/` 下,按既有策略不进覆盖率 glob,
+    所以覆盖率数字不动（84.63/78.15/85.05/86.03),阈值这轮不抬。
+
 
 
 
@@ -822,7 +833,8 @@ const bus = new EventBus<GameEvents>();
 | 类型安全 | 9/10 | ComponentCtor 与 EventMap 覆盖核心扩展面；`tsc` 现已覆盖 examples 与 e2e |
 | 可扩展性 | 9/10 | 加载注册表、自定义事件、WebGL extractor 注册表、序列化注册表均已就绪 |
 | 文档质量 | 8/10 | README 与本报告已同步当前实现 |
-| 测试覆盖 | 8/10 | 1068 个单测 + 11 个浏览器测试；已接入 v8 覆盖率与分模块阈值（整体 84.6% 语句 / 78.2% 分支），三个 fixture 已按 1.5% 门槛比对基线；帧时间契约由 `FrameClock` 单点实现 + 一份共享用例表钉住 |
+| 测试覆盖 | 8/10 | 1074 个单测 + 11 个浏览器测试；已接入 v8 覆盖率与分模块阈值（整体 84.6% 语句 / 78.2% 分支），三个 fixture 已按 1.5% 门槛比对基线；帧时间契约由 `FrameClock` 单点实现 + 一份共享用例表钉住 |
+
 
 | 综合 | 8.3/10 | 架构短板已大幅收敛，下一阶段应由 profiling 驱动 |
 

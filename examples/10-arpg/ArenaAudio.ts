@@ -109,6 +109,57 @@ const PHASE_TRACK: Record<ArpgPhase, string | null> = {
   defeat: null,
 };
 
+/** Where an optional local sound pack declares itself. */
+export const CUE_MANIFEST_URL = '/sfx/arpg-cues.json';
+/** Bare filenames in the manifest resolve against this. */
+export const CUE_BASE_URL = '/sfx/arpg/';
+
+/** What `resolveCues` needs from the outside world. */
+export interface CueOverrideSource {
+  /** Parsed manifest, or null if there is none — a missing pack is not an error. */
+  fetchJson(url: string): Promise<Record<string, unknown> | null>;
+  /** Resolves if the file exists and decodes. `AudioManager.preload` fits. */
+  preload(url: string): Promise<void>;
+}
+
+/**
+ * Swap synthesized cues for real audio files, where a local pack provides them.
+ *
+ * The repo ships no sound pack — the synthesized cues are the product, not a
+ * placeholder, because a clone has to be audible without anyone downloading
+ * anything. But a synthesized square wave is a synthesized square wave, so the
+ * demo reads `/sfx/arpg-cues.json` and substitutes any file it can actually
+ * load. The committed manifest declares no cues, which is why the default path
+ * costs zero requests instead of seven 404s.
+ *
+ * A cue whose file fails to load keeps its synthesized version. That is the
+ * whole point of doing this per cue: a half-installed pack must not leave the
+ * arena silent in the places it forgot.
+ */
+export async function resolveCues(
+  source: CueOverrideSource,
+  manifestUrl = CUE_MANIFEST_URL,
+  base = CUE_BASE_URL,
+): Promise<Record<ArenaEventType, CuePlan>> {
+  const manifest = await source.fetchJson(manifestUrl);
+  if (!manifest) return ARENA_CUES;
+
+  const resolved = { ...ARENA_CUES };
+  for (const type of Object.keys(ARENA_CUES) as ArenaEventType[]) {
+    const entry = manifest[type];
+    if (typeof entry !== 'string' || entry === '') continue;
+    const url = /^([a-z]+:)?\//i.test(entry) ? entry : base + entry;
+    try {
+      await source.preload(url);
+      resolved[type] = { ...ARENA_CUES[type], url };
+    } catch (err) {
+      console.warn(`ArenaAudio: cue "${type}" falling back to the synthesized one`, err);
+    }
+  }
+  return resolved;
+}
+
+
 export class ArenaAudio {
   /** Cues allowed to start in one frame. */
   static readonly VOICES_PER_FRAME = 4;
@@ -119,7 +170,8 @@ export class ArenaAudio {
   static readonly MAX_DISTANCE = 12;
 
   private readonly _sink: ArenaAudioSink;
-  private readonly _cues: Record<ArenaEventType, CuePlan>;
+  private _cues: Record<ArenaEventType, CuePlan>;
+
   private _budget = ArenaAudio.VOICES_PER_FRAME;
   private _now = 0;
   private _lastPlayed = new Map<ArenaEventType, number>();
@@ -132,6 +184,18 @@ export class ArenaAudio {
   }
 
   get muted(): boolean { return this._muted; }
+
+  /**
+   * Replace the cue table, once `resolveCues` has decided what is available.
+   *
+   * Late rather than in the constructor because the answer needs the network:
+   * the run has to be playable while the manifest is still in flight, so it
+   * starts on the synthesized cues and swaps whatever arrives.
+   */
+  setCues(cues: Record<ArenaEventType, CuePlan>): void {
+    this._cues = cues;
+  }
+
 
   /** Seconds of gameplay this instance has seen, the clock the gaps use. */
   get elapsed(): number { return this._now; }
