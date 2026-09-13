@@ -57,10 +57,13 @@ describe('Props — aabb Z', () => {
     expect(c.aabb.maxZ).toBeCloseTo(48, 10);
   });
 
-  it('Boulder maxZ is 2 * radius in pixels', () => {
+  it('Boulder maxZ is the squashed drawn height, not 2 * radius', () => {
     const b = new Boulder('b', 0, 0, '#7a7a8a', 18);
-    expect(b.aabb.maxZ).toBeCloseTo(36, 10);
+    // Every outline vertex is squashed by `Boulder.SQUASH`, so 18 px of radius
+    // draws 9.9 px tall. `Boulder.test.ts` measures that against the painting.
+    expect(b.aabb.maxZ).toBeCloseTo(18 * Boulder.SQUASH, 10);
   });
+
 
   it('Chest maxZ reflects body + lid pixel height', () => {
     const ch = new Chest('ch', 0, 0);

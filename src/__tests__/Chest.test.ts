@@ -282,32 +282,52 @@ describe('Chest — draw when open', () => {
   });
 
   /**
-   * A measurement, like `Boulder`'s.
+   * The lid used to be missing from the box, and now is not.
    *
-   * `aabb.maxZ` is a constant 51.2 px — body plus lid thickness at the standard
-   * `tileH = 32`, which the comment on `aabb` is explicit about. It does not
-   * account for the lid swinging up: a fully open lid lifts its front corners by
-   * roughly the diamond's own screen width, so the silhouette rises well past
-   * the declared height and depth sorting under-states an open chest.
+   * `aabb.maxZ` was a constant 51.2 px — body plus lid thickness at the standard
+   * 64x32 tile — which ignored the lid swinging up. `draw` rotates the front edge
+   * around the back hinge, so at full open the front corners end up ~30 px above
+   * the body top and the declared height was left behind: an open chest was
+   * under-stated to `depthSort` and to both shadow paths. `aabb` now recomputes
+   * the same rotation, so the two cannot drift. Closed is byte-for-byte the old
+   * 51.2, which is what keeps a closed chest's pixels where the WebGL baselines
+   * expect them.
    *
-   * Pinned rather than changed: `maxZ` feeds `depthSort` and `ShadowCaster`, and
-   * `garden-chest` sits in a pixel-gated fixture.
+   * **The obvious comparison here is wrong**, and the previous version of this
+   * test used it: painted `y` is not `centre.y - maxZ`. The chest's diamond is
+   * a sub-tile footprint, so its north corner already sits `HS * tileH` = 12.16
+   * px above the anchor in screen space — a ground-plane offset, not height.
+   * Measuring the two against each other made the overshoot look like 30 px when
+   * the honest figure is ~13.6.
    */
-  it('draws above its declared maxZ once the lid is open', () => {
-    const chest = new Chest('c', 3, 4);
-    const closedTop = Math.min(...paintedYs(drawAt(new Chest('c', 3, 4))));
-    const openTop = Math.min(...paintedYs(drawAt(opened(chest))));
+  it('declares a maxZ that follows the lid up', () => {
+    const HS = 0.38;
+    const footprintOffset = HS * TILE_H;   // screen y, not height
+    const closed = new Chest('c', 3, 4);
+    const open = opened(new Chest('c', 3, 4));
     const centre = screen(3, 4);
+    const closedPainted = centre.y - Math.min(...paintedYs(drawAt(new Chest('c', 3, 4))));
+    const openPainted = centre.y - Math.min(...paintedYs(drawAt(opened(new Chest('c', 3, 4)))));
     // `AABB.maxZ` is optional on the type; a chest always declares one.
-    const maxZ = chest.aabb.maxZ ?? 0;
+    const closedMaxZ = closed.aabb.maxZ ?? 0;
+    const openMaxZ = open.aabb.maxZ ?? 0;
 
-    // Closed, the painting stays within the declared height.
-    expect(closedTop).toBeGreaterThan(centre.y - maxZ);
-    // Open, it does not.
-    expect(openTop).toBeLessThan(centre.y - maxZ);
-    expect(maxZ).toBeCloseTo(51.2, 6);
+    expect(closedMaxZ).toBeCloseTo(51.2, 6);
+    // Closed, the box is taller than the painting: the lid's thickness is
+    // counted but not drawn as height. Padding in the safe direction.
+    expect(footprintOffset + closedMaxZ).toBeGreaterThan(closedPainted);
+
+    // Open, the box grows with the lid instead of being overtaken by it.
+    expect(openMaxZ).toBeGreaterThan(closedMaxZ * 1.2);
+    expect(footprintOffset + openMaxZ).toBeLessThanOrEqual(openPainted);
+    // What is still above it is the lid's own trim — the front face swung
+    // perpendicular to the edge (≤ lidH * 0.35) and a 1.5 px metal band. The
+    // lid panel itself is now inside the box.
+    expect(openPainted - (footprintOffset + openMaxZ)).toBeLessThan(8);
   });
 });
+
+
 
 describe('Chest — health bar', () => {
   it('draws nothing extra without a HealthComponent', () => {

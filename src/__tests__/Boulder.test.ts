@@ -160,20 +160,18 @@ describe('Boulder — footprint versus drawing', () => {
   });
 
   /**
-   * The measurement this file exists for.
+   * The measurement this file exists for, now an agreement.
    *
-   * `aabb.maxZ` is `radius * 2` and its comment says "the full vertical extent is
-   * ~2*radius". The drawing says otherwise: the outline reaches about
-   * `0.55 * radius` above the anchor, because every vertex is squashed by the
-   * `* 0.55` isometric factor. So the declared height is roughly 3.6x the drawn
-   * one, which makes the rock occlude — and cast a shadow as tall as — a column
-   * it does not visibly fill.
+   * `aabb.maxZ` was `radius * 2` with a comment claiming "the full vertical
+   * extent is ~2*radius". The drawing said otherwise: every vertex is squashed
+   * by `Boulder.SQUASH`, so the outline reaches exactly `0.55 * radius` above
+   * the anchor and the declared height was ~3.6x the drawn one. The rock
+   * occluded, and cast a shadow from, a column it does not visibly fill.
    *
-   * Pinned, not fixed: `maxZ` feeds `depthSort` and `ShadowCaster`, and
-   * `mossy-boulder` sits in a pixel-gated WebGL fixture, so correcting it belongs
-   * with a baseline regeneration rather than in a test-only change.
+   * Both numbers now come from the same constant, so they cannot drift apart
+   * again — that is the point of `SQUASH` being on the class.
    */
-  it('declares a maxZ far taller than it draws', () => {
+  it('declares exactly the height it draws', () => {
     const boulder = new Boulder('rock', 3, 4, '#7a7a8a', R);
     const recorder = ctxFor(boulder);
     const { sy } = project(3, 4, 0, 64, 32);
@@ -183,18 +181,14 @@ describe('Boulder — footprint versus drawing', () => {
     const drawnAbove = cy - Math.min(...ys);
     const drawnBelow = Math.max(...ys) - cy;
 
-    // Both halves land near 0.55 * radius — the isometric squash factor applied
-    // to every vertex. Not exactly, because the seven vertex radii are irregular
-    // on purpose, so this is a band rather than a point.
-    expect(drawnAbove).toBeGreaterThan(R * 0.45);
-    expect(drawnAbove).toBeLessThan(R * 0.6);
+    // The topmost vertex sits at angle -90° with radius factor 1.0, so this is
+    // exact rather than a band. The bottom is irregular by design, so it is not.
+    expect(drawnAbove).toBeCloseTo(R * Boulder.SQUASH, 6);
     expect(drawnBelow).toBeGreaterThan(R * 0.45);
     expect(drawnBelow).toBeLessThan(R * 0.6);
 
-    // The declared height, for comparison. Change these two together, with a
-    // regenerated baseline, never one alone.
-    expect(boulder.aabb.maxZ).toBe(R * 2);
-    expect(boulder.aabb.maxZ).toBeGreaterThan(drawnAbove * 3);
+    expect(boulder.aabb.maxZ).toBeCloseTo(drawnAbove, 6);
   });
 });
+
 

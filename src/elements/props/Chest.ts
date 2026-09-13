@@ -11,6 +11,21 @@ const shift = shiftColor;
 const blend = blendColor;
 
 /**
+ * The tile `aabb` assumes.
+ *
+ * `draw` receives the real `tileW`/`tileH` from its `DrawContext`, but `aabb` is
+ * a getter with no such input, so the box has always been quoted for the
+ * standard 64x32 tile. Named rather than inlined because the lid-lift maths
+ * below needs both axes and has to agree with `draw`.
+ */
+const TILE_W = 64;
+const TILE_H = 32;
+/** Half-size of the chest's sub-tile diamond, in world units. Matches `draw`. */
+const HS = 0.38;
+
+
+
+/**
  * Isometric treasure chest — geometry derived directly from project().
  *
  * Coordinate system (from IsoProjection.ts):
@@ -69,20 +84,35 @@ export class Chest extends Entity {
 
 
   get aabb(): AABB {
-    // Chest body is ~tileH*1.1 px tall + lid ~tileH*0.5 px. The constructor
-    // does not receive tileH, so approximate with the standard tileH=32:
-    // (32*1.1 + 32*0.5) = 51.2 px, and AABB Z is in pixels. This is only used
-    // for depth sorting; the draw path computes the real pixel height from tileH.
-    const approxHeightPx = 32 * 1.1 + 32 * 0.5;
+    // Body is ~tileH*1.1 px tall and the closed lid adds ~tileH*0.5. The
+    // constructor never receives tileH, so this approximates with the standard
+    // 64x32 tile the way it always has: 32*1.1 + 32*0.5 = 51.2 px, and AABB Z
+    // is in pixels.
+    //
+    // What it used to miss is the lid. `draw` swings the front edge up around
+    // the back hinge, and at full open the front corners end up ~30 px above
+    // the body top — past the 51.2 the box declared — so an open chest was
+    // under-stated to `depthSort` and to both shadow paths. The lift is
+    // recomputed here with the same rotation and the same `HS` the lid is drawn
+    // with, so the two cannot drift; a closed chest still measures exactly 51.2.
+    const bodyPx = TILE_H * 1.1;
+    const closedLidPx = TILE_H * 0.5;
+    const ang = this._lidAngle * Math.PI * 0.60;
+    // Hinge corner to front corner, in screen pixels: 2*HS tiles along x.
+    const hingeLen = Math.hypot(HS * TILE_W, HS * TILE_H);
+    const ny = (HS * TILE_H) / hingeLen;
+    const liftPx = hingeLen * (Math.sin(ang) - ny * Math.cos(ang));
+
     return {
       minX: this.position.x - 0.4,
       minY: this.position.y - 0.4,
       maxX: this.position.x + 0.4,
       maxY: this.position.y + 0.4,
       baseZ: 0,
-      maxZ: approxHeightPx,
+      maxZ: bodyPx + Math.max(closedLidPx, liftPx),
     };
   }
+
 
   update(ts?: number): void {
     super.update(ts);

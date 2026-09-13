@@ -7,8 +7,17 @@ import { blendColorRaw } from '../../math/color';
 
 /** Low-poly isometric boulder. */
 export class Boulder extends Entity {
+  /**
+   * Vertical squash applied to every outline vertex in `draw`.
+   *
+   * Shared with `aabb` so the declared height and the drawn one cannot drift
+   * apart again.
+   */
+  static readonly SQUASH = 0.55;
+
   private color: string;
   private radius: number;
+
 
   constructor(id: string, x: number, y: number, color = '#7a7a8a', radius = 18) {
     super(id, x, y, 0);
@@ -23,17 +32,27 @@ export class Boulder extends Entity {
   get propRadius(): number { return this.radius; }
 
   get aabb(): AABB {
-    // radius is the drawn rock radius in screen pixels; the full vertical
-    // extent is ~2*radius. AABB Z is in pixels too, so no conversion.
+    // `radius` is the drawn rock radius in screen pixels, but the outline is
+    // squashed vertically by 0.55 (see `draw`), so the topmost vertex sits
+    // `0.55 * radius` above the anchor and that is the rock's whole visible
+    // height. AABB Z is in screen pixels too, so no conversion.
+    //
+    // This used to declare `radius * 2` — about 3.6x the drawn height — which
+    // made `depthSort` treat the rock as a column it does not fill and made
+    // both shadow paths (`ShadowCaster`, `webgl-next/ShadowProjector`) cast
+    // from a height the player cannot see.
     return {
       minX: this.position.x - 0.45,
       minY: this.position.y - 0.45,
       maxX: this.position.x + 0.45,
       maxY: this.position.y + 0.45,
       baseZ: 0,
-      maxZ: this.radius * 2,
+      maxZ: this.radius * Boulder.SQUASH,
+
+
     };
   }
+
 
   update(ts?: number): void {
     super.update(ts);
@@ -66,7 +85,8 @@ export class Boulder extends Entity {
     for (let i = 0; i < VERTS; i++) {
       const baseAngle = (i / VERTS) * Math.PI * 2 - Math.PI / 2;
       const a = baseAngle + (offsets[i] * Math.PI) / 180;
-      pts.push([cx + Math.cos(a) * r * radii[i], cy + Math.sin(a) * r * radii[i] * 0.55]);
+      pts.push([cx + Math.cos(a) * r * radii[i], cy + Math.sin(a) * r * radii[i] * Boulder.SQUASH]);
+
     }
 
     const litColor  = `rgb(${blendColorRaw(this.color, illum * 1.1)})`;
