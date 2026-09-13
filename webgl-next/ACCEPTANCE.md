@@ -82,9 +82,8 @@ against the committed baselines and a build that only differs in the stated way:
 - `mossy-boulder` at 120 px radius instead of 19 — six times the size:
   **4,574** pixels. The old 1.5% ratio allowed 10,362, so it passed.
 - The same boulder at 34 px, nearly double: **1,102** pixels.
-- The `Boulder`/`Chest` `maxZ` corrections, which shortened the boulder's
-  shadow: **935** (`day-ne`), **976** (`low-angle`), **919**
-  (`night-lanterns`).
+- The `Boulder`/`Chest` `maxZ` corrections plus the boulder's GL/2D parity pass:
+  **1,052** (`day-ne`), **1,028** (`low-angle`), **919** (`night-lanterns`).
 
 The renderer is bit-deterministic here — repeated runs of one build report
 identical counts — so these numbers are stable, not samples.
@@ -92,8 +91,13 @@ identical counts — so these numbers are stable, not samples.
 Two consequences. The budget is now tight enough to catch a scene-wide
 regression that the ratio waved through, and it is **structurally incapable** of
 protecting a single prop: doubling the boulder (1,102) is 167 pixels away from a
-legitimate shadow correction (935) on a canvas of 690,816. Prop-level protection
-needs a clipped baseline or a computed invariant, not a smaller global number.
+legitimate shadow correction (935) on a canvas of 690,816.
+
+That second job now belongs to `src/__tests__/WebGLPropParity.test.ts`, which
+measures a prop's silhouette straight out of the `RenderSnapshot`. A doubled
+radius is a doubled silhouette there, exactly, with no threshold and no browser.
+Only `Boulder` is covered so far.
+
 
 2,500 is a ratchet, set above the current known-good delta and only ever
 tightened. Once `webgl-baselines` regenerates the three PNGs that delta drops to

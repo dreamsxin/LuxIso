@@ -122,7 +122,8 @@ npm run test:webgl # builds, then runs 9 deterministic captures + lifecycle test
 
 | Layer | Command | Scope |
 |---|---|---|
-| Unit | `npm test` | 1074 tests across 80 files (Vitest 4) |
+| Unit | `npm test` | 1077 tests across 81 files (Vitest 4) |
+
 
 
 | Coverage | `npm run test:coverage` | v8 provider + per-module ratchets |
@@ -1159,7 +1160,8 @@ object is unreachable and both disappear together.
 | EventBus event maps | Event names and payload types are coupled; custom maps supported |
 | Scene.toJSON(): runtime state + built-in prop serialization | Environment, camera, view, light IDs/options, collider, built-ins |
 | Lib build: ESM + CJS dual output + .d.ts (npm run build:lib) | |
-| Unit tests: 1074 tests across 80 files (Vitest 4, Node ≥ 22) | |
+| Unit tests: 1077 tests across 81 files (Vitest 4, Node ≥ 22) | |
+
 
 
 | Coverage ratchets per module (`npm run test:coverage`) | v8 provider; per-glob floors on math/physics/lighting/ecs/animation/elements/audio/core |
@@ -1177,8 +1179,10 @@ See [FRAMEWORK_ANALYSIS.md](FRAMEWORK_ANALYSIS.md) for a detailed comparison wit
 | P2 | Same-frame sound limiting lives in the example, not the framework | `examples/10-arpg/ArenaAudio.ts` carries its own per-frame voice budget (4) and per-cue gap (0.06 s). Every game with crowds rewrites this, but "how many is too many" depends on the actual audio, so it stays out of `AudioManager` until that class grows a voice pool rather than just `playSfx` |
 
 | P2 | `src/elements/**` branch coverage (80%) now trails its statement coverage | The draw bodies are covered; what is left is per-branch lighting and edge cases inside `Floor` (62% branches) and `Wall` (73%) |
-| P2 | No whole-canvas budget can protect a single prop | The gate is now an absolute 2,500-pixel budget instead of a 1.5% ratio (10,362 px), which was measured to be too loose: a `mossy-boulder` rebuilt at 120 px radius instead of 19 changed only 4,574 pixels and passed. But the tighter number cannot fix the real limit — the same boulder at 34 px moves 1,102 pixels against a legitimate shadow correction's 935, on a canvas of 690,816. Prop-level regressions need a clipped baseline or a computed invariant |
-| P2 | The three committed baselines are ~1,000 pixels stale | The `maxZ` corrections shortened the boulder's shadow by 935 (`day-ne`), 976 (`low-angle`) and 919 (`night-lanterns`) pixels. All pass the 2,500 budget, so CI stays green; the next `webgl-baselines` run absorbs the difference and the budget should then drop to a few hundred |
+| P2 | No whole-canvas budget can protect a single prop | The gate is now an absolute 2,500-pixel budget instead of a 1.5% ratio (10,362 px), which was measured to be too loose: a `mossy-boulder` rebuilt at 120 px radius instead of 19 changed only 4,574 pixels and passed. The tighter number does not fix the real limit — the same boulder at 34 px moves 1,102 pixels against a legitimate shadow correction's 935, on a canvas of 690,816. Prop-level protection now lives at the extraction layer instead: `src/__tests__/WebGLPropParity.test.ts` measures a prop's silhouette out of the `RenderSnapshot`, where a doubled radius is exactly a doubled silhouette and needs no threshold at all. Only `Boulder` is covered so far |
+| P2 | The three committed baselines are ~1,000 pixels stale | The `maxZ` corrections and the boulder parity pass leave the current build 1,052 (`day-ne`), 1,028 (`low-angle`) and 919 (`night-lanterns`) pixels from the committed PNGs. All pass the 2,500 budget, so CI stays green; the next `webgl-baselines` run absorbs the difference and the budget should then drop to a few hundred |
+| P2 | Only `Boulder` has backend parity pinned | Its GL silhouette now matches the 2D one and `aabb.maxZ` (all three derive from `Boulder.SQUASH`). `Chest`, `Crystal`, `Tree`, `FlowerPatch` and `Lantern` still have independently hand-tuned GL geometry that nothing compares against the 2D path — the chest's lid rotation is the most likely to disagree |
+
 
 | P2 | Custom serialization needs one registration per direction | `Engine.registerProp()` / `registerLight()` load, `SceneSerializer.register()` / `registerLight()` save. Registering only one side is a silent half-round-trip (the save side warns once per type) |
 

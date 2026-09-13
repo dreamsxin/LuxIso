@@ -721,19 +721,29 @@ export class SceneExtractor {
     const center = point(projectIso(boulder.position.x, boulder.position.y, 0, tileW, tileH));
     const pickId = this._pickId(boulder);
     const radius = boulder.propRadius;
-    this._builder.ellipse([center[0], center[1] - radius * 0.42], radius, radius * 0.72, {
+    // Same silhouette the 2D path draws: a disc centred on the anchor, squashed
+    // by `Boulder.SQUASH`. It used to be an ellipse centred `0.42 * radius`
+    // above the anchor with a `0.72 * radius` vertical radius, reaching
+    // `1.14 * radius` up and `0.30 * radius` down — so the same rock was a
+    // different shape and a different height depending on which backend drew it,
+    // and `aabb.maxZ` matched neither. `src/__tests__/WebGLPropParity.test.ts`
+    // measures the agreement.
+    const squash = radius * Boulder.SQUASH;
+    this._builder.ellipse([center[0], center[1]], radius, squash, {
       color: rgba(shiftColor(boulder.propColor, -18)),
       sample: center,
       normal: [0.35, -0.94],
       pickId,
     }, 12);
+    // Lit facet on the upper face, kept inside the disc.
     this._builder.polygon([
-      [center[0] - radius * 0.55, center[1] - radius * 0.55],
-      [center[0] - radius * 0.1, center[1] - radius * 1.05],
-      [center[0] + radius * 0.55, center[1] - radius * 0.72],
-      [center[0] + radius * 0.2, center[1] - radius * 0.35],
+      [center[0] - radius * 0.30, center[1] - squash * 0.52],
+      [center[0] - radius * 0.05, center[1] - squash * 0.92],
+      [center[0] + radius * 0.32, center[1] - squash * 0.60],
+      [center[0] + radius * 0.10, center[1] - squash * 0.22],
     ], { color: rgba(shiftColor(boulder.propColor, 30)), sample: center, normal: [-0.4, -0.9], pickId });
   }
+
 
   private _extractChest(chest: Chest, tileW: number, tileH: number): void {
     const { x, y } = chest.position;
