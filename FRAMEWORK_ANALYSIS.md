@@ -1,7 +1,8 @@
 # LuxIso 架构分析报告 v5
 
 > 更新日期：2026-09-12
-> 基线：Canvas 2D 默认 + WebGL2 预览，1077 个 Vitest 测试 / 81 个测试文件（含 v8 覆盖率阈值），11 个 Playwright WebGL 测试
+> 基线：Canvas 2D 默认 + WebGL2 预览，1079 个 Vitest 测试 / 81 个测试文件（含 v8 覆盖率阈值），11 个 Playwright WebGL 测试
+
 
 
 
@@ -127,7 +128,10 @@ const bus = new EventBus<GameEvents>();
 | P2 | 9 个 WebGL fixture 中有 6 个未接入基线比对 | `day-ne` / `low-angle` / `night-lanterns` 已按 2,500 像素预算比对 committed 基线；扩展只需往 `PIXEL_GATED_FIXTURES` 加 ID 并重新生成。**套件本身在本地跑得通**（Chromium + SwiftShader，九个 fixture 全过），受限的只是"生成并提交基线"——基线只有一套且不带平台后缀，Windows 出的图与 CI 的 Linux 差得远超预算，所以那几张 PNG 必须由 `webgl-baselines` workflow 出 |
 | P2 | 整画布预算保护不了单个道具,再收紧也不行 | 门禁已从 1.5% 比例（10,362 像素）换成 **2,500 像素绝对预算**——比例那版实测太松:半径从 19 改成 120 的石头只动 4,574 像素就过了。但收紧治不了根本问题:同一块石头改成 34 时动 1,102 像素,而一次合法的阴影修正动 935,在 690,816 的画布上只差 167。**这份工作已改到抽取层**:`src/__tests__/WebGLPropParity.test.ts` 直接从 `RenderSnapshot` 量道具轮廓,半径翻倍就是轮廓翻倍,不需要阈值也不需要浏览器。目前只覆盖 `Boulder` |
 | P2 | 三张已提交基线现在约 1,000 像素过期 | `maxZ` 修正加上石头的双后端一致化,当前构建与已提交 PNG 差 1,052 / 1,028 / 919 像素,都在 2,500 预算内,CI 不会红;下次 `webgl-baselines` 吸收后预算应当降到几百 |
-| P2 | 只有 `Boulder` 钉住了双后端一致性 | 它的 GL 轮廓现在与 2D 路径和 `aabb.maxZ` 三者同源（都来自 `Boulder.SQUASH`）。`Chest`、`Crystal`、`Tree`、`FlowerPatch`、`Lantern` 的 GL 几何仍是各自手调的,没有任何东西拿它们和 2D 路径比——箱子的盖子旋转最可能不一致 |
+| P2 | 还有三个 `aabb` 与自己的绘制不符,而且这一类原因在 `aabb` 里修不掉 | 已把所有可绘制类审了一遍。`Tree`（声明 77.76 / 实画 75.13）和 `Cloud`（32·scale / 31·s）只在标准 64×32 瓦片下勉强吻合,因为它们画出来的顶部含 `tileW` 项而盒子看不到——`aabb` 是个没有 draw 上下文的 getter。`FlowerPatch` 声明常量 18 而最坏情况画到 26.28,因为它的散布用的是 `tileH * 1.15` 而不是投影后的 footprint。要真正修好得把瓦片尺寸交给 `aabb`,那是接口变更 |
+| P2 | 四个类会画到自己 `baseZ` 以下 | `Character` 球体回退的下半球（`radius` px）、`Cloud`（最多 `23 * s`）、`FlowerPatch`（`0.35 * tileH * 1.15` = 12.88px）、`Lantern` 的底座菱形（`tileH * 0.1`）。`depthSort` 与两条阴影路径都把 `baseZ` 当底,所以这些都是向下少声明。只做了测量:和上一条是同一个接口问题 |
+| P2 | 只有 `Boulder` 和 `Crystal` 与 GL 抽取共享形状常量 | `Boulder.SQUASH`、`Crystal.TIP_FACTOR` 现在被 `draw`、`aabb`、`SceneExtractor` 三处共用。`Tree`、`FlowerPatch`、`Lantern` 的系数仍是两份手写——目前抽取那份与 2D 那份逐字节相同,而这正是会悄悄漂移的状态 |
+
 
 
 
@@ -854,6 +858,35 @@ const bus = new EventBus<GameEvents>();
   - 一个小教训:位置存在 `Float32Array` 里,30 附近的值只精确到约 2e-6,
     所以断言用 `toBeCloseTo(..., 4)` 而不是 6——第一版写 6 时两条用例因为
     `2.0000007 ≠ 2` 而红,那不是几何错了。
+- **把"声明的盒子 vs 实际画出来的"这一类缺陷审了个遍:八个可绘制类,五个不符。**
+  前面几轮在 `Boulder`、`Chest` 各撞到一次,这次不再等它自己冒出来,直接全量对齐。
+  两个子代理分别读了 2D 的 `draw`/`aabb` 和 GL 的 `_extractX`,给出精确表达式。
+  - 结果（默认参数下,`maxZ - baseZ` vs 实画顶部）:
+    `Crystal` 48 / 56.64（**少 1.18 倍**）、`FlowerPatch` 18 / 26.28（少 1.46）、
+    `Lantern` 58 / 63.38（少 1.09）、`Tree` 77.76 / 75.13（多 1.035）、
+    `Cloud` 32·scale / 31·s（tileW=64 时勉强吻合）、
+    `Character` 22 / 精灵帧高（64px 帧时**少 2.91 倍**）、`Wall` 80 / 80（准）、
+    `Floor` 隐式 16 / 0（有意的非紧）。
+  - **`Character` 那条最要紧**:`maxZ` 一直是 `max(16, radius)`,而 `drawSprite`
+    把图贴在 `by - h * anchorY`——精灵路径根本不看 radius。一个 64px 帧的角色
+    按自己三分之一的高度参与深度排序和阴影。已改成读当前帧:新增 `drawnHeightPx`,
+    分支与 `draw` 完全一致（没有解码好的图就仍走球体回退)。**角色是主要游戏对象,
+    这条影响面比之前那些道具都大。**
+  - `Crystal` 的 `maxZ` 从 `heightPx` 改成 `heightPx * Crystal.TIP_FACTOR`（1.18,
+    即 `draw` 画尖端的位置),并让 GL 抽取共用这个常量;血条更高（1.3）但**故意不算**
+    ——HUD 不是遮挡几何。`Lantern` 从 `heightPx + 8` 改成 `heightPx + 32 * ROOF_RISE`
+    （屋檐 `0.418 * tileH`）:原来那个常量代表的东西其实随瓦片缩放,而叠加发光的
+    `1.012 * tileH` 同样不算——那是光不是几何。
+  - **像素代价实测为零**:三张 fixture 仍是 1,052 / 1,028 / 919。我只验证了其中一条
+    机制——`projectOmniShadow` 的 `Math.min(2.75, lightZ / (lightZ - height))` 在改前
+    改后都被钳到 2.75,所以 omni 投影阴影一模一样。定向光那条为什么也没动我**没有
+    单独隔离验证**,所以这里只报测量结果,不声称 `maxZ` 在一般情况下不影响像素。
+  - 剩下的没修:`Tree`/`Cloud` 的顶部含 `tileW` 项而 `aabb` 拿不到瓦片尺寸,
+    `FlowerPatch` 的散布用 `tileH * 1.15`,还有四个类会画到 `baseZ` 以下。
+    这些都不是各自的疏忽,而是同一个接口问题:**`aabb` 是个没有 draw 上下文的 getter**。
+    要真做就是给 `aabb` 传瓦片尺寸,那是公开接口变更,已按 P2 记录并写明测量值。
+  - 新增 5 个用例（`AABB` 2 条改写 + 3 条新增),1074/80 → 1079/81。
+
 
 
 
@@ -897,7 +930,8 @@ const bus = new EventBus<GameEvents>();
 | 类型安全 | 9/10 | ComponentCtor 与 EventMap 覆盖核心扩展面；`tsc` 现已覆盖 examples 与 e2e |
 | 可扩展性 | 9/10 | 加载注册表、自定义事件、WebGL extractor 注册表、序列化注册表均已就绪 |
 | 文档质量 | 8/10 | README 与本报告已同步当前实现 |
-| 测试覆盖 | 8/10 | 1077 个单测 + 11 个浏览器测试；已接入 v8 覆盖率与分模块阈值（整体 84.6% 语句 / 78.2% 分支），三个 fixture 已按 2,500 像素预算比对基线，道具级不变量改在 `RenderSnapshot` 层测；帧时间契约由 `FrameClock` 单点实现 + 一份共享用例表钉住 |
+| 测试覆盖 | 8/10 | 1079 个单测 + 11 个浏览器测试；已接入 v8 覆盖率与分模块阈值（整体 84.6% 语句 / 78.2% 分支），三个 fixture 已按 2,500 像素预算比对基线，道具级不变量改在 `RenderSnapshot` 层测；帧时间契约由 `FrameClock` 单点实现 + 一份共享用例表钉住 |
+
 
 
 

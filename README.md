@@ -122,7 +122,8 @@ npm run test:webgl # builds, then runs 9 deterministic captures + lifecycle test
 
 | Layer | Command | Scope |
 |---|---|---|
-| Unit | `npm test` | 1077 tests across 81 files (Vitest 4) |
+| Unit | `npm test` | 1079 tests across 81 files (Vitest 4) |
+
 
 
 
@@ -1160,7 +1161,8 @@ object is unreachable and both disappear together.
 | EventBus event maps | Event names and payload types are coupled; custom maps supported |
 | Scene.toJSON(): runtime state + built-in prop serialization | Environment, camera, view, light IDs/options, collider, built-ins |
 | Lib build: ESM + CJS dual output + .d.ts (npm run build:lib) | |
-| Unit tests: 1077 tests across 81 files (Vitest 4, Node ≥ 22) | |
+| Unit tests: 1079 tests across 81 files (Vitest 4, Node ≥ 22) | |
+
 
 
 
@@ -1184,7 +1186,11 @@ See [FRAMEWORK_ANALYSIS.md](FRAMEWORK_ANALYSIS.md) for a detailed comparison wit
 | P2 | Only `Boulder` has backend parity pinned | Its GL silhouette now matches the 2D one and `aabb.maxZ` (all three derive from `Boulder.SQUASH`). `Chest`, `Crystal`, `Tree`, `FlowerPatch` and `Lantern` still have independently hand-tuned GL geometry that nothing compares against the 2D path — the chest's lid rotation is the most likely to disagree |
 
 
+| P2 | Three `aabb` boxes still disagree with their drawing, and one class of reason cannot be fixed in `aabb` | Audited every renderable. `Tree` (77.76 declared vs 75.13 drawn) and `Cloud` (32·scale vs 31·s) agree only at the standard 64x32 tile, because their drawn tops carry a `tileW` term the box cannot see — `aabb` is a getter with no draw context. `FlowerPatch` declares a flat 18 px against 26.28 worst case, since its scatter uses `tileH * 1.15` rather than the projected footprint. Fixing these properly means giving `aabb` the tile size, which is an interface change |
+| P2 | Four classes paint below their `baseZ` | `Character`'s sphere fallback (lower hemisphere, `radius` px), `Cloud` (up to `23 * s`), `FlowerPatch` (`0.35 * tileH * 1.15` = 12.88 px) and `Lantern`'s base diamond (`tileH * 0.1`). `depthSort` and both shadow paths treat `baseZ` as the bottom, so these are all under-declared downward. Measured, not fixed: it is the same interface question as the row above |
+| P2 | Only `Boulder` and `Crystal` share a shape constant with the GL extractor | `Boulder.SQUASH` and `Crystal.TIP_FACTOR` are used by `draw`, `aabb` and `SceneExtractor` alike. `Tree`, `FlowerPatch` and `Lantern` still have their coefficients written out twice — the extractor's copies are currently byte-identical to the 2D ones, which is exactly the state that drifts silently |
 | P2 | Custom serialization needs one registration per direction | `Engine.registerProp()` / `registerLight()` load, `SceneSerializer.register()` / `registerLight()` save. Registering only one side is a silent half-round-trip (the save side warns once per type) |
+
 
 | P2 | `EditorRenderer` rebuilds the whole scene on every state change | Debounce to one rebuild per frame, or mutate objects in place for transform-only edits |
 | P2 | `webgl-next` renderer and extraction layers are the remaining coverage gap | `device/**` and `resources/**` are now unit-tested through `src/__tests__/helpers/gl.ts`; `WebGLRenderer` itself still needs the fake context extended to uniforms, buffers and framebuffer binds |

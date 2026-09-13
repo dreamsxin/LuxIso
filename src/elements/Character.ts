@@ -105,10 +105,9 @@ export class Character extends Entity {
   get aabb(): AABB {
     const r = 0.5;
     // maxZ reflects the character's visual height in screen pixels, the same
-    // unit as position.z. A sphere of radius 22 px spans ~44 px, but only the
-    // upper half rises above the position anchor, so use radius (not 2*radius).
-    // Clamped to >= 16 px so flat characters still get a valid slab.
-    const zHeight = Math.max(16, this.radius);
+    // unit as position.z. Clamped to >= 16 px so a flat character still gets a
+    // valid slab.
+    const zHeight = Math.max(16, this.drawnHeightPx);
     return {
       minX: this.position.x - r,
       minY: this.position.y - r,
@@ -118,6 +117,29 @@ export class Character extends Entity {
       maxZ: this.position.z + zHeight,
     };
   }
+
+  /**
+   * How far the drawing rises above the anchor, in screen pixels.
+   *
+   * Mirrors the branch `draw` takes. The sphere fallback spans `2 * radius` but
+   * only its upper half is above the anchor, so it contributes `radius`.
+   *
+   * The sprite path used to contribute `radius` as well, which was wrong by
+   * whatever ratio the art happens to have: `drawSprite` places the image at
+   * `by - h * anchorY`, so a 64 px frame at the default `scale = 1,
+   * anchorY = 1` reaches 64 px up while the box claimed 22. `maxZ` feeds
+   * `depthSort` and both shadow paths, so a sprite character was sorted and
+   * shadowed as a third of its own height.
+   */
+  get drawnHeightPx(): number {
+    const anim = this.anim;
+    if (!anim?.spriteSheet.image) return this.radius;
+    const sheet = anim.spriteSheet;
+    const frame = anim.currentClip.frames[anim.frameIndex];
+    if (!frame) return this.radius;
+    return frame.h * sheet.scale * sheet.anchorY;
+  }
+
 
   // ── Per-frame update ──────────────────────────────────────────────────────
 

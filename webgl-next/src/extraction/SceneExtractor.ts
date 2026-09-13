@@ -540,7 +540,10 @@ export class SceneExtractor {
     const ridge: RenderPoint = [center[0], center[1] - height * 0.58];
     const rightUpper: RenderPoint = [center[0] + width * 0.38, center[1] - height * 0.9];
     const rightShoulder: RenderPoint = [center[0] + width * 0.92, center[1] - height * 0.42];
-    const tip: RenderPoint = [center[0], center[1] - height * 1.18];
+    // Same factor `Crystal.aabb` declares, so the tip, the box and the 2D
+    // drawing cannot drift apart.
+    const tip: RenderPoint = [center[0], center[1] - height * Crystal.TIP_FACTOR];
+
 
     this._builder.quad(center, leftShoulder, leftUpper, ridge, {
       color: rgba(shiftColor(crystal.propColor, -52)), sample: center, normal: [-0.8, -0.4], pickId,

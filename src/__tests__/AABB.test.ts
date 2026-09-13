@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { MIN_Z_EXTENT_PX } from '../math/depthSort';
+import { AssetLoader } from '../core/AssetLoader';
+import { SpriteSheet } from '../animation/SpriteSheet';
 import { Wall } from '../elements/Wall';
 import { Character } from '../elements/Character';
 import { Floor } from '../elements/Floor';
@@ -7,7 +9,9 @@ import { Crystal } from '../elements/props/Crystal';
 import { Boulder } from '../elements/props/Boulder';
 import { Chest } from '../elements/props/Chest';
 import { Cloud } from '../elements/props/Cloud';
+import { Lantern } from '../elements/props/Lantern';
 import { FloatingText } from '../elements/props/FloatingText';
+
 
 /**
  * Z convention: there is exactly one unit — screen pixels. `position.z` and every
@@ -34,9 +38,10 @@ describe('Wall — aabb Z', () => {
 });
 
 describe('Character — aabb Z', () => {
-  it('maxZ = position.z + radius, in pixels', () => {
+  it('maxZ = position.z + radius for the sphere fallback', () => {
     const ch = new Character({ id: 'p', x: 0, y: 0, z: 0, radius: 22 });
     expect(ch.aabb.maxZ).toBeCloseTo(22, 10);
+    expect(ch.drawnHeightPx).toBeCloseTo(22, 10);
   });
 
   it('baseZ is position.z unchanged', () => {
@@ -49,13 +54,50 @@ describe('Character — aabb Z', () => {
     const ch = new Character({ id: 'p', x: 0, y: 0, z: 0, radius: 1 });
     expect(ch.aabb.maxZ!).toBeCloseTo(MIN_Z_EXTENT_PX, 10);
   });
+
+  /**
+   * The sprite path used to report `radius` as well, which is the one number the
+   * sprite does not use: `drawSprite` places the image at `by - h * anchorY`.
+   * A 64 px frame reached 64 px above the anchor while the box claimed 22, so a
+   * sprite character was depth-sorted and shadowed at a third of its height.
+   */
+  it('measures a sprite by its frame, not by the sphere radius', () => {
+    const sheet = new SpriteSheet({
+      url: '/aabb-hero.png',
+      clips: [{ name: 'idle', frames: [{ x: 0, y: 0, w: 32, h: 64 }], fps: 1 }],
+    });
+    const ch = new Character({ id: 'p', x: 0, y: 0, z: 0, radius: 22, spriteSheet: sheet });
+    // No decoded image yet: nothing is drawn from the sheet, so the box stays on
+    // the branch `draw` would actually take.
+    expect(ch.drawnHeightPx).toBeCloseTo(22, 10);
+
+    AssetLoader.register('/aabb-hero.png', { width: 32, height: 64 } as HTMLImageElement);
+    try {
+      expect(ch.drawnHeightPx).toBeCloseTo(64, 10);
+      expect(ch.aabb.maxZ!).toBeCloseTo(64, 10);
+    } finally {
+      AssetLoader.clear();
+    }
+  });
 });
 
+
 describe('Props — aabb Z', () => {
-  it('Crystal maxZ is its spike height in pixels', () => {
+  it('Crystal maxZ is its drawn tip, not its shoulder height', () => {
     const c = new Crystal('c', 0, 0, '#8060e0', 48);
-    expect(c.aabb.maxZ).toBeCloseTo(48, 10);
+    // `draw` puts the tip at 1.18 * heightPx; the box used to stop at 48.
+    expect(c.aabb.maxZ).toBeCloseTo(48 * Crystal.TIP_FACTOR, 10);
+    expect(c.aabb.maxZ).toBeCloseTo(56.64, 10);
   });
+
+  it('Lantern maxZ follows the roof, which scales with the tile', () => {
+    const l = new Lantern({ id: 'l', x: 0, y: 0, heightPx: 50 });
+
+    // Was `heightPx + 8`, a constant standing in for `0.418 * tileH`.
+    expect(l.aabb.maxZ).toBeCloseTo(50 + 32 * Lantern.ROOF_RISE, 10);
+    expect(l.aabb.maxZ).toBeCloseTo(63.376, 10);
+  });
+
 
   it('Boulder maxZ is the squashed drawn height, not 2 * radius', () => {
     const b = new Boulder('b', 0, 0, '#7a7a8a', 18);

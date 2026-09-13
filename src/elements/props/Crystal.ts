@@ -30,18 +30,33 @@ export class Crystal extends Entity {
   get propColor(): string   { return this.color; }
   get propHeightPx(): number { return this.heightPx; }
 
+  /**
+   * Tip height over the drawn `heightPx`.
+   *
+   * `draw` places the spire tip at `-heightPx * 1.18`, so `heightPx` alone is
+   * the shoulder height, not the silhouette's top. Shared with the box below and
+   * with `webgl-next`'s extractor so the number lives in one place.
+   */
+  static readonly TIP_FACTOR = 1.18;
+
   get aabb(): AABB {
     // heightPx is the drawn spike height in screen pixels, the same unit as
     // AABB Z, so a tall crystal sorts in front of short ground objects.
+    //
+    // The tip factor matters: `maxZ` used to be `heightPx` while the drawing
+    // reached `1.18 * heightPx`, so a crystal was sorted and shadowed 18% shorter
+    // than it looks. The health bar sits higher still (`1.3 * heightPx`) and is
+    // deliberately excluded — a HUD element is not occluding geometry.
     return {
       minX: this.position.x - 0.4,
       minY: this.position.y - 0.4,
       maxX: this.position.x + 0.4,
       maxY: this.position.y + 0.4,
       baseZ: 0,
-      maxZ: this.heightPx,
+      maxZ: this.heightPx * Crystal.TIP_FACTOR,
     };
   }
+
 
   update(ts?: number): void {
     super.update(ts); // drive components

@@ -32,16 +32,36 @@ export class Lantern extends Entity {
   get propGlowColor(): string { return this._glowColor; }
   get propHeightPx(): number { return this._heightPx; }
 
+  /**
+   * Roof apex above the lamp centre, as a fraction of `tileH`.
+   *
+   * `draw` puts the cap apex at `lampY - bodyHeight * 0.95` with
+   * `bodyHeight = tileH * 0.44`, so the silhouette's top is
+   * `heightPx + 0.418 * tileH`.
+   */
+  static readonly ROOF_RISE = 0.44 * 0.95;
+
   get aabb(): AABB {
+    // `maxZ` used to be `heightPx + 8`: a constant, where the part it stands for
+    // scales with the tile. At the standard 32 px tile the roof reaches
+    // `heightPx + 13.38`, so the box understated the lantern by 5.4 px and would
+    // drift further on a taller tile. `aabb` has no `tileH` — the getter takes no
+    // draw context — so it is quoted for the standard 64x32 tile, the same
+    // approximation `Chest.aabb` documents.
+    //
+    // The additive glow ellipse reaches `heightPx + 1.012 * tileH` and is
+    // excluded on purpose: it is light, not geometry, and giving it occluding
+    // height would make the lantern sort in front of things it does not cover.
     return {
       minX: this.position.x - 0.24,
       minY: this.position.y - 0.24,
       maxX: this.position.x + 0.24,
       maxY: this.position.y + 0.24,
       baseZ: 0,
-      maxZ: this._heightPx + 8,
+      maxZ: this._heightPx + 32 * Lantern.ROOF_RISE,
     };
   }
+
 
   draw(dc: DrawContext): void {
     const { ctx, tileW, tileH, originX, originY } = dc;
