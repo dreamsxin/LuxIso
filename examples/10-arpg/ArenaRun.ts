@@ -24,6 +24,32 @@ import { WaveDirector, type ArpgPhase, type WaveDirectorSnapshot } from './WaveD
 /** A blocked arena tile. */
 export interface PillarTile { col: number; row: number; }
 
+/**
+ * Something worth reacting to, reported with the world position it happened at.
+ *
+ * This exists because sound needed it. Phase changes already had `onPhase`, but
+ * a blow landing or a mob dying was visible only by diffing state between
+ * frames — so anything that wanted to react (audio, screen shake, a floating
+ * number) had to re-derive what the run already knew. The position is the part
+ * that cannot be recovered afterwards: by the time a caller notices a mob is
+ * gone, it has been removed from `enemies`.
+ */
+export type ArenaEventType =
+  | 'hero-hit'    // the hero landed a blow
+  | 'hero-hurt'   // something landed a blow on the hero
+  | 'kill'        // an enemy died
+  | 'wave-start'
+  | 'boss'
+  | 'victory'
+  | 'defeat';
+
+export interface ArenaEvent {
+  type: ArenaEventType;
+  x: number;
+  y: number;
+}
+
+
 /** A run's bookkeeping, saved next to the serialized scene. */
 export interface ArenaRunSnapshot {
   director: WaveDirectorSnapshot;
@@ -54,7 +80,10 @@ export interface ArenaRunOptions {
   onSpawn?: (unit: Combatant) => void;
   onDespawn?: (unit: Combatant) => void;
   onPhase?: (phase: ArpgPhase, previous: ArpgPhase) => void;
+  /** Combat and phase events, with the position they happened at. */
+  onEvent?: (event: ArenaEvent) => void;
 }
+
 
 export class ArenaRun {
   /**
@@ -160,9 +189,18 @@ export class ArenaRun {
     this._enemies = fighters.filter((unit) => unit !== hero);
     this._director = this._newDirector();
     if (snapshot.director) this._director.restore(snapshot.director);
-    for (const unit of fighters) this._opts.onSpawn?.(unit);
+    for (const unit of fighters) {
+      // Restored fighters arrive from `Engine.buildProps`, which rebuilds an
+      // object from its saved fields and nothing else — a callback is not a
+      // field. Before this, loading a checkpoint left every adopted unit with
+      // no `onAttack`, so the run went silent from that point on and only the
+      // units spawned afterwards reported hits.
+      this._wire(unit);
+      this._opts.onSpawn?.(unit);
+    }
     return true;
   }
+
 
   /** Nearest living enemy, or null. */
   nearestEnemy(): Combatant | null {
@@ -211,6 +249,7 @@ export class ArenaRun {
     const survivors: Combatant[] = [];
     for (const enemy of this._enemies) {
       if (!enemy.isDead) { survivors.push(enemy); continue; }
+      this._emit('kill', enemy.position.x, enemy.position.y);
       this._opts.onDespawn?.(enemy);
       if (!this._hero.isDead) this._hero.health.heal(ArenaRun.LIFE_ON_KILL);
       this._director.reportMobDefeated();
@@ -220,6 +259,28 @@ export class ArenaRun {
     if (this._hero.isDead) this._director.reportHeroDefeated();
     this._director.update(dt);
   }
+
+  private _emit(type: ArenaEventType, x: number, y: number): void {
+    this._opts.onEvent?.({ type, x, y });
+  }
+
+  /**
+   * Give a fighter its event hook.
+   *
+   * `Combatant.swing` applies the damage itself; this only reports that it
+   * happened, so a listener never has to guess which of the two factions is
+   * being hit from the numbers alone.
+   */
+  private _wire(unit: Combatant): void {
+    unit.onAttack = (attacker) => {
+      this._emit(
+        attacker.faction === 'hero' ? 'hero-hit' : 'hero-hurt',
+        attacker.position.x,
+        attacker.position.y,
+      );
+    };
+  }
+
 
   /**
    * Keep living fighters from standing inside each other.
@@ -330,9 +391,18 @@ export class ArenaRun {
         for (let i = 0; i < count; i++) this._spawnEnemy(`w${wave}-${i}`, i, count, wave);
       },
       onSpawnBoss: () => this._spawnBoss(),
-      onPhase: this._opts.onPhase,
+      onPhase: (phase, previous) => {
+        // Phase cues are placed at the arena's centre: they belong to the run,
+        // not to a fighter, and a listener that pans them would be panning
+        // something the player cannot look at.
+        if (phase === 'wave' || phase === 'boss' || phase === 'victory' || phase === 'defeat') {
+          this._emit(phase === 'wave' ? 'wave-start' : phase, this._cols / 2, this._rows / 2);
+        }
+        this._opts.onPhase?.(phase, previous);
+      },
     });
   }
+
 
   private _spawnHero(): Combatant {
     const unit = new Combatant('hero', this._cols / 2, this._rows / 2, {
@@ -340,9 +410,11 @@ export class ArenaRun {
       attackRange: 1.15, attackInterval: 0.4, radius: 15, color: '#6fd8ff',
       collider: this._opts.collider ?? null,
     });
+    this._wire(unit);
     this._opts.onSpawn?.(unit);
     return unit;
   }
+
 
   /** Enemies enter on a ring, so they always have to close in. */
   private _spawnEnemy(id: string, index: number, count: number, wave: number): void {
@@ -355,6 +427,7 @@ export class ArenaRun {
       pathCache: this._pathCache,
     });
     this._enemies.push(unit);
+    this._wire(unit);
     this._opts.onSpawn?.(unit);
   }
 
@@ -365,6 +438,8 @@ export class ArenaRun {
       pathCache: this._pathCache,
     });
     this._enemies.push(unit);
+    this._wire(unit);
     this._opts.onSpawn?.(unit);
   }
 }
+

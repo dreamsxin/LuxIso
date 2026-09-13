@@ -122,7 +122,8 @@ npm run test:webgl # builds, then runs 9 deterministic captures + lifecycle test
 
 | Layer | Command | Scope |
 |---|---|---|
-| Unit | `npm test` | 1044 tests across 78 files (Vitest 4) |
+| Unit | `npm test` | 1068 tests across 80 files (Vitest 4) |
+
 | Coverage | `npm run test:coverage` | v8 provider + per-module ratchets |
 | Workflows | `npm run lint:workflows` | GitHub Actions YAML: unquoted colons, tab indentation, `run:` expression injection |
 | Browser | `npm run test:webgl` | 9 fixture captures + 2 context-lifecycle tests (Chromium/SwiftShader) against the built bundle |
@@ -474,12 +475,15 @@ examples/
 ├── 07-desert-ruins/             # Procedural terrain, interactive props, portals
 ├── 08-volcano/                  # Lava terrain, particle FX, burn damage, click-to-move
 ├── 09-slopes/                   # Height-map terrain, bilinear interpolation, smooth voxel hills
-└── 10-arpg/                     # WebGL2 arena: 3 waves + boss + result + checkpoint; pillar cover with LoS-gated A* chase; custom Entity via SceneExtractor.register, HudLayer over GL, keyboard + TouchStick
+└── 10-arpg/                     # WebGL2 arena: 3 waves + boss + result + checkpoint; pillar cover with LoS-gated A* chase; spatial audio panned around the hero; custom Entity via SceneExtractor.register, HudLayer over GL, keyboard + TouchStick
     ├── WaveDirector.ts          # Run structure (phases, waves, boss, result) + snapshot/restore — no Scene/Engine/DOM, unit-tested
-    ├── ArenaRun.ts              # The rules: spawning, hero intent, kill reporting, life on kill, crowd separation. Driven by `step(dt, intent)`, so a full run is a unit test
+    ├── ArenaRun.ts              # The rules: spawning, hero intent, kill reporting, life on kill, crowd separation, `ArenaEvent` reporting. Driven by `step(dt, intent)`, so a full run is a unit test
     ├── Combatant.ts             # Hero / grunt / boss: Entity + HealthComponent + MovementComponent
     ├── CombatantExtractor.ts    # The SceneExtractor registration that makes it renderable on the GL path
+    ├── sfx.ts                   # WAV synthesis into `data:` URLs — the demo ships no binary audio assets
+    ├── ArenaAudio.ts            # Event → cue policy: per-frame voice budget, per-cue gap, phase-driven BGM bed
     └── persistence.ts           # Both halves of the round trip: SceneSerializer.register (save) + Engine.registerProp (load)
+
 
 public/
 └── scenes/
@@ -961,6 +965,19 @@ Call `dispose()` when tearing down a game instance: browsers cap the number of
 live `AudioContext`s, and the decoded-buffer cache otherwise grows across scene
 reloads. `resume()` revives the manager afterwards.
 
+`examples/10-arpg` is the worked example. Two things there are worth copying
+into a real game, because neither belongs in the framework and both are needed
+the moment a wave dies at once:
+
+- A **per-frame voice budget** and a **per-cue minimum gap**
+  (`ArenaAudio.beginFrame` / `handle`). Four mobs dying in the same frame is
+  ordinary; four copies of one cue starting on the same sample is a 4x amplitude
+  spike, not a chord.
+- Cues **synthesized into `data:audio/wav` URLs** at startup (`sfx.ts`), so the
+  demo ships no binary audio. `fetch` accepts a data URL, so `AudioManager`
+  needs no special path for them.
+
+
 
 ### `DirectionalAnimator`
 
@@ -1127,7 +1144,8 @@ object is unreachable and both disappear together.
 | EventBus event maps | Event names and payload types are coupled; custom maps supported |
 | Scene.toJSON(): runtime state + built-in prop serialization | Environment, camera, view, light IDs/options, collider, built-ins |
 | Lib build: ESM + CJS dual output + .d.ts (npm run build:lib) | |
-| Unit tests: 1044 tests across 78 files (Vitest 4, Node ≥ 22) | |
+| Unit tests: 1068 tests across 80 files (Vitest 4, Node ≥ 22) | |
+
 | Coverage ratchets per module (`npm run test:coverage`) | v8 provider; per-glob floors on math/physics/lighting/ecs/animation/elements/audio/core |
 | Examples: 10 progressive demos + tools gallery | |
 
@@ -1138,7 +1156,9 @@ See [FRAMEWORK_ANALYSIS.md](FRAMEWORK_ANALYSIS.md) for a detailed comparison wit
 | Priority | Item | Notes |
 |----------|------|-------|
 | P2 | `webgl-next` HUD is a stacked 2D canvas, not GL geometry | `HudOverlayRenderer` mounts the tested `HudLayer` on a transparent canvas above the GL one (DPR-aware, `pointer-events: none`), and its `paint` hook hosts widgets that draw themselves such as `TouchStick`. Fine for bars/buttons/labels; a HUD that needs to blend with the 3D scene still wants a GL path |
-| P2 | Six of nine WebGL fixtures are not baseline-gated | `day-ne` / `low-angle` / `night-lanterns` compare against committed baselines at 1.5%; extending the set means adding IDs to `PIXEL_GATED_FIXTURES` and regenerating through the `webgl-baselines` workflow |
+| P2 | Six of nine WebGL fixtures are not baseline-gated | `day-ne` / `low-angle` / `night-lanterns` compare against committed baselines at 1.5%; extending the set means adding IDs to `PIXEL_GATED_FIXTURES` and regenerating through the `webgl-baselines` workflow. The suite itself runs locally (Chromium + SwiftShader renders all nine) — what CI owns is *minting* baselines, because one unsuffixed baseline set is read by both Windows and Linux and they differ by more than 1.5% |
+| P2 | Same-frame sound limiting lives in the example, not the framework | `examples/10-arpg/ArenaAudio.ts` carries its own per-frame voice budget (4) and per-cue gap (0.06 s). Every game with crowds rewrites this, but "how many is too many" depends on the actual audio, so it stays out of `AudioManager` until that class grows a voice pool rather than just `playSfx` |
+
 | P2 | `src/elements/**` branch coverage (80%) now trails its statement coverage | The draw bodies are covered; what is left is per-branch lighting and edge cases inside `Floor` (62% branches) and `Wall` (73%) |
 | P2 | `Boulder.aabb.maxZ` is `radius * 2` but the rock draws ~`0.55 * radius` tall | Measured and pinned in `src/__tests__/Boulder.test.ts`. `maxZ` feeds `depthSort` and `ShadowCaster`, so the rock occludes and shadows as a column it does not fill. Correcting it changes gated fixture pixels (`mossy-boulder`), so it belongs with a baseline regeneration |
 | P2 | `Chest.aabb.maxZ` ignores the lid swinging up | Measured and pinned in `src/__tests__/Chest.test.ts`: closed it fits the declared 51.2 px, open it does not. Same constraint as the boulder — `garden-chest` is in a gated fixture |

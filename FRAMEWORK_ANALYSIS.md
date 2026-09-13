@@ -1,7 +1,8 @@
 # LuxIso 架构分析报告 v5
 
 > 更新日期：2026-09-12
-> 基线：Canvas 2D 默认 + WebGL2 预览，1044 个 Vitest 测试 / 78 个测试文件（含 v8 覆盖率阈值），11 个 Playwright WebGL 测试
+> 基线：Canvas 2D 默认 + WebGL2 预览，1068 个 Vitest 测试 / 80 个测试文件（含 v8 覆盖率阈值），11 个 Playwright WebGL 测试
+
 
 ## 执行摘要
 
@@ -120,7 +121,9 @@ const bus = new EventBus<GameEvents>();
 |---|---|---|
 | P2 | `webgl-next` HUD 是叠加的 2D 画布，不是 GL 几何 | 已通过 `HudOverlayRenderer` 把受测的 `HudLayer` 挂在 GL canvas 之上（DPR 感知、`pointer-events: none`、`paint` 钩子承载自绘控件）；条形/按钮/标签够用，需要与 3D 场景混合的 HUD 仍要 GL 通路 |
 | P2 | 自定义类型需要两侧各注册一次 | `SceneSerializer.register()` 写、`Engine.registerProp()` 读，已都到位；只注册一侧仍是静默的半个往返（写侧每类型告警一次），示例把两者绑在同一个函数里避免遗漏 |
-| P2 | 9 个 WebGL fixture 中有 6 个未接入基线比对 | `day-ne` / `low-angle` / `night-lanterns` 已按 1.5% 门槛比对committed 基线；扩展只需往 `PIXEL_GATED_FIXTURES` 加 ID 并重新生成 |
+| P2 | 9 个 WebGL fixture 中有 6 个未接入基线比对 | `day-ne` / `low-angle` / `night-lanterns` 已按 1.5% 门槛比对 committed 基线；扩展只需往 `PIXEL_GATED_FIXTURES` 加 ID 并重新生成。**套件本身在本地跑得通**（Chromium + SwiftShader，九个 fixture 全过），受限的只是"生成并提交基线"——基线只有一套且不带平台后缀，Windows 出的图与 CI 的 Linux 差超过 1.5%，所以那几张 PNG 必须由 `webgl-baselines` workflow 出 |
+| P2 | 同帧多声音的限流是示例层策略，框架里没有 | `examples/10-arpg/ArenaAudio.ts` 自己实现了每帧声部预算（4）与同类 cue 最小间隔（0.06s）。这是任何有群怪的游戏都要重写一遍的东西，但"多少个算多"依赖具体音频，暂不进框架；若要上移，`AudioManager` 需要一个声部池而不只是 `playSfx` |
+
 | P2 | `src/elements/**` 的分支覆盖（80%）已落后于语句覆盖 | 绘制主体都覆盖了，剩下的是 `Floor`（分支 62%）与 `Wall`（73%）里逐分支的光照与边界情况 |
 | P2 | `Chest.aabb.maxZ` 没算上掀起的箱盖 | 已在 `src/__tests__/Chest.test.ts` 实测并钉住：关着时符合声明的 51.2px，开着时超出。约束与石头相同——`garden-chest` 也在被门禁的 fixture 里 |
 | P2 | `Boulder.aabb.maxZ` 是 `radius * 2`，实际只画到约 `0.55 * radius` 高 | 已在 `src/__tests__/Boulder.test.ts` 里实测并钉住。`maxZ` 同时喂给 `depthSort` 与 `ShadowCaster`，于是石头按一根它并未填满的柱子去遮挡和投影。修正会改动被门禁的 fixture 像素（`mossy-boulder`），必须与基线重生成一起做 |
@@ -696,7 +699,12 @@ const bus = new EventBus<GameEvents>();
     而实测轮廓只到锚点上方约 `0.55 * radius`——每个顶点都乘了 0.55 的等距压扁系数。
     声明高度约是实际的 3.6 倍，于是石头按一根它并未填满的柱子去遮挡、去投影阴影。
   - **没有当场修**：`maxZ` 同时喂给 `depthSort` 与 `ShadowCaster`，而 `mossy-boulder`
-    就在被 1.5% 门槛门禁的 fixture 里，改它必然动像素，而我这里没有 GPU 无法本地验证。
+    就在被 1.5% 门槛门禁的 fixture 里，改它必然动像素。
+    （**更正**：当时我把原因写成"我这里没有 GPU 无法本地验证"，这是错的——
+    `npm run test:webgl` 在本地跑得通，Chromium + SwiftShader 软件光栅化九个 fixture 全过。
+    真正的约束是基线只有一套且不带平台后缀，Windows 生成的图会和 CI 的 Linux 差超过
+    1.5%，所以**能改能验，只是最后那几张基线得由 `webgl-baselines` workflow 出**。）
+
     所以写成一条**测量断言**（实测范围 + `maxZ > drawnAbove * 3`）并在注释里写明
     "这两个数要一起改，且要重生成基线，不能只改一个"。
     **把猜测变成钉住的事实，比留一句 TODO 有用。**
@@ -741,6 +749,41 @@ const bus = new EventBus<GameEvents>();
   - `src/elements/**` 阈值从 74/72/86/77 提到 94/80/94/95，整体 81.8/77.7 → 84.6/78.2。
     **绘制体覆盖这条线至此走完**：`Cloud`、`Boulder`、`Chest` 三块都从两位数补到近满，
     剩下的分支缺口在 `Floor`（62%）与 `Wall`（73%）的光照分支里，性质不同。
+- **ARPG 示例接上音效，而"没有示例用过 audio"本身就是那三个缺陷能活到上一轮的原因。**
+  上一轮修完 `AudioManager` 的竞态、节点泄漏和默认值分叉之后，我搜了一遍 `examples/`：
+  **十个示例里对 `AudioManager` 的引用是零。** 一个模块被单测覆盖到 94% 却从没有人真正
+  听过它，说明覆盖率保护的是"函数被调用过"，不是"这条链在浏览器里通"。
+  - **需要一个事件面**。`ArenaRun` 原本只报 `onSpawn` / `onDespawn` / `onPhase`，
+    "谁打中了谁"和"哪只怪死在哪"只能靠逐帧 diff 状态反推——而**位置是事后拿不回来的**：
+    等调用方发现怪没了，它已经从 `enemies` 里移除了。新增 `ArenaEvent`
+    （`hero-hit` / `hero-hurt` / `kill` / `wave-start` / `boss` / `victory` / `defeat`，
+    各带世界坐标），音效、震屏、飘字都可以挂在同一处。
+  - **顺手撞出一个真缺陷**：`adopt()` 接管从存档恢复的 fighter 时不重新挂回调。
+    `Engine.buildProps` 按字段重建对象，而**回调不是字段**，所以读档之后每个单位的
+    `onAttack` 都是 undefined——**读一次档，整局的命中上报就静音了**，直到下一波刷出来。
+    已加 `_wire(unit)` 并在 `adopt` 里对每个单位调用；回归用例直接构造无回调的
+    `Combatant` 再 `adopt`，然后断言双方 `swing` 都能报上来。
+  - **两条限流是必须的，不是打磨**：一帧最多起 4 个 cue（`VOICES_PER_FRAME`），
+    同一种 cue 至少间隔 0.06s（`CUE_INTERVAL`）。一波四只怪同帧死是常态，
+    而同一采样点起四份同样的音**不是和弦，是 4 倍振幅的削顶**。
+    `ArenaAudio` 因此拆成独立类、只依赖一个 sink 接口——jsdom 没有 `AudioContext`，
+    这样才测得动。它自己的时钟也照 `FrameClock` 那套规矩夹（`min(dt, 0.1)`、
+    非有限值不推进），否则后台一分钟再切回来的第一帧会把所有间隔一次性放行。
+  - **音频资产改成现场合成**。`sfx.ts` 把 cue 渲成 `data:audio/wav` URL（16-bit mono
+    RIFF + base64），`fetch` 认这种 URL，所以 `AudioManager` 不需要新路径；
+    仓库里不进任何二进制音频。噪声用固定种子的 LCG 而非 `Math.random`，
+    同一份 spec 永远渲出同样的字节，**测试才能对结果本身下断言**。
+  - **一处被我自己的对照实验否掉的断言**：我本来写了"扫频不应出现相邻采样跳变"，
+    理由是朴素的 `sin(2π·f(t)·t)` 会断相位。**这个理由是错的**——那个写法是连续的，
+    它错在速率（瞬时频率是 `f + t·df/dt`，线性 ramp 下是两倍斜率），听起来是收尾音高不对，
+    不是咔哒声。改成数零穿越次数来钉音高上升，并在注释里写明"显然的那个断言是错的"。
+  - **实测到浏览器为止**：临时写了一个 Playwright 用例，让 Chromium 真的
+    `decodeAudioData` 这两种合成波形——时长 0.14s / 2.0s 都对得上，示例页零 console 错误。
+    验证完即删，不留在套件里。这一步是必要的，因为手写的 RIFF 头**只有真解码器能判对错**。
+  - 新增 30 个用例（`ArpgSfx` 7、`ArenaAudio` 12、`ArenaRun` 事件 5 + 6），
+    整体 1044/78 → 1068/80。这些文件都在 `examples/` 下，按既有策略不进覆盖率 glob，
+    所以覆盖率数字不动（84.63/78.15/85.05/86.03），阈值这轮不抬。
+
 
 
 
@@ -779,7 +822,8 @@ const bus = new EventBus<GameEvents>();
 | 类型安全 | 9/10 | ComponentCtor 与 EventMap 覆盖核心扩展面；`tsc` 现已覆盖 examples 与 e2e |
 | 可扩展性 | 9/10 | 加载注册表、自定义事件、WebGL extractor 注册表、序列化注册表均已就绪 |
 | 文档质量 | 8/10 | README 与本报告已同步当前实现 |
-| 测试覆盖 | 8/10 | 1044 个单测 + 11 个浏览器测试；已接入 v8 覆盖率与分模块阈值（整体 84.6% 语句 / 78.2% 分支），三个 fixture 已按 1.5% 门槛比对基线；帧时间契约由 `FrameClock` 单点实现 + 一份共享用例表钉住 |
+| 测试覆盖 | 8/10 | 1068 个单测 + 11 个浏览器测试；已接入 v8 覆盖率与分模块阈值（整体 84.6% 语句 / 78.2% 分支），三个 fixture 已按 1.5% 门槛比对基线；帧时间契约由 `FrameClock` 单点实现 + 一份共享用例表钉住 |
+
 | 综合 | 8.3/10 | 架构短板已大幅收敛，下一阶段应由 profiling 驱动 |
 
 测试数量不等于覆盖率。`vitest.config.ts` 现已按模块设定阈值（math/physics/lighting

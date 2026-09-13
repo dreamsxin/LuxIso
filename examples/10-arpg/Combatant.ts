@@ -52,8 +52,15 @@ export class Combatant extends Entity {
   readonly radius: number;
   readonly color: string;
 
-  /** Fires when this combatant lands a hit. `main.ts` applies the damage. */
+  /**
+   * Fires after this combatant lands a hit, once the damage is already applied.
+   *
+   * A report, not a hook: `swing()` calls `takeDamage` itself, so a listener
+   * that throws cannot leave a blow half-resolved. `ArenaRun` uses it to turn
+   * hits into `ArenaEvent`s.
+   */
   onAttack?: (attacker: Combatant, damage: number) => void;
+
 
   private _cooldown = 0;
   private _repathIn = 0;

@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { TileCollider } from '../physics/TileCollider';
-import { ArenaRun, type HeroIntent } from '../../examples/10-arpg/ArenaRun';
-import type { Combatant } from '../../examples/10-arpg/Combatant';
+import { ArenaRun, type ArenaEvent, type HeroIntent } from '../../examples/10-arpg/ArenaRun';
+import { Combatant } from '../../examples/10-arpg/Combatant';
+
 
 /**
  * The arena's closed loop, played out at a fixed dt.
@@ -401,4 +402,104 @@ describe('ArenaRun — checkpoint', () => {
     expect(target.enemies.length).toBe(fighters.length - 1);
   });
 });
+
+describe('ArenaRun — events', () => {
+  /** Collect every event of a run driven by a brawling hero. */
+  function record(opts: { budget?: number } = {}): ArenaEvent[] {
+    const events: ArenaEvent[] = [];
+    const run = new ArenaRun({ onEvent: (event) => events.push(event) });
+    play(run, brawler, opts.budget ?? 240);
+    return events;
+  }
+
+  /** `Array.prototype.at` is outside this project's `lib` target. */
+  function last<T>(values: readonly T[]): T | undefined {
+    return values[values.length - 1];
+  }
+
+
+  it('opens the run with a wave cue at the arena centre', () => {
+    const events: ArenaEvent[] = [];
+    const run = new ArenaRun({ cols: 14, rows: 14, onEvent: (event) => events.push(event) });
+    // Nothing before `start()` — the constructor spawns a hero, not a wave.
+    expect(events).toEqual([]);
+
+    run.start();
+    expect(events).toEqual([{ type: 'wave-start', x: 7, y: 7 }]);
+  });
+
+  it('reports a hit from each side, and every kill', () => {
+    const events = record();
+    const types = events.map((event) => event.type);
+
+    expect(types).toContain('hero-hit');
+    expect(types).toContain('hero-hurt');
+    // One per kill, and the run's own counter says ten.
+    expect(types.filter((type) => type === 'kill').length).toBe(10);
+    // Three waves and a boss, in that order, then the ending.
+    expect(types.filter((type) => type === 'wave-start').length).toBe(3);
+    expect(types.filter((type) => type === 'boss').length).toBe(1);
+    expect(last(types)).toBe('victory');
+    expect(types).not.toContain('defeat');
+  });
+
+
+  it('places a kill where the enemy died, not where the hero is', () => {
+    const events: ArenaEvent[] = [];
+    const run = new ArenaRun({ onEvent: (event) => events.push(event) });
+    run.start();
+
+    const victim = run.enemies[0];
+    // Somewhere no fighter would otherwise stand, so the position cannot be
+    // confused with the hero's or the arena centre's.
+    victim.position.x = 2.25;
+    victim.position.y = 9.75;
+    victim.health.takeDamage(9999, 'test');
+    run.step(DT);
+
+    const kill = events.find((event) => event.type === 'kill');
+    expect(kill).toEqual({ type: 'kill', x: 2.25, y: 9.75 });
+  });
+
+  it('reports defeat for a hero who never fights back', () => {
+    const events: ArenaEvent[] = [];
+    const run = new ArenaRun({ onEvent: (event) => events.push(event) });
+    play(run, idle);
+    expect(last(events.map((event) => event.type))).toBe('defeat');
+  });
+
+  /**
+   * The regression this whole event surface turned up.
+   *
+   * `Engine.buildProps` rebuilds a saved object from its fields, and a callback
+   * is not a field, so every fighter restored from a checkpoint arrived with
+   * `onAttack` undefined. Adopting them used to hand them straight to `onSpawn`
+   * without re-wiring, which meant a loaded run reported no hits at all — from
+   * either side — until the next wave spawned.
+   */
+  it('re-wires fighters restored from a save, which arrive with no callbacks', () => {
+    const events: ArenaEvent[] = [];
+    const run = new ArenaRun({ onEvent: (event) => events.push(event) });
+    run.start();
+
+    // Stand-ins for `Engine.buildProps` output: constructed fresh, so nothing
+    // has ever set their hooks.
+    const hero = new Combatant('hero', 5, 5, { faction: 'hero', damage: 3, attackRange: 2 });
+    const mob = new Combatant('w1-0', 5.5, 5, { damage: 3, attackRange: 2 });
+    expect(hero.onAttack).toBeUndefined();
+    expect(mob.onAttack).toBeUndefined();
+
+    expect(run.adopt([hero, mob])).toBe(true);
+    events.length = 0;
+
+    expect(mob.swing(hero)).toBe(true);
+    expect(hero.swing(mob)).toBe(true);
+    expect(events).toEqual([
+      { type: 'hero-hurt', x: 5.5, y: 5 },
+      { type: 'hero-hit', x: 5, y: 5 },
+    ]);
+  });
+});
+
+
 

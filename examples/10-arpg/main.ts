@@ -11,13 +11,16 @@
  *   • `Pathfinder.hasLineOfSight` + `pathTo` — mobs walk straight when they can
  *     see the hero, and path around the pillars when they cannot
  *   • `WaveDirector` — the run structure, driven by kill reports, not by the loop
+ *   • `AudioManager` — spatial cues panned around the hero, plus a bed that
+ *     follows the phase. The sounds are synthesized into data URLs at startup
+ *     (`sfx.ts`), so the demo ships no binary assets.
  *
  * Controls: WASD / arrows or the lower-left stick to move, Space / J or the
- * ATTACK button to swing, R to restart.
+ * ATTACK button to swing, R to restart, M to mute.
  */
 import {
   Scene, Floor, Boulder, TileCollider, InputManager, InputMap, TouchStick, HudLayer,
-  OmniLight, DirectionalLight, SceneSerializer, Engine,
+  OmniLight, DirectionalLight, SceneSerializer, Engine, AudioManager,
 } from '../../src/index';
 import { SceneExtractor } from '../../webgl-next/src/extraction/SceneExtractor';
 import { WebGLRenderer } from '../../webgl-next/src/renderer/WebGLRenderer';
@@ -26,7 +29,9 @@ import { registerCombatantExtractor } from './CombatantExtractor';
 import { registerCombatantPersistence } from './persistence';
 import { Combatant } from './Combatant';
 import { ArenaRun, type ArenaRunSnapshot } from './ArenaRun';
+import { ArenaAudio, ARENA_CUES, ARENA_TRACKS } from './ArenaAudio';
 import { type ArpgPhase } from './WaveDirector';
+
 
 const COLS = 14, ROWS = 14;
 
@@ -79,6 +84,8 @@ map.define('attack', [' ', 'Space', 'j', 'J']);
 map.define('restart', ['r', 'R']);
 map.define('save', ['k', 'K']);
 map.define('load', ['l', 'L']);
+map.define('mute', ['m', 'M']);
+
 
 const stick = new TouchStick({ x: 110, y: 260, radius: 56 });
 map.addAxisSource(stick);
@@ -103,7 +110,24 @@ const hudOverlay = new HudOverlayRenderer(hudCanvas, hud, {
   paint: (ctx) => stick.draw(ctx),
 });
 
+// ── Audio ─────────────────────────────────────────────────────────────────────
+
+// `bindPageLifecycle` covers the two things a browser demands and a demo always
+// forgets: an AudioContext starts suspended until a gesture, and music must not
+// keep playing over whatever the player switched to.
+const audio = new AudioManager();
+audio.bgmVolume = 0.32;
+audio.bindPageLifecycle();
+// Decoding needs a context, not a resumed one, so this runs before the first tap
+// rather than after it. Failures are already reported by the manager.
+void audio.preloadAll([
+  ...Object.values(ARENA_CUES).map((cue) => cue.url),
+  ...Object.values(ARENA_TRACKS),
+]);
+const arenaAudio = new ArenaAudio(audio);
+
 // ── Run ───────────────────────────────────────────────────────────────────────
+
 
 // The rules live in ArenaRun; this file owns the page. `onSpawn` / `onDespawn`
 // are the only place the two meet.
@@ -113,8 +137,11 @@ const run = new ArenaRun({
   collider,
   onSpawn: (unit) => scene.addObject(unit),
   onDespawn: (unit) => scene.removeById(unit.id),
+  onEvent: (event) => arenaAudio.handle(event),
   onPhase: (phase) => {
+    arenaAudio.setPhase(phase);
     resultLabel.visible = phase === 'victory' || phase === 'defeat';
+
     resultLabel.text = phase === 'victory'
       ? `VICTORY  ·  ${run.director.kills} kills in ${run.director.elapsed.toFixed(1)}s  ·  R to replay`
       : phase === 'defeat'
@@ -251,9 +278,18 @@ function frame(ts: number): void {
   if (map.wasPressed('restart')) restart();
   if (map.wasPressed('save')) saveCheckpoint();
   if (map.wasPressed('load')) loadCheckpoint();
+  if (map.wasPressed('mute')) {
+    arenaAudio.setMuted(!arenaAudio.muted);
+    audio.masterVolume = arenaAudio.muted ? 0 : 1;
+    notify(arenaAudio.muted ? 'sound off' : 'sound on');
+  }
 
   const axis = map.axis('move_right', 'move_left', 'move_down', 'move_up');
+  // Opened before the step, so the events the step emits are spent against this
+  // frame's voice budget and are panned around where the hero already is.
+  arenaAudio.beginFrame(dt, run.hero.position.x, run.hero.position.y);
   run.step(dt, { x: axis.x, y: axis.y, attack: swingRequested() });
+
 
   // One clock for the whole frame: Scene derives its own dt from this timestamp,
   // and handing it `performance.now()` instead would drift from the dt above.
