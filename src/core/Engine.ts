@@ -170,7 +170,17 @@ export class Engine {
 
   private _scene: Scene | null = null;
   private _rafId: number | null = null;
+  /**
+   * Identifies the live rAF chain.
+   *
+   * `_rafId` cannot serve as "is the loop running": the loop body clears it
+   * before running the tick, so during any frame callback it is null. The
+   * generation is bumped whenever a chain is started or cancelled, and a chain
+   * that finds itself out of date declines to reschedule.
+   */
+  private _loopGeneration = 0;
   private _running = false;
+
   private _onFrame: ((ts: number) => void) | null = null;
   private _clock = new FrameClock();
   private _accumulator = 0;
@@ -544,9 +554,17 @@ export class Engine {
    * Start the engine render loop.
    * @param onFrame  called after scene.draw (post-frame, for overlays/hint rings)
    * @param preFrame called after clearRect but before scene.draw (for background fx)
+   *
+   * Calling this while the engine is already running does nothing. The guard is
+   * `_running`, not `_rafId`: the loop body nulls the id before running the tick,
+   * so for the whole duration of a frame callback `_rafId` is null and a `start()`
+   * from inside one used to schedule a second rAF chain — two ticks per frame,
+   * with `stop()` able to cancel only the one it had an id for.
    */
   start(onFrame?: (ts: number) => void, preFrame?: (ts: number) => void): void {
-    if (this._rafId !== null) return;
+    if (this._running) return;
+
+
     this._onFrame = onFrame ?? null;
     this._preFrame = preFrame ?? null;
     this._running = true;
@@ -559,7 +577,16 @@ export class Engine {
     this._autoPaused = false;
     this._cancelLoop();
     this._detachVisibility();
+    // Same reason the auto-pause path does this: a stale baseline credits the
+    // entire paused interval to the first frame after `start()`. `stop()` is a
+    // pause — `destroy()`'s docstring even advertises restarting afterwards — so
+    // leaving the clock armed meant a pause menu ended with everything jumping
+    // 100 ms (the `FrameClock` clamp) plus a drained accumulator's worth of
+    // fixed steps.
+    this._clock.reset();
+    this._accumulator = 0;
   }
+
 
   /** True while the loop is suspended because the tab is hidden. */
   get paused(): boolean { return this._autoPaused; }
@@ -574,9 +601,17 @@ export class Engine {
 
   private _scheduleLoop(): void {
     if (this._rafId !== null) return;
+    // Only the newest chain may reschedule itself. A frame callback can legally
+    // `stop()` and `start()` again — a restart button does exactly that — which
+    // starts a fresh chain while the old one is still mid-tick. Without this the
+    // old chain reschedules too and both keep running under one tracked id.
+    const generation = ++this._loopGeneration;
     const loop = (ts: number): void => {
       this._rafId = null;
       this._tick(ts);
+      if (generation !== this._loopGeneration) return;
+
+
       // A frame callback may have called stop(); without this guard the loop
       // would immediately reschedule itself and become unstoppable.
       if (!this._running || this._autoPaused) return;
@@ -586,10 +621,14 @@ export class Engine {
   }
 
   private _cancelLoop(): void {
+    // Bumped even when there is no id to cancel: during a tick `_rafId` is null,
+    // and this is the only thing that tells that in-flight chain to stop.
+    this._loopGeneration++;
     if (this._rafId === null) return;
     cancelAnimationFrame(this._rafId);
     this._rafId = null;
   }
+
 
   /**
    * Suspend the loop while the tab is hidden.
@@ -603,8 +642,14 @@ export class Engine {
   private _attachVisibility(): void {
     if (this._visibilityListener || typeof document === 'undefined') return;
     const onChange = (): void => {
-      if (!this.pauseOnHide) return;
       if (document.hidden) {
+        // Only the *hide* branch is optional. Guarding both with `pauseOnHide`
+        // meant turning the flag off while already auto-paused wedged the engine:
+        // the resume branch returned early, `_autoPaused` stayed true, and no
+        // amount of `start()` helped because every scheduled frame died on that
+        // flag. Only `stop()` recovered, and `paused` reported true on a visible
+        // tab — contradicting its own docstring.
+        if (!this.pauseOnHide) return;
         if (!this._running || this._autoPaused) return;
         this._autoPaused = true;
         this._cancelLoop();
@@ -612,6 +657,7 @@ export class Engine {
       }
       if (!this._autoPaused) return;
       this._autoPaused = false;
+
       // Discard the hidden interval instead of integrating it in one lump.
       // `reset()`, not a stamp of 0: a rAF timestamp of 0 is legitimate, and
       // using it as the "unset" marker dropped the frame right after it.

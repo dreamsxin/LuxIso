@@ -1,7 +1,8 @@
 # LuxIso 架构分析报告 v5
 
 > 更新日期：2026-09-12
-> 基线：Canvas 2D 默认 + WebGL2 预览，1084 个 Vitest 测试 / 82 个测试文件（含 v8 覆盖率阈值），11 个 Playwright WebGL 测试
+> 基线：Canvas 2D 默认 + WebGL2 预览，1089 个 Vitest 测试 / 83 个测试文件（含 v8 覆盖率阈值），11 个 Playwright WebGL 测试
+
 
 
 
@@ -136,10 +137,8 @@ const bus = new EventBus<GameEvents>();
 
 
 
-| P1 | `Engine.start()`在帧回调里被调用会起第二条 rAF 链 | `_scheduleLoop` 的守卫是 `_rafId !== null`,而循环体在跑 tick 之前就把它置空——整个 tick 期间引擎认为自己是停的。从 `onFrame` 里 `stop(); start()`（`HudLayer` 文档里给的重开按钮写法）会留下两条活链、一个被追踪的 id:游戏以两倍速跑,而 `stop()` 只能停掉一半。`Engine.test.ts` 只覆盖了同步的双次 start |
-
-| P1 | `Engine.stop()` 不重置时钟,重启时一次性补 100ms | 自动暂停那条路径会 reset `_clock` 和 `_accumulator` 并写明了原因;`stop()` 两个都不做,而 `destroy()` 的文档明确宣传可以复用。暂停菜单之后回来的第一帧会跑一个被钳到 0.1s 的 `Scene.update` 加六个 `fixedUpdate`——所有东西瞬移 |
 | P1 | `SceneManager.replace()` 没有回滚 | `push()` 专门为"新场景构建失败或 `onEnter` 抛错"做了回滚并写明理由;`replace()` 先清栈,失败模式一模一样却没有回滚。失败后 `depth === 0`,而引擎还在画那个 `onExit` 已跑、`assetLoader.clear()` 已执行的旧场景——画面冻在上一关且贴图全没了 |
+
 | P2 | `SceneManager.push()` 回滚时不释放失败场景的资产 | 工厂已经跑过,`managed.assetLoader` 可能持有贴图;catch 只 pop 条目,不调 `onExit` 也不 `clear()`。对不稳定的关卡做重试循环会让堆一直涨,而 API 里没有任何东西能释放它们 |
 | P2 | `InputManager.destroy()` 留下卡住的状态和被持有的闭包 | 监听器摘掉了,但 `_held`、`_touches`、`pointer.down`、`_bindings`、`_callbacks` 全部留着,而且之后再没有任何东西能清它们:`isDown('w')` 永远为真,每个 `onAction` 闭包继续持有整个场景。`destroy()` 之后 `flush()` 仍会触发回调 |
 | P2 | `pointer.down` 是三个鼠标键共用的一个布尔 | 松开任意一个键就把它清掉并抬起 `pointer.released`,而 `isDown('MouseRight')` 仍为真——右键拖动会在玩家左键点击的瞬间中断。触摸路径有镜像问题 |
@@ -925,6 +924,26 @@ const bus = new EventBus<GameEvents>();
     `pointer.down` 三键共用一个布尔。都按 P1/P2 连观察到的症状一起记进两份文档,
     **没有顺手改**——它们各自需要自己的对照实验,混在一个提交里说不清是哪条修好的。
   - 新增 5 个用例（`ClickMoverView` 3 条 + `Camera` 硬化 2 条),1079/81 → 1084/82。
+- **上一轮记下的三条循环生命周期缺陷,这轮修掉,并且用对照实验证明了修的是哪一条。**
+  - **`_rafId` 一直在兼任两件事**:"要取消的 id"和"循环在跑吗"。而循环体在跑 tick 之前
+    就把它置空,所以整个帧回调期间引擎看起来是停的。加了 `_loopGeneration`:
+    每次开/取消链都自增,**过期的链拒绝把自己重新排程**。`start()` 的守卫也从
+    `_rafId !== null` 换成 `_running`。
+  - **对照实验分出了主次**:只把守卫换回 `_rafId` 而保留 generation,五条用例仍全过;
+    把 generation 判断短路掉,两条立刻报 `expected 2 to be 1`——**两条活链,正是两倍速**。
+    所以真正修好这件事的是 generation,`_running` 那个守卫只是更便宜的提前返回、
+    顺带让状态可读。这点写进注释,免得以后有人以为换守卫就够了。
+  - **`stop()` 现在 reset 时钟和累加器**。自动暂停那条路径本来就这么做并写明了原因,
+    而 `stop()` 是暂停(`destroy()` 的文档还明确宣传可以重启),却两个都不做:
+    暂停菜单三十秒之后回来的第一帧会跑一个被钳到 100ms 的 `Scene.update` 加六个
+    `fixedUpdate`,所有东西瞬移。用例断言重启后的第一帧贡献 0 个固定步。
+  - **`pauseOnHide` 的检查只该守"隐藏"那一侧**。原来它同时守两侧,于是在已经自动暂停时
+    把这个开关关掉,恢复分支会提前返回,`_autoPaused` 永远留着 true——`start()` 也救不回来
+    (每帧一开就死在这个标志上),只有 `stop()` 能恢复,而 `paused` 在可见的标签页上
+    一直报 true,和它自己的文档矛盾。
+  - 用一个自控的 rAF 桩来测:`flush()` 返回这一帧跑了多少个回调,**这个数就是活着的链数**,
+    正好是旧守卫看不见的那个量。新增 5 个用例,1084/82 → 1089/83。
+
 
 
 
@@ -970,7 +989,8 @@ const bus = new EventBus<GameEvents>();
 | 类型安全 | 9/10 | ComponentCtor 与 EventMap 覆盖核心扩展面；`tsc` 现已覆盖 examples 与 e2e |
 | 可扩展性 | 9/10 | 加载注册表、自定义事件、WebGL extractor 注册表、序列化注册表均已就绪 |
 | 文档质量 | 8/10 | README 与本报告已同步当前实现 |
-| 测试覆盖 | 8/10 | 1084 个单测 + 11 个浏览器测试；已接入 v8 覆盖率与分模块阈值（整体 84.6% 语句 / 78.2% 分支），三个 fixture 已按 2,500 像素预算比对基线，道具级不变量改在 `RenderSnapshot` 层测；帧时间契约由 `FrameClock` 单点实现 + 一份共享用例表钉住 |
+| 测试覆盖 | 8/10 | 1089 个单测 + 11 个浏览器测试；已接入 v8 覆盖率与分模块阈值（整体 84.6% 语句 / 78.2% 分支），三个 fixture 已按 2,500 像素预算比对基线，道具级不变量改在 `RenderSnapshot` 层测；帧时间契约由 `FrameClock` 单点实现 + 一份共享用例表钉住 |
+
 
 
 
