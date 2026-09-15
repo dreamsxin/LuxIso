@@ -1,7 +1,8 @@
 # LuxIso 架构分析报告 v5
 
 > 更新日期：2026-09-12
-> 基线：Canvas 2D 默认 + WebGL2 预览，1079 个 Vitest 测试 / 81 个测试文件（含 v8 覆盖率阈值），11 个 Playwright WebGL 测试
+> 基线：Canvas 2D 默认 + WebGL2 预览，1084 个 Vitest 测试 / 82 个测试文件（含 v8 覆盖率阈值），11 个 Playwright WebGL 测试
+
 
 
 
@@ -135,7 +136,16 @@ const bus = new EventBus<GameEvents>();
 
 
 
+| P1 | `Engine.start()`在帧回调里被调用会起第二条 rAF 链 | `_scheduleLoop` 的守卫是 `_rafId !== null`,而循环体在跑 tick 之前就把它置空——整个 tick 期间引擎认为自己是停的。从 `onFrame` 里 `stop(); start()`（`HudLayer` 文档里给的重开按钮写法）会留下两条活链、一个被追踪的 id:游戏以两倍速跑,而 `stop()` 只能停掉一半。`Engine.test.ts` 只覆盖了同步的双次 start |
+
+| P1 | `Engine.stop()` 不重置时钟,重启时一次性补 100ms | 自动暂停那条路径会 reset `_clock` 和 `_accumulator` 并写明了原因;`stop()` 两个都不做,而 `destroy()` 的文档明确宣传可以复用。暂停菜单之后回来的第一帧会跑一个被钳到 0.1s 的 `Scene.update` 加六个 `fixedUpdate`——所有东西瞬移 |
+| P1 | `SceneManager.replace()` 没有回滚 | `push()` 专门为"新场景构建失败或 `onEnter` 抛错"做了回滚并写明理由;`replace()` 先清栈,失败模式一模一样却没有回滚。失败后 `depth === 0`,而引擎还在画那个 `onExit` 已跑、`assetLoader.clear()` 已执行的旧场景——画面冻在上一关且贴图全没了 |
+| P2 | `SceneManager.push()` 回滚时不释放失败场景的资产 | 工厂已经跑过,`managed.assetLoader` 可能持有贴图;catch 只 pop 条目,不调 `onExit` 也不 `clear()`。对不稳定的关卡做重试循环会让堆一直涨,而 API 里没有任何东西能释放它们 |
+| P2 | `InputManager.destroy()` 留下卡住的状态和被持有的闭包 | 监听器摘掉了,但 `_held`、`_touches`、`pointer.down`、`_bindings`、`_callbacks` 全部留着,而且之后再没有任何东西能清它们:`isDown('w')` 永远为真,每个 `onAction` 闭包继续持有整个场景。`destroy()` 之后 `flush()` 仍会触发回调 |
+| P2 | `pointer.down` 是三个鼠标键共用的一个布尔 | 松开任意一个键就把它清掉并抬起 `pointer.released`,而 `isDown('MouseRight')` 仍为真——右键拖动会在玩家左键点击的瞬间中断。触摸路径有镜像问题 |
 | P2 | System 每次调度扫描所有 Entity × System | 达到千级实体后引入 query/archetype 缓存 |
+
+
 | P2 | 稠密深度桶仍可能 O(n²) | 基准验证后考虑 sweep-and-prune 或分层 chunk |
 | P2 | WebGL context-loss 尚未覆盖完整浏览器矩阵 | Chromium/SwiftShader 自动化已完成；Phase 5 扩展到 Firefox、Safari 和真实 GPU |
 | P2 | `EditorRenderer` 每次状态变更全量重建场景 | 按帧防抖，或对纯变换编辑原地改对象 |
@@ -886,6 +896,36 @@ const bus = new EventBus<GameEvents>();
     这些都不是各自的疏忽,而是同一个接口问题:**`aabb` 是个没有 draw 上下文的 getter**。
     要真做就是给 `aabb` 传瓦片尺寸,那是公开接口变更,已按 P2 记录并写明测量值。
   - 新增 5 个用例（`AABB` 2 条改写 + 3 条新增),1074/80 → 1079/81。
+- **审 core 与输入层:所有拾取调用点都漏传了 `view`,场景一旦旋转,点击就和画面错位。**
+  这轮换了个方向审——生命周期与输入,两个子代理各扫一边。最要紧的一条是拾取。
+  - **`SceneRenderer` 把 `scene.view` 传给 `applyTransform`**,所以屏幕上的像素带着旋转矩阵
+    和 elevation 的 Y 缩放。而 `view` 在 `Camera` 的三个入口上都是可选参数,
+    **除了 `SceneRenderer` 之外没有任何调用点传它**:`ClickMover` 的 `screenToWorld` 与
+    标记的 `worldToScreen`、`DebugRenderer` 两处 `applyTransform`、
+    `EditorRenderer.canvasToWorld`、`main.ts` 里八处命中判定与拖拽。
+    `screenToWorld` 在 `view` 缺省时整段跳过旋转和缩放——**两个 helper 互为精确逆,
+    但都不是屏幕上那个变换的逆**。
+  - **这不是潜伏问题**:`main.ts` 把旋转滑块直接接到 `scene.transitionView`。拖到 90° 再点地面,
+    角色走到镜像位置的格子,紫色点击标记又落在第三个地方(它走同一条错误路径);
+    打开调试叠加层,碰撞网格、AABB、光圈全部按未旋转的朝向画在旋转后的场景上;
+    编辑器里点击放置道具会放到别的格子。
+  - **既有测试为什么没抓到**:`CameraViewTransform.test.ts` 把 helper 和 CTM 对齐验得很扎实,
+    但全部直接驱动 `Camera`。而 `ClickMover.test.ts` 用同一个漏传 `view` 的 8 参调用
+    去构造点击坐标——**按和取用同一个错误,互相抵消**,所以在任何 view 下都通过。
+    新用例先用带 `view` 的 `worldToScreen` 算出"渲染器真正把这个点画在哪",再断言
+    拾取回到同一格;并且保留一条"漏传 `view` 时偏差大于一格"的对照,把旧行为钉成回归。
+  - 顺带修了两条 NaN 入口:`worldToScreen`/`screenToWorld` 用严格 `!== 0.5` 判断,
+    于是手写场景 JSON 给出的 `{ rotation: 45 }`（缺 elevation）会让 `sy *= undefined / 0.5`
+    变成 NaN——**渲染正常而每次拾取都是 NaN**;现在与 `applyTransform` 一样用 `?? 默认值`。
+    另外 `zoom` 是公开可写字段而只有 `setZoom` 会钳,`zoom = 0` 会先变 Infinity 再变 NaN,
+    而 `ClickMover` 的 NaN 目标是永久的（`dist` 是 NaN,到达判断永不成立）,已加除零守卫。
+  - 两次审计还翻出六条没修的:`Engine.start()` 在帧回调里能起第二条 rAF 链（两倍速)、
+    `stop()` 不重置时钟（重启补 100ms)、`SceneManager.replace()` 没有回滚、
+    `push()` 回滚不释放资产、`InputManager.destroy()` 留下卡住的键与被持有的闭包、
+    `pointer.down` 三键共用一个布尔。都按 P1/P2 连观察到的症状一起记进两份文档,
+    **没有顺手改**——它们各自需要自己的对照实验,混在一个提交里说不清是哪条修好的。
+  - 新增 5 个用例（`ClickMoverView` 3 条 + `Camera` 硬化 2 条),1079/81 → 1084/82。
+
 
 
 
@@ -930,7 +970,8 @@ const bus = new EventBus<GameEvents>();
 | 类型安全 | 9/10 | ComponentCtor 与 EventMap 覆盖核心扩展面；`tsc` 现已覆盖 examples 与 e2e |
 | 可扩展性 | 9/10 | 加载注册表、自定义事件、WebGL extractor 注册表、序列化注册表均已就绪 |
 | 文档质量 | 8/10 | README 与本报告已同步当前实现 |
-| 测试覆盖 | 8/10 | 1079 个单测 + 11 个浏览器测试；已接入 v8 覆盖率与分模块阈值（整体 84.6% 语句 / 78.2% 分支），三个 fixture 已按 2,500 像素预算比对基线，道具级不变量改在 `RenderSnapshot` 层测；帧时间契约由 `FrameClock` 单点实现 + 一份共享用例表钉住 |
+| 测试覆盖 | 8/10 | 1084 个单测 + 11 个浏览器测试；已接入 v8 覆盖率与分模块阈值（整体 84.6% 语句 / 78.2% 分支），三个 fixture 已按 2,500 像素预算比对基线，道具级不变量改在 `RenderSnapshot` 层测；帧时间契约由 `FrameClock` 单点实现 + 一份共享用例表钉住 |
+
 
 
 

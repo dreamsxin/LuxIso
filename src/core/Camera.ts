@@ -172,9 +172,15 @@ export class Camera {
     let sy = isoY + camOffY;
 
     if (view) {
+      // Defaults must match `applyTransform`, which nullish-coalesces. A strict
+      // `view.rotation !== 0` treats a partial `{ rotation: 45 }` from hand-written
+      // scene JSON as `elevation: undefined`, and `sy *= undefined / 0.5` is NaN —
+      // rendering fine while every pick and overlay silently became NaN.
+      const rot = view.rotation ?? 0;
+      const elev = view.elevation ?? 0.5;
       // Apply rotation matrix first (matches applyTransform)
-      if (view.rotation !== 0) {
-        const rad = (view.rotation * Math.PI) / 180;
+      if (rot !== 0) {
+        const rad = (rot * Math.PI) / 180;
         const c = Math.cos(rad), s = Math.sin(rad);
         const aspect = tileW / tileH;
         const nx = c * sx + s * aspect * sy;
@@ -182,8 +188,9 @@ export class Camera {
         sx = nx; sy = ny;
       }
       // Then the elevation scale
-      if (view.elevation !== 0.5) sy *= view.elevation / 0.5;
+      if (elev !== 0.5) sy *= elev / 0.5;
     }
+
 
     return { sx: originX + sx * this.zoom, sy: originY + sy * this.zoom };
   }
@@ -199,15 +206,22 @@ export class Camera {
     originX: number, originY: number,
     view?: IsoView,
   ): { x: number; y: number } {
-    let sx = (cx - originX) / this.zoom;
-    let sy = (cy - originY) / this.zoom;
+    // `zoom` is a plain public field, so it can hold 0 even though `setZoom`
+    // clamps to [0.25, 4]. Dividing by it unguarded turned one bad assignment —
+    // or one scene JSON with `"zoom": 0` — into an Infinity here and a NaN
+    // position in whatever consumed the result, with no way back.
+    const zoom = this.zoom > 0 ? this.zoom : 1;
+    let sx = (cx - originX) / zoom;
+    let sy = (cy - originY) / zoom;
 
     if (view) {
+      const rot = view.rotation ?? 0;
+      const elev = view.elevation ?? 0.5;
       // Undo elevation scale first (forward order was rotate -> elevate)
-      if (view.elevation !== 0.5) sy /= view.elevation / 0.5;
+      if (elev !== 0.5) sy /= elev / 0.5;
       // Undo rotation (inverse matrix)
-      if (view.rotation !== 0) {
-        const rad = (view.rotation * Math.PI) / 180;
+      if (rot !== 0) {
+        const rad = (rot * Math.PI) / 180;
         const c = Math.cos(rad), s = Math.sin(rad);
         const aspect = tileW / tileH;
         const nx = c * sx - s * aspect * sy;
@@ -215,6 +229,7 @@ export class Camera {
         sx = nx; sy = ny;
       }
     }
+
 
     const camOffX = -(this.x - this.y) * (tileW / 2);
     const camOffY = -(this.x + this.y) * (tileH / 2);

@@ -486,24 +486,27 @@ let dragOffsetY = 0;
 function getBallScreenPos(): { bx: number; by: number } {
   const { sx, sy } = scene.camera.worldToScreen(
     character.position.x, character.position.y, character.position.z,
-    TILE_W, TILE_H, engine.originX, engine.originY,
+    TILE_W, TILE_H, engine.originX, engine.originY, scene.view,
   );
+
   return { bx: sx, by: sy };
 }
 
 function getLightScreenPos(): { lx: number; ly: number } {
   const { sx, sy } = scene.camera.worldToScreen(
     omniLight.position.x, omniLight.position.y, omniLight.position.z,
-    TILE_W, TILE_H, engine.originX, engine.originY,
+    TILE_W, TILE_H, engine.originX, engine.originY, scene.view,
   );
+
   return { lx: sx, ly: sy };
 }
 
 function getEntityScreenPos(e: Entity): { ex: number; ey: number } {
   const { sx, sy } = scene.camera.worldToScreen(
     e.position.x, e.position.y, 0,
-    TILE_W, TILE_H, engine.originX, engine.originY,
+    TILE_W, TILE_H, engine.originX, engine.originY, scene.view,
   );
+
   return { ex: sx, ey: sy };
 }
 
@@ -581,7 +584,8 @@ function handlePointerDown(cx: number, cy: number): void {
   }
 
   // Floor click → A* pathfinding
-  const world   = scene.camera.screenToWorld(cx, cy, canvasW, canvasH, TILE_W, TILE_H, engine.originX, engine.originY);
+  const world   = scene.camera.screenToWorld(cx, cy, canvasW, canvasH, TILE_W, TILE_H, engine.originX, engine.originY, scene.view);
+
   const clamped = clampWorld(world.x, world.y);
   const reached = playerMv.pathTo(clamped.x, clamped.y, character.position.z);
   if (!reached) flashUnreachable();
@@ -596,8 +600,9 @@ function handlePointerMove(cx: number, cy: number): void {
   if (dragging === 'ball') {
     const world = scene.camera.screenToWorld(
       cx - dragOffsetX, cy - dragOffsetY + character.position.z,
-      canvasW, canvasH, TILE_W, TILE_H, engine.originX, engine.originY,
+      canvasW, canvasH, TILE_W, TILE_H, engine.originX, engine.originY, scene.view,
     );
+
     const w = clampWorld(world.x, world.y);
     character.position.x = w.x;
     character.position.y = w.y;
@@ -606,8 +611,9 @@ function handlePointerMove(cx: number, cy: number): void {
   if (dragging === 'light') {
     const world = scene.camera.screenToWorld(
       cx - dragOffsetX, cy - dragOffsetY + omniLight.position.z,
-      canvasW, canvasH, TILE_W, TILE_H, engine.originX, engine.originY,
+      canvasW, canvasH, TILE_W, TILE_H, engine.originX, engine.originY, scene.view,
     );
+
     const w = clampWorld(world.x, world.y);
     omniLight.position.x = w.x;
     omniLight.position.y = w.y;
@@ -720,8 +726,9 @@ engine.start(
       for (const wp of wps) {
         const { sx, sy } = scene.camera.worldToScreen(
           wp.x, wp.y, character.position.z,
-          TILE_W, TILE_H, engine.originX, engine.originY,
+          TILE_W, TILE_H, engine.originX, engine.originY, scene.view,
         );
+
         ctx.lineTo(sx, sy);
       }
       ctx.stroke();
@@ -730,8 +737,9 @@ engine.start(
       for (const wp of wps) {
         const { sx, sy } = scene.camera.worldToScreen(
           wp.x, wp.y, character.position.z,
-          TILE_W, TILE_H, engine.originX, engine.originY,
+          TILE_W, TILE_H, engine.originX, engine.originY, scene.view,
         );
+
         ctx.beginPath();
         ctx.arc(sx, sy, 3, 0, Math.PI * 2);
         ctx.fill();
@@ -822,8 +830,9 @@ engine.start(
     // Background glow
     const { sx: lsx, sy: lsy } = scene.camera.worldToScreen(
       omniLight.position.x, omniLight.position.y, omniLight.position.z,
-      TILE_W, TILE_H, engine.originX, engine.originY,
+      TILE_W, TILE_H, engine.originX, engine.originY, scene.view,
     );
+
     const ctx = engine.ctx;
     const r = (omniLight.radius ?? 320) * scene.camera.zoom * 1.2;
     const bgGlow = ctx.createRadialGradient(lsx, lsy, 0, lsx, lsy, r);

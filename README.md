@@ -122,7 +122,8 @@ npm run test:webgl # builds, then runs 9 deterministic captures + lifecycle test
 
 | Layer | Command | Scope |
 |---|---|---|
-| Unit | `npm test` | 1079 tests across 81 files (Vitest 4) |
+| Unit | `npm test` | 1084 tests across 82 files (Vitest 4) |
+
 
 
 
@@ -1161,7 +1162,8 @@ object is unreachable and both disappear together.
 | EventBus event maps | Event names and payload types are coupled; custom maps supported |
 | Scene.toJSON(): runtime state + built-in prop serialization | Environment, camera, view, light IDs/options, collider, built-ins |
 | Lib build: ESM + CJS dual output + .d.ts (npm run build:lib) | |
-| Unit tests: 1079 tests across 81 files (Vitest 4, Node ≥ 22) | |
+| Unit tests: 1084 tests across 82 files (Vitest 4, Node ≥ 22) | |
+
 
 
 
@@ -1189,7 +1191,15 @@ See [FRAMEWORK_ANALYSIS.md](FRAMEWORK_ANALYSIS.md) for a detailed comparison wit
 | P2 | Three `aabb` boxes still disagree with their drawing, and one class of reason cannot be fixed in `aabb` | Audited every renderable. `Tree` (77.76 declared vs 75.13 drawn) and `Cloud` (32·scale vs 31·s) agree only at the standard 64x32 tile, because their drawn tops carry a `tileW` term the box cannot see — `aabb` is a getter with no draw context. `FlowerPatch` declares a flat 18 px against 26.28 worst case, since its scatter uses `tileH * 1.15` rather than the projected footprint. Fixing these properly means giving `aabb` the tile size, which is an interface change |
 | P2 | Four classes paint below their `baseZ` | `Character`'s sphere fallback (lower hemisphere, `radius` px), `Cloud` (up to `23 * s`), `FlowerPatch` (`0.35 * tileH * 1.15` = 12.88 px) and `Lantern`'s base diamond (`tileH * 0.1`). `depthSort` and both shadow paths treat `baseZ` as the bottom, so these are all under-declared downward. Measured, not fixed: it is the same interface question as the row above |
 | P2 | Only `Boulder` and `Crystal` share a shape constant with the GL extractor | `Boulder.SQUASH` and `Crystal.TIP_FACTOR` are used by `draw`, `aabb` and `SceneExtractor` alike. `Tree`, `FlowerPatch` and `Lantern` still have their coefficients written out twice — the extractor's copies are currently byte-identical to the 2D ones, which is exactly the state that drifts silently |
+| P1 | `Engine.start()` called from inside a frame callback starts a second rAF chain | `_scheduleLoop`'s guard is `_rafId !== null`, and the loop body nulls it before running the tick — so for the whole tick the engine believes it is stopped. A `stop(); start()` from `onFrame` (the pattern `HudLayer`'s docstring shows for a restart button) leaves two live chains and one tracked id: the game runs at 2x and `stop()` cancels half of it. `Engine.test.ts` covers only the synchronous double-start |
+| P1 | `Engine.stop()` leaves the clock armed, so a restart pays out a 100 ms lump | The auto-pause path resets `_clock` and `_accumulator` and says why; `stop()` resets neither, and `destroy()`'s docstring advertises reuse. After a pause menu, the first frame back runs a clamped 0.1 s `Scene.update` plus six `fixedUpdate` steps — everything teleports |
+| P1 | `SceneManager.replace()` has no rollback | `push()` was hardened against a failing build or `onEnter` and documents why; `replace()` clears the stack first and has the identical failure mode. A failed `replace` leaves `depth === 0` with the engine still drawing the old scene whose `assetLoader.clear()` already ran — a frozen level with its textures gone |
+| P2 | `SceneManager.push()` rollback never frees the failed scene's assets | The factory already ran, so `managed.assetLoader` may hold textures; the catch pops the entry without `onExit` or `clear()`. A retry loop on a flaky load grows the heap with nothing in the API able to free it |
+| P2 | `InputManager.destroy()` leaves stuck state and retained closures | Listeners are removed but `_held`, `_touches`, `pointer.down`, `_bindings` and `_callbacks` all survive, and nothing can clear them afterwards: `isDown('w')` stays true forever and every `onAction` closure keeps its scene alive. `flush()` after `destroy()` still fires callbacks |
+| P2 | `pointer.down` is one boolean for three mouse buttons | Releasing any button clears it and raises `pointer.released` while `isDown('MouseRight')` stays true, so a right-drag ends the moment the player left-clicks. The touch path has the mirror case |
 | P2 | Custom serialization needs one registration per direction | `Engine.registerProp()` / `registerLight()` load, `SceneSerializer.register()` / `registerLight()` save. Registering only one side is a silent half-round-trip (the save side warns once per type) |
+
+
 
 
 | P2 | `EditorRenderer` rebuilds the whole scene on every state change | Debounce to one rebuild per frame, or mutate objects in place for transform-only edits |

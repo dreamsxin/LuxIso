@@ -100,8 +100,12 @@ export class DebugRenderer {
     const ox = this._originX;
     const oy = this._originY;
 
-    // Apply camera transform so debug overlays align with scene objects
-    camera.applyTransform(ctx, canvasW, canvasH, tileW, tileH, ox, oy);
+    // Apply camera transform so debug overlays align with scene objects.
+    // `scene.view` is not optional here in practice: `SceneRenderer` passes it,
+    // so leaving it out drew every overlay in the unrotated orientation on top
+    // of a rotated scene.
+    camera.applyTransform(ctx, canvasW, canvasH, tileW, tileH, ox, oy, scene.view);
+
 
     if (this._opts.showCollision) this._drawCollision(ctx, tileW, tileH);
     if (this._opts.showAABB)      this._drawAABBs(ctx, tileW, tileH);
@@ -134,7 +138,8 @@ export class DebugRenderer {
     const ox = this._originX;
     const oy = this._originY;
 
-    camera.applyTransform(ctx, canvasW, canvasH, tileW, tileH, ox, oy);
+    camera.applyTransform(ctx, canvasW, canvasH, tileW, tileH, ox, oy, this._scene.view);
+
 
     const { sx: startX, sy: startY } = project(fromX, fromY, fromZ, tileW, tileH);
 

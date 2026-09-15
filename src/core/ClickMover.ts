@@ -1,7 +1,9 @@
 import { Camera } from './Camera';
 import { InputManager } from './InputManager';
 import { InputMap } from './InputMap';
+import type { IsoView } from '../math/IsoProjection';
 import { TileCollider } from '../physics/TileCollider';
+
 
 export interface ClickMoverOptions {
   cols: number;
@@ -90,6 +92,16 @@ export class ClickMover {
     canvasH: number,
     entityX: number,
     entityY: number,
+    /**
+     * The scene's `view`, if it has one.
+     *
+     * Optional for backwards compatibility, but omitting it is a bug whenever
+     * the scene is rotated or its elevation is not 0.5: `SceneRenderer` passes
+     * `scene.view` to `applyTransform`, so the pixels on screen carry the
+     * rotation and the Y scale. Picking without it uses the un-viewed inverse,
+     * and the click lands on a different tile than the one under the cursor.
+     */
+    view?: IsoView,
   ): void {
     const kbAxis = map.axis('right', 'left', 'down', 'up');
     const hasKb  = kbAxis.x !== 0 || kbAxis.y !== 0;
@@ -97,8 +109,9 @@ export class ClickMover {
     if (input.pointer.pressed) {
       const world = camera.screenToWorld(
         input.pointer.x, input.pointer.y,
-        canvasW, canvasH, tileW, tileH, originX, originY,
+        canvasW, canvasH, tileW, tileH, originX, originY, view,
       );
+
       const tx = Math.max(0.5, Math.min(this.cols - 0.5, world.x));
       const ty = Math.max(0.5, Math.min(this.rows - 0.5, world.y));
       this._target = { x: tx, y: ty };
@@ -171,9 +184,14 @@ export class ClickMover {
     originX: number,
     originY: number,
     ts: number,
+    /** The scene's `view`. Omitting it puts the marker off the clicked tile. */
+    view?: IsoView,
   ): void {
     if (this._markerAlpha < 0.01) return;
-    const screen = camera.worldToScreen(this._markerX, this._markerY, 0, tileW, tileH, originX, originY);
+    const screen = camera.worldToScreen(
+      this._markerX, this._markerY, 0, tileW, tileH, originX, originY, view,
+    );
+
     const a = this._markerAlpha;
     const t = ts * 0.004;
     ctx.save();

@@ -93,14 +93,19 @@ export class EditorRenderer {
     const s = this._state.scene;
     const scene = this.engine.scene;
     if (scene) {
-      // Use camera.screenToWorld so zoom & pan are handled correctly
+      // Use camera.screenToWorld so zoom & pan are handled correctly. `view` has
+      // to come along too: the renderer draws with it, so omitting it here put
+      // every placement click on a different tile than the one under the cursor
+      // as soon as the scene was rotated.
       return scene.camera.screenToWorld(
         cx, cy,
         this.engine.canvas.width, this.engine.canvas.height,
         s.tileW, s.tileH,
         this.engine.originX, this.engine.originY,
+        scene.view,
       );
     }
+
     // Fallback when scene not yet initialised
     return unproject(cx - this.engine.originX, cy - this.engine.originY, s.tileW, s.tileH);
   }
