@@ -50,7 +50,7 @@ export default defineConfig({
         'src/ecs/**':      { statements: 92, branches: 88, functions: 88, lines: 94 },
         'src/animation/**':{ statements: 88, branches: 80, functions: 95, lines: 89 },
         'src/audio/**':    { statements: 94, branches: 84, functions: 86, lines: 94 },
-        'src/core/**':     { statements: 95, branches: 84, functions: 95, lines: 97 },
+        'src/core/**':     { statements: 95.9, branches: 84.9, functions: 96, lines: 97.7 },
         // `FrameClock` owns the frame-delta contract for a dozen modules, so it
         // is held at complete coverage rather than a ratchet.
         'src/time/**':     { statements: 100, branches: 100, functions: 100, lines: 100 },

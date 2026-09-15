@@ -1,7 +1,7 @@
 # LuxIso 架构分析报告 v5
 
 > 更新日期：2026-09-12
-> 基线：Canvas 2D 默认 + WebGL2 预览，1089 个 Vitest 测试 / 83 个测试文件（含 v8 覆盖率阈值），11 个 Playwright WebGL 测试
+> 基线：Canvas 2D 默认 + WebGL2 预览，1097 个 Vitest 测试 / 83 个测试文件（含 v8 覆盖率阈值），11 个 Playwright WebGL 测试
 
 
 
@@ -137,9 +137,6 @@ const bus = new EventBus<GameEvents>();
 
 
 
-| P1 | `SceneManager.replace()` 没有回滚 | `push()` 专门为"新场景构建失败或 `onEnter` 抛错"做了回滚并写明理由;`replace()` 先清栈,失败模式一模一样却没有回滚。失败后 `depth === 0`,而引擎还在画那个 `onExit` 已跑、`assetLoader.clear()` 已执行的旧场景——画面冻在上一关且贴图全没了 |
-
-| P2 | `SceneManager.push()` 回滚时不释放失败场景的资产 | 工厂已经跑过,`managed.assetLoader` 可能持有贴图;catch 只 pop 条目,不调 `onExit` 也不 `clear()`。对不稳定的关卡做重试循环会让堆一直涨,而 API 里没有任何东西能释放它们 |
 | P2 | `InputManager.destroy()` 留下卡住的状态和被持有的闭包 | 监听器摘掉了,但 `_held`、`_touches`、`pointer.down`、`_bindings`、`_callbacks` 全部留着,而且之后再没有任何东西能清它们:`isDown('w')` 永远为真,每个 `onAction` 闭包继续持有整个场景。`destroy()` 之后 `flush()` 仍会触发回调 |
 | P2 | `pointer.down` 是三个鼠标键共用的一个布尔 | 松开任意一个键就把它清掉并抬起 `pointer.released`,而 `isDown('MouseRight')` 仍为真——右键拖动会在玩家左键点击的瞬间中断。触摸路径有镜像问题 |
 | P2 | System 每次调度扫描所有 Entity × System | 达到千级实体后引入 query/archetype 缓存 |
@@ -943,6 +940,26 @@ const bus = new EventBus<GameEvents>();
     一直报 true,和它自己的文档矛盾。
   - 用一个自控的 rAF 桩来测:`flush()` 返回这一帧跑了多少个回调,**这个数就是活着的链数**,
     正好是旧守卫看不见的那个量。新增 5 个用例,1084/82 → 1089/83。
+- **`SceneManager` 的三条:栈、引擎、资产三者在异常路径上必须始终一致。**
+  - **`replace()` 改成先建后退。** 旧顺序是"退掉全部 → 清栈 → 构建",没有退路:构建失败或
+    `onEnter` 抛错之后 `depth === 0`,而引擎还在画那个 `onExit` 已跑、`assetLoader.clear()`
+    已执行的旧场景——**画面冻在上一关且贴图全没了,而且 API 里没有任何东西能恢复**。
+    即使在成功路径上,那个顺序也留下一个"活着的场景资产已被释放"的窗口。现在先构建、
+    先装上、`onEnter` 抛错就回滚到原栈,只有新场景真正活了才逐个退役旧场景。
+  - **`pop()` 的装载与恢复移进 `finally`。** `onExit` 抛异常时,旧代码已经把场景 pop 出栈、
+    资产也清了,却跳过了 `setScene(newTop)` 和 `onResume`:**引擎继续画一个管理器已经不认的
+    场景,而下面那层永远停在暂停态**——正是 `push()` 文档里说的"从症状几乎无法诊断"那类。
+    异常照旧向外抛。
+  - **`push()` 的回滚补上 `built?.assetLoader?.clear()`。** 工厂已经跑过,失败的场景可能正
+    握着贴图,而它既不在栈上、`pop()` 也永远看不到它。对不稳定的关卡做重试循环会一次一份
+    地涨堆。
+  - **对照实验逐条回退**:去掉 `clear()` → 1 条红;把 `pop()` 的装载搬出 `finally` → 2 条红;
+    把 `replace()` 换回旧顺序 → 4 条红。三条修复各自钉住自己的用例,没有一条是搭便车的。
+    其中"释放要晚于新场景 `onEnter`"这条用一个 `order` 数组把 `enter:1` / `exit:1` 的先后
+    连同当时的 `assetLoader.size` 一起断言下来——只断言最终 size 为 0 是看不出那个窗口的。
+  - 新增 8 个用例,1089/83 → 1097/83;`src/core/**` 阈值随之上抬到
+    95.9 / 84.9 / 96 / 97.7（实测 95.96 / 84.97 / 96.06 / 97.78)。
+
 
 
 
@@ -989,7 +1006,7 @@ const bus = new EventBus<GameEvents>();
 | 类型安全 | 9/10 | ComponentCtor 与 EventMap 覆盖核心扩展面；`tsc` 现已覆盖 examples 与 e2e |
 | 可扩展性 | 9/10 | 加载注册表、自定义事件、WebGL extractor 注册表、序列化注册表均已就绪 |
 | 文档质量 | 8/10 | README 与本报告已同步当前实现 |
-| 测试覆盖 | 8/10 | 1089 个单测 + 11 个浏览器测试；已接入 v8 覆盖率与分模块阈值（整体 84.6% 语句 / 78.2% 分支），三个 fixture 已按 2,500 像素预算比对基线，道具级不变量改在 `RenderSnapshot` 层测；帧时间契约由 `FrameClock` 单点实现 + 一份共享用例表钉住 |
+| 测试覆盖 | 8/10 | 1097 个单测 + 11 个浏览器测试；已接入 v8 覆盖率与分模块阈值（整体 84.7% 语句 / 78.1% 分支，`src/core/**` 96.0% / 85.0%），三个 fixture 已按 2,500 像素预算比对基线，道具级不变量改在 `RenderSnapshot` 层测；帧时间契约由 `FrameClock` 单点实现 + 一份共享用例表钉住 |
 
 
 

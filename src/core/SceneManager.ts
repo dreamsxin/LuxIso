@@ -140,6 +140,7 @@ export class SceneManager {
     const previous = this._stack[this._stack.length - 1];
     let paused = false;
     let pushed = false;
+    let built: ManagedScene | null = null;
     try {
       if (previous?.managed.onPause) {
         await previous.managed.onPause();
@@ -147,12 +148,18 @@ export class SceneManager {
       }
 
       const managed = await this._build(name);
+      built = managed;
       this._stack.push({ name, managed });
       pushed = true;
       this._engine.setScene(managed.scene);
       if (managed.onEnter) await managed.onEnter();
     } catch (err) {
       if (pushed) this._stack.pop();
+      // The factory already ran, so the failed scene may be holding textures.
+      // `ManagedScene.assetLoader` promises they are released after the scene
+      // leaves, and the rollback path was the one place that forgot: a retry
+      // loop on a flaky level load grew the heap with nothing able to free it.
+      built?.assetLoader?.clear();
       if (previous) {
         this._engine.setScene(previous.managed.scene);
         if (paused && previous.managed.onResume) await previous.managed.onResume();
@@ -163,9 +170,16 @@ export class SceneManager {
     }
   }
 
+
   /**
    * Pop the top scene off the stack.
    * The popped scene receives `onExit`, the new top receives `onResume`.
+   *
+   * Installing and resuming the new top happens in a `finally`: a throwing
+   * `onExit` used to leave the popped scene both off the stack *and* still on the
+   * engine with its assets freed, while the scene underneath never got
+   * `setScene` or `onResume` — paused forever, which `push`'s docstring calls
+   * close to impossible to diagnose from the symptom. The error still propagates.
    */
   async pop(): Promise<void> {
     if (this._loading || this._stack.length === 0) return;
@@ -178,14 +192,14 @@ export class SceneManager {
         // The scene is already off the stack, so this is the last chance to
         // release its assets — a throwing onExit must not turn into a leak.
         top.managed.assetLoader?.clear();
-      }
 
-      const newTop = this._stack[this._stack.length - 1];
-      if (newTop) {
-        this._engine.setScene(newTop.managed.scene);
-        if (newTop.managed.onResume) await newTop.managed.onResume();
-      } else {
-        this._engine.setScene(new Scene());
+        const newTop = this._stack[this._stack.length - 1];
+        if (newTop) {
+          this._engine.setScene(newTop.managed.scene);
+          if (newTop.managed.onResume) await newTop.managed.onResume();
+        } else {
+          this._engine.setScene(new Scene());
+        }
       }
     } finally {
       this._loading = false;
@@ -195,31 +209,50 @@ export class SceneManager {
   /**
    * Replace the entire stack with a single new scene.
    * All existing scenes receive `onExit`, unwound top to bottom.
+   *
+   * Build first, retire second. The old order — exit everything, empty the
+   * stack, then build — had no way back: a failed build or a throwing `onEnter`
+   * left `depth === 0` with the engine still drawing a scene whose `onExit` had
+   * run and whose `assetLoader.clear()` had already executed, so the game froze
+   * on the previous level with its textures gone and no recovery path. Even on
+   * the success path that order left a window where the live scene's assets were
+   * freed. `push()` was hardened against exactly this and says why; this is the
+   * same guarantee.
    */
   async replace(name: string): Promise<void> {
     if (this._loading) return;
     this._loading = true;
     try {
-      // Exit all existing scenes, top of the stack first.
-      for (let i = this._stack.length - 1; i >= 0; i--) {
-        const managed = this._stack[i].managed;
+      // Nothing is disturbed if this throws.
+      const managed = await this._build(name);
+      const outgoing = this._stack;
+      this._stack = [{ name, managed }];
+      this._engine.setScene(managed.scene);
+
+      try {
+        if (managed.onEnter) await managed.onEnter();
+      } catch (err) {
+        // The outgoing scenes have not been exited yet, so this is recoverable.
+        this._stack = outgoing;
+        const previous = outgoing[outgoing.length - 1];
+        if (previous) this._engine.setScene(previous.managed.scene);
+        throw err;
+      }
+
+      // Only once the new scene is live and entered do the old ones retire.
+      for (let i = outgoing.length - 1; i >= 0; i--) {
+        const old = outgoing[i].managed;
         try {
-          if (managed.onExit) await managed.onExit();
+          if (old.onExit) await old.onExit();
         } finally {
-          managed.assetLoader?.clear();
+          old.assetLoader?.clear();
         }
       }
-      this._stack = [];
-
-
-      const managed = await this._build(name);
-      this._stack.push({ name, managed });
-      this._engine.setScene(managed.scene);
-      if (managed.onEnter) await managed.onEnter();
     } finally {
       this._loading = false;
     }
   }
+
 
   /**
    * Pop all scenes and push a new one.
