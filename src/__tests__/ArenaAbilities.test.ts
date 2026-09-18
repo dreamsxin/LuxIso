@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { AbilityBook } from '../../examples/10-arpg/Abilities';
-import { ArenaRun, type ArenaEvent, type HeroIntent } from '../../examples/10-arpg/ArenaRun';
+import { ArenaRun, type ArenaEvent, type HeroIntent, type FloatingTextRequest } from '../../examples/10-arpg/ArenaRun';
 
 const DT = 1 / 60;
 
@@ -281,5 +281,75 @@ describe('ArenaRun — abilities survive a checkpoint', () => {
     expect(target.abilities.remaining('cleave')).toBeCloseTo(
       source.abilities.remaining('cleave'),
     );
+  });
+});
+
+// ── Floating damage numbers ──────────────────────────────────────────────────
+
+describe('ArenaRun — floating text', () => {
+  it('shows a white number on the target when the hero hits', () => {
+    const texts: FloatingTextRequest[] = [];
+    const run = new ArenaRun({
+      cols: 20, rows: 20, pillars: false,
+      onFloatingText: (t) => texts.push(t),
+    });
+    run.start();
+    const target = run.enemies[0];
+    target.position.x = run.hero.position.x + run.hero.attackRange * 0.8;
+    target.position.y = run.hero.position.y;
+    run.step(DT, { attack: true });
+
+    const dmg = texts.find((t) => t.text === String(run.hero.damage));
+    expect(dmg).toBeDefined();
+    expect(dmg!.color).toBe('#ffffff');
+  });
+
+  it('shows a red number on the hero when an enemy lands', () => {
+    const texts: FloatingTextRequest[] = [];
+    const run = new ArenaRun({
+      cols: 20, rows: 20, pillars: false,
+      onFloatingText: (t) => texts.push(t),
+    });
+    run.start();
+    const mob = run.enemies[0];
+    mob.position.x = run.hero.position.x + mob.attackRange * 0.5;
+    mob.position.y = run.hero.position.y;
+    // Tick until the mob attacks — its think() calls swing().
+    for (let i = 0; i < 120; i++) run.step(DT, {});
+    const red = texts.find((t) => t.color === '#ff6060');
+    expect(red).toBeDefined();
+  });
+
+  it('shows a gold number per cleave target', () => {
+    const texts: FloatingTextRequest[] = [];
+    const run = new ArenaRun({
+      cols: 20, rows: 20, pillars: false,
+      onFloatingText: (t) => texts.push(t),
+    });
+    run.start();
+    for (const e of run.enemies) {
+      e.position.x = run.hero.position.x + ArenaRun.CLEAVE_RADIUS * 0.4;
+      e.position.y = run.hero.position.y;
+    }
+    texts.length = 0;
+    run.step(DT, { cleave: true });
+    const golds = texts.filter((t) => t.color === '#ffd070');
+    expect(golds.length).toBe(2); // wave 1 = 2 enemies
+    expect(golds[0].text).toBe(String(ArenaRun.CLEAVE_DAMAGE));
+  });
+
+  it('shows a green heal number on kill', () => {
+    const texts: FloatingTextRequest[] = [];
+    const run = new ArenaRun({
+      cols: 20, rows: 20, pillars: false,
+      onFloatingText: (t) => texts.push(t),
+    });
+    run.start();
+    run.enemies[0].health.takeDamage(9999);
+    texts.length = 0;
+    run.step(DT, {});
+    const heal = texts.find((t) => t.color === '#7ce08a');
+    expect(heal).toBeDefined();
+    expect(heal!.text).toBe(`+${ArenaRun.LIFE_ON_KILL}`);
   });
 });

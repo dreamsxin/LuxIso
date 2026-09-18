@@ -100,6 +100,27 @@ export interface ArenaRunOptions {
   onPhase?: (phase: ArpgPhase, previous: ArpgPhase) => void;
   /** Combat and phase events, with the position they happened at. */
   onEvent?: (event: ArenaEvent) => void;
+  /**
+   * Spawn a floating number above the fight. The arena decides what text, where,
+   * and what colour; the caller decides how to render it — `Scene.spawnFloatingText`
+   * in the page, a recording sink in a test.
+   */
+  onFloatingText?: (opts: FloatingTextRequest) => void;
+}
+
+/**
+ * What `onFloatingText` receives. Same shape as `FloatingTextOptions` minus `id`
+ * (the scene picks one), but declared here so `ArenaRun` does not import `Scene`.
+ */
+export interface FloatingTextRequest {
+  x: number;
+  y: number;
+  z: number;
+  text: string;
+  color: string;
+  duration?: number;
+  speed?: number;
+  fontSize?: number;
 }
 
 
@@ -298,7 +319,10 @@ export class ArenaRun {
       if (!enemy.isDead) { survivors.push(enemy); continue; }
       this._emit('kill', enemy.position.x, enemy.position.y);
       this._opts.onDespawn?.(enemy);
-      if (!this._hero.isDead) this._hero.health.heal(ArenaRun.LIFE_ON_KILL);
+      if (!this._hero.isDead) {
+        this._hero.health.heal(ArenaRun.LIFE_ON_KILL);
+        this._floatHeal(ArenaRun.LIFE_ON_KILL);
+      }
       this._director.reportMobDefeated();
     }
     this._enemies = survivors;
@@ -309,6 +333,38 @@ export class ArenaRun {
 
   private _emit(type: ArenaEventType, x: number, y: number): void {
     this._opts.onEvent?.({ type, x, y });
+  }
+
+  /**
+   * Request a damage number above the fight.
+   *
+   * Factored out so the colour and size decisions live in one place and each
+   * call site reads as "show N at the target" instead of a palette lookup.
+   */
+  private _floatDamage(target: Combatant, amount: number, color: string): void {
+    this._opts.onFloatingText?.({
+      x: target.position.x,
+      y: target.position.y,
+      z: target.radius * 2.5,
+      text: String(amount),
+      color,
+      duration: 800,
+      fontSize: amount >= 20 ? 16 : 13,
+    });
+  }
+
+  /** Show a heal number rising from the hero. */
+  private _floatHeal(amount: number): void {
+    this._opts.onFloatingText?.({
+      x: this._hero.position.x,
+      y: this._hero.position.y,
+      z: this._hero.radius * 2.5,
+      text: `+${amount}`,
+      color: '#7ce08a',
+      duration: 700,
+      speed: 30,
+      fontSize: 12,
+    });
   }
 
   /**
@@ -344,7 +400,10 @@ export class ArenaRun {
     if (targets.length === 0) return false;
 
     this._abilities.use('cleave');
-    for (const target of targets) target.health.takeDamage(ArenaRun.CLEAVE_DAMAGE, hero.id);
+    for (const target of targets) {
+      target.health.takeDamage(ArenaRun.CLEAVE_DAMAGE, hero.id);
+      this._floatDamage(target, ArenaRun.CLEAVE_DAMAGE, '#ffd070');
+    }
     this._emit('cleave', hero.position.x, hero.position.y);
     return true;
   }
@@ -394,12 +453,21 @@ export class ArenaRun {
    * being hit from the numbers alone.
    */
   private _wire(unit: Combatant): void {
-    unit.onAttack = (attacker) => {
+    unit.onAttack = (attacker, damage) => {
       this._emit(
         attacker.faction === 'hero' ? 'hero-hit' : 'hero-hurt',
         attacker.position.x,
         attacker.position.y,
       );
+      // The target is whoever got hit, not whoever swung. The hero attacks an
+      // enemy → show on the enemy; an enemy attacks the hero → show on the hero.
+      const target = attacker.faction === 'hero' ? this.nearestEnemy() : this._hero;
+      if (target) {
+        this._floatDamage(
+          target, damage,
+          attacker.faction === 'hero' ? '#ffffff' : '#ff6060',
+        );
+      }
     };
   }
 

@@ -173,6 +173,7 @@ const run = new ArenaRun({
   onSpawn: (unit) => scene.addObject(unit),
   onDespawn: (unit) => scene.removeById(unit.id),
   onEvent: (event) => arenaAudio.handle(event),
+  onFloatingText: (opts) => scene.spawnFloatingText(opts),
   onPhase: (phase) => {
     arenaAudio.setPhase(phase);
     resultLabel.visible = phase === 'victory' || phase === 'defeat';

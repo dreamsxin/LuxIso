@@ -1,7 +1,7 @@
 # LuxIso 架构分析报告 v5
 
 > 更新日期：2026-09-12
-> 基线：Canvas 2D 默认 + WebGL2 预览，1116 个 Vitest 测试 / 84 个测试文件（含 v8 覆盖率阈值），11 个 Playwright WebGL 测试
+> 基线：Canvas 2D 默认 + WebGL2 预览，1120 个 Vitest 测试 / 84 个测试文件（含 v8 覆盖率阈值），11 个 Playwright WebGL 测试
 
 
 
@@ -974,6 +974,12 @@ const bus = new EventBus<GameEvents>();
   - HUD:两个技能按钮叠在 ATTACK 上方,标签显示剩余秒数或键名,冷却中变暗。
   - 新增 19 个用例(AbilityBook 10 + cleave 5 + dash 3 + checkpoint 1),
     1097/83 → 1116/84。
+- **飘字伤害数字:每次命中、挥砍、受伤、回血都弹出一个浮动文本。**
+  - 新增 `onFloatingText` 回调,`ArenaRun` 决定文本/颜色/位置,`main.ts` 只
+    转发到 `scene.spawnFloatingText()`。颜色: 白色=英雄普攻,金色=挥砍,
+    红色=受伤,绿色=回血。引擎的 `FloatingText` + `SceneExtractor._extractFloatingText`
+    已经负责上升、淡出和过期回收。
+  - 新增 4 个用例验证四种颜色/数值,1116/84 → 1120/84。
 
 
 
@@ -1021,7 +1027,7 @@ const bus = new EventBus<GameEvents>();
 | 类型安全 | 9/10 | ComponentCtor 与 EventMap 覆盖核心扩展面；`tsc` 现已覆盖 examples 与 e2e |
 | 可扩展性 | 9/10 | 加载注册表、自定义事件、WebGL extractor 注册表、序列化注册表均已就绪 |
 | 文档质量 | 8/10 | README 与本报告已同步当前实现 |
-| 测试覆盖 | 8/10 | 1116 个单测 + 11 个浏览器测试；已接入 v8 覆盖率与分模块阈值（整体 84.7% 语句 / 78.1% 分支，`src/core/**` 96.0% / 85.0%），三个 fixture 已按 2,500 像素预算比对基线，道具级不变量改在 `RenderSnapshot` 层测；帧时间契约由 `FrameClock` 单点实现 + 一份共享用例表钉住 |
+| 测试覆盖 | 8/10 | 1120 个单测 + 11 个浏览器测试；已接入 v8 覆盖率与分模块阈值（整体 84.7% 语句 / 78.1% 分支，`src/core/**` 96.0% / 85.0%），三个 fixture 已按 2,500 像素预算比对基线，道具级不变量改在 `RenderSnapshot` 层测；帧时间契约由 `FrameClock` 单点实现 + 一份共享用例表钉住 |
 
 
 
