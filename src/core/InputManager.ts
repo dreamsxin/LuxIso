@@ -213,12 +213,34 @@ export class InputManager {
     this._pointerReleasedThisFrame = false;
   }
 
-  /** Remove all event listeners. Call when the game is destroyed. */
+  /** Remove all event listeners and reset all state. Call when the game is destroyed.
+   *
+   * After this call every query returns its zero value (`isDown` → false,
+   * `touches` → empty, `pointer.down` → false) and `flush()` fires no callbacks,
+   * so code that polls or flushes an already-destroyed manager cannot observe
+   * state left over from a previous scene. The bindings and callbacks are also
+   * dropped, releasing any closures they held — a scene captured by an
+   * `onAction` callback would otherwise survive as long as the manager did.
+   */
   destroy(): void {
     for (const [target, type, listener] of this._listeners) {
       target.removeEventListener(type, listener);
     }
     this._listeners = [];
+    this._held.clear();
+    this._pressed.clear();
+    this._released.clear();
+    this._touches.clear();
+    this._primaryTouchId = null;
+    this.pointer.x = 0;
+    this.pointer.y = 0;
+    this.pointer.down = false;
+    this.pointer.pressed = false;
+    this.pointer.released = false;
+    this._pointerPressedThisFrame = false;
+    this._pointerReleasedThisFrame = false;
+    this._bindings.clear();
+    this._callbacks.clear();
   }
 
   // ── Internal ──────────────────────────────────────────────────────────────
@@ -284,6 +306,11 @@ export class InputManager {
     // stuck down for the rest of the session.
     add(window, 'mouseup', (e) => {
       this._releaseKey(MOUSE_BUTTON_KEYS[(e as MouseEvent).button]);
+      // `pointer.down` should clear only when no mouse button remains held.
+      // The old code cleared it on every `mouseup`, which meant releasing the
+      // right button during a left drag reported the pointer as released —
+      // `isDown('MouseLeft')` stayed true while `pointer.down` went false.
+      if (this._isAnyMouseButtonDown()) return;
       if (!this.pointer.down) return;
       this.pointer.down = false;
       if (!this._pointerReleasedThisFrame) {
@@ -384,6 +411,15 @@ export class InputManager {
       this.pointer.released = true;
       this._pointerReleasedThisFrame = true;
     }
+  }
+
+
+  /** True when at least one mouse button key is still held. */
+  private _isAnyMouseButtonDown(): boolean {
+    for (const name of MOUSE_BUTTON_KEYS) {
+      if (this._held.has(name)) return true;
+    }
+    return false;
   }
 
 

@@ -354,5 +354,82 @@ describe('InputManager — touch default prevention', () => {
   });
 });
 
+describe('InputManager — destroy', () => {
+  it('clears held keys so isDown returns false after destroy', () => {
+    const h = makeHarness();
+    h.fireWindow({ type: 'keydown', key: 'w', code: 'KeyW' });
+    expect(h.input.isDown('w')).toBe(true);
+
+    h.input.destroy();
+    expect(h.input.isDown('w')).toBe(false);
+    expect(h.input.wasPressed('w')).toBe(false);
+  });
+
+  it('resets the pointer to its zero state', () => {
+    const h = makeHarness();
+    h.fireCanvas({ type: 'mousedown', clientX: 50, clientY: 50, button: 0 });
+    expect(h.input.pointer.down).toBe(true);
+
+    h.input.destroy();
+    expect(h.input.pointer.down).toBe(false);
+    expect(h.input.pointer.pressed).toBe(false);
+    expect(h.input.pointer.x).toBe(0);
+    expect(h.input.pointer.y).toBe(0);
+  });
+
+  it('drops all touches', () => {
+    const h = makeHarness();
+    h.fireCanvas(touchEvent('touchstart', [touch(1, 10, 10), touch(2, 20, 20)]));
+    expect(h.input.touchCount).toBe(2);
+
+    h.input.destroy();
+    expect(h.input.touchCount).toBe(0);
+    expect(h.input.getTouch(1)).toBeNull();
+  });
+
+  it('clears bindings and callbacks so flush fires nothing', () => {
+    const h = makeHarness();
+    h.input.bindKey('Space', 'jump');
+    const callback = vi.fn();
+    h.input.onAction('jump', callback);
+    h.fireWindow({ type: 'keydown', key: ' ', code: 'Space' });
+
+    h.input.destroy();
+    // flush after destroy must not fire the callback — the binding is gone.
+    h.input.flush();
+    expect(callback).not.toHaveBeenCalled();
+  });
+});
+
+describe('InputManager — multi-button pointer.down', () => {
+  it('keeps pointer.down while another mouse button is still held', () => {
+    const h = makeHarness();
+    // Left down, then right down.
+    h.fireCanvas({ type: 'mousedown', clientX: 1, clientY: 1, button: 0 });
+    h.fireCanvas({ type: 'mousedown', clientX: 1, clientY: 1, button: 2 });
+    expect(h.input.pointer.down).toBe(true);
+    h.input.flush();
+
+    // Release the right button. Left is still held, so pointer.down stays.
+    h.fireWindow({ type: 'mouseup', button: 2 });
+    expect(h.input.isDown('MouseRight')).toBe(false);
+    expect(h.input.isDown('MouseLeft')).toBe(true);
+    expect(h.input.pointer.down).toBe(true);
+    expect(h.input.pointer.released).toBe(false);
+  });
+
+  it('clears pointer.down when the last button goes up', () => {
+    const h = makeHarness();
+    h.fireCanvas({ type: 'mousedown', clientX: 1, clientY: 1, button: 0 });
+    h.fireCanvas({ type: 'mousedown', clientX: 1, clientY: 1, button: 2 });
+    h.input.flush();
+
+    h.fireWindow({ type: 'mouseup', button: 2 });
+    h.fireWindow({ type: 'mouseup', button: 0 });
+    expect(h.input.pointer.down).toBe(false);
+    expect(h.input.pointer.released).toBe(true);
+  });
+});
+
 
 

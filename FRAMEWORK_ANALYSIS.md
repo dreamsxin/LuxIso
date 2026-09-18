@@ -1,7 +1,7 @@
 # LuxIso 架构分析报告 v5
 
 > 更新日期：2026-09-12
-> 基线：Canvas 2D 默认 + WebGL2 预览，1120 个 Vitest 测试 / 84 个测试文件（含 v8 覆盖率阈值），11 个 Playwright WebGL 测试
+> 基线：Canvas 2D 默认 + WebGL2 预览，1126 个 Vitest 测试 / 84 个测试文件（含 v8 覆盖率阈值），11 个 Playwright WebGL 测试
 
 
 
@@ -137,7 +137,6 @@ const bus = new EventBus<GameEvents>();
 
 
 
-| P2 | `InputManager.destroy()` 留下卡住的状态和被持有的闭包 | 监听器摘掉了,但 `_held`、`_touches`、`pointer.down`、`_bindings`、`_callbacks` 全部留着,而且之后再没有任何东西能清它们:`isDown('w')` 永远为真,每个 `onAction` 闭包继续持有整个场景。`destroy()` 之后 `flush()` 仍会触发回调 |
 | P2 | `pointer.down` 是三个鼠标键共用的一个布尔 | 松开任意一个键就把它清掉并抬起 `pointer.released`,而 `isDown('MouseRight')` 仍为真——右键拖动会在玩家左键点击的瞬间中断。触摸路径有镜像问题 |
 | P2 | System 每次调度扫描所有 Entity × System | 达到千级实体后引入 query/archetype 缓存 |
 
@@ -980,6 +979,16 @@ const bus = new EventBus<GameEvents>();
     红色=受伤,绿色=回血。引擎的 `FloatingText` + `SceneExtractor._extractFloatingText`
     已经负责上升、淡出和过期回收。
   - 新增 4 个用例验证四种颜色/数值,1116/84 → 1120/84。
+- **`InputManager` 的两条审计缺陷,这轮修完。**
+  - **`destroy()` 现在清空全部状态和闭包。** 旧实现只摘监听器不清 `_held`/`_touches`/
+    `pointer`/`_bindings`/`_callbacks`:上一个场景按住的 `w` 永远为真,
+    `onAction` 闭包继续持有那个场景,`flush()` 继续触发。
+    对照:去掉新加的清理 → 4 条红（键、指针、触摸、回调各一条）。
+  - **`pointer.down` 现在只在所有鼠标键都松了才清。** 旧代码在任意一个 `mouseup` 上
+    就 `pointer.down = false`,所以右键松开会打断左键拖动,而 `isDown('MouseLeft')`
+    还是 true。新增 `_isAnyMouseButtonDown()` 扫 `MOUSE_BUTTON_KEYS`,只有全空才清。
+    2 条用例,1 条控制(中间松一个不掉)、1 条控制(全松才掉)。
+  - 新增 6 个用例（destroy 4 + multi-button 2),1120/84 → 1126/84。
 
 
 
@@ -1027,7 +1036,7 @@ const bus = new EventBus<GameEvents>();
 | 类型安全 | 9/10 | ComponentCtor 与 EventMap 覆盖核心扩展面；`tsc` 现已覆盖 examples 与 e2e |
 | 可扩展性 | 9/10 | 加载注册表、自定义事件、WebGL extractor 注册表、序列化注册表均已就绪 |
 | 文档质量 | 8/10 | README 与本报告已同步当前实现 |
-| 测试覆盖 | 8/10 | 1120 个单测 + 11 个浏览器测试；已接入 v8 覆盖率与分模块阈值（整体 84.7% 语句 / 78.1% 分支，`src/core/**` 96.0% / 85.0%），三个 fixture 已按 2,500 像素预算比对基线，道具级不变量改在 `RenderSnapshot` 层测；帧时间契约由 `FrameClock` 单点实现 + 一份共享用例表钉住 |
+| 测试覆盖 | 8/10 | 1126 个单测 + 11 个浏览器测试；已接入 v8 覆盖率与分模块阈值（整体 84.7% 语句 / 78.1% 分支，`src/core/**` 96.0% / 85.0%），三个 fixture 已按 2,500 像素预算比对基线，道具级不变量改在 `RenderSnapshot` 层测；帧时间契约由 `FrameClock` 单点实现 + 一份共享用例表钉住 |
 
 
 
