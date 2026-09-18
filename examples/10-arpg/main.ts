@@ -102,10 +102,13 @@ const SKILL_COOLING_BG = 'rgba(40,48,58,0.55)';
 const hud = new HudLayer();
 hud.minHitSize = 44;
 const hpBar = hud.addBar({ id: 'hp', x: 16, y: 16, w: 190, h: 15, color: '#5ad07a', label: 'HP' });
-const waveLabel = hud.addLabel({ id: 'wave', x: 16, y: 50, text: '', color: '#cfe4f0', fontSize: 14 });
-const phaseLabel = hud.addLabel({ id: 'phase', x: 16, y: 70, text: '', color: '#8fb8d0', fontSize: 12 });
-const resultLabel = hud.addLabel({ id: 'result', x: 16, y: 96, text: '', color: '#ffd890', fontSize: 18, visible: false });
-const noticeLabel = hud.addLabel({ id: 'notice', x: 16, y: 122, text: '', color: '#9fd8b0', fontSize: 12, visible: false });
+// Experience sits directly under health: both are "how the hero is doing", and
+// the level is the one number a player checks between waves.
+const xpBar = hud.addBar({ id: 'xp', x: 16, y: 34, w: 190, h: 8, color: '#c9a44c', fontSize: 9 });
+const waveLabel = hud.addLabel({ id: 'wave', x: 16, y: 58, text: '', color: '#cfe4f0', fontSize: 14 });
+const phaseLabel = hud.addLabel({ id: 'phase', x: 16, y: 78, text: '', color: '#8fb8d0', fontSize: 12 });
+const resultLabel = hud.addLabel({ id: 'result', x: 16, y: 104, text: '', color: '#ffd890', fontSize: 18, visible: false });
+const noticeLabel = hud.addLabel({ id: 'notice', x: 16, y: 130, text: '', color: '#9fd8b0', fontSize: 12, visible: false });
 const attackButton = hud.addButton({
   id: 'attack', x: 0, y: 0, w: 92, h: 92, label: 'ATTACK',
   bgColor: 'rgba(200,80,60,0.55)', hoverColor: 'rgba(240,120,90,0.8)',
@@ -179,9 +182,9 @@ const run = new ArenaRun({
     resultLabel.visible = phase === 'victory' || phase === 'defeat';
 
     resultLabel.text = phase === 'victory'
-      ? `VICTORY  ·  ${run.director.kills} kills in ${run.director.elapsed.toFixed(1)}s  ·  R to replay`
+      ? `VICTORY  ·  ${run.director.kills} kills in ${run.director.elapsed.toFixed(1)}s  ·  LV ${run.progress.level}  ·  R to replay`
       : phase === 'defeat'
-        ? `DEFEATED  ·  wave ${run.director.wave}  ·  ${run.director.kills} kills  ·  R to retry`
+        ? `DEFEATED  ·  wave ${run.director.wave}  ·  ${run.director.kills} kills  ·  LV ${run.progress.level}  ·  R to retry`
         : '';
   },
 });
@@ -376,6 +379,11 @@ function refreshHud(dt: number): void {
   }
   hpBar.value = run.hero.health.fraction;
   hpBar.label = `HP ${Math.ceil(run.hero.health.hp)} / ${run.hero.health.maxHp}`;
+  const progress = run.progress;
+  xpBar.value = progress.fraction;
+  xpBar.label = progress.isMaxLevel
+    ? `LV ${progress.level}  ·  MAX`
+    : `LV ${progress.level}  ·  XP ${progress.xp} / ${progress.xpForNextLevel}`;
   waveLabel.text = director.phase === 'boss'
     ? `BOSS  ·  kills ${director.kills}`
     : `WAVE ${Math.min(Math.max(1, director.wave), director.totalWaves)} / ${director.totalWaves}  ·  kills ${director.kills}`;

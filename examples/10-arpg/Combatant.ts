@@ -39,6 +39,8 @@ export interface CombatantOptions {
   collider?: TileCollider | null;
   /** Shared per-arena path cache, so every mob's A* results are pooled. */
   pathCache?: PathCache | null;
+  /** Experience this unit is worth when killed. 0 for the hero. */
+  xpValue?: number;
 }
 
 export class Combatant extends Entity {
@@ -51,6 +53,18 @@ export class Combatant extends Entity {
   readonly attackInterval: number;
   readonly radius: number;
   readonly color: string;
+  /** Experience awarded for killing this unit. */
+  readonly xpValue: number;
+
+  /**
+   * Extra damage layered on top of `damage`.
+   *
+   * Mutable where `damage` is not, because progression changes it and the base
+   * is what a save file records. Keeping them separate means a restored fighter
+   * carries its own tuning and the level bonus is re-derivable, rather than the
+   * two being fused into one number nobody can decompose later.
+   */
+  bonusDamage = 0;
 
   /**
    * Fires after this combatant lands a hit, once the damage is already applied.
@@ -76,6 +90,7 @@ export class Combatant extends Entity {
     this.attackInterval = Math.max(0.05, opts.attackInterval ?? 1);
     this.radius = Math.max(2, opts.radius ?? 14);
     this.color = opts.color ?? (this.faction === 'hero' ? '#6fd8ff' : '#e0603c');
+    this.xpValue = Math.max(0, opts.xpValue ?? 0);
     this.shadowRadius = 0.34;
     this.castsShadow = true;
 
@@ -92,6 +107,8 @@ export class Combatant extends Entity {
   get health(): HealthComponent { return this._health; }
   get movement(): MovementComponent { return this._movement; }
   get isDead(): boolean { return this._health.isDead; }
+  /** What a swing lands for: the base plus whatever progression has added. */
+  get attackDamage(): number { return this.damage + this.bonusDamage; }
   /** Seconds until the next hit lands; 0 when ready. */
   get cooldown(): number { return this._cooldown; }
 
@@ -121,8 +138,9 @@ export class Combatant extends Entity {
     if (Math.hypot(dx, dy) > this.attackRange) return false;
 
     this._cooldown = this.attackInterval;
-    target.health.takeDamage(this.damage, this.id);
-    this.onAttack?.(this, this.damage);
+    const dealt = this.attackDamage;
+    target.health.takeDamage(dealt, this.id);
+    this.onAttack?.(this, dealt);
     return true;
   }
 

@@ -1,7 +1,7 @@
 # LuxIso 架构分析报告 v5
 
 > 更新日期：2026-09-12
-> 基线：Canvas 2D 默认 + WebGL2 预览，1126 个 Vitest 测试 / 84 个测试文件（含 v8 覆盖率阈值），11 个 Playwright WebGL 测试
+> 基线：Canvas 2D 默认 + WebGL2 预览，1150 个 Vitest 测试 / 85 个测试文件（含 v8 覆盖率阈值），11 个 Playwright WebGL 测试
 
 
 
@@ -989,6 +989,23 @@ const bus = new EventBus<GameEvents>();
     还是 true。新增 `_isAnyMouseButtonDown()` 扫 `MOUSE_BUTTON_KEYS`,只有全空才清。
     2 条用例,1 条控制(中间松一个不掉)、1 条控制(全松才掉)。
   - 新增 6 个用例（destroy 4 + multi-button 2),1120/84 → 1126/84。
+- **经验与等级:ARPG 的成长循环第一版。**
+  - `HeroProgress` 只管曲线:`XP_BASE * level` 线性收费(30/60/90...)。
+    线性而非指数是因为整局只有十个怪——指数曲线会让 Boss 什么都升不了。
+    `xp` 存的是**当前等级内的经验**而非总量:HUD 条要的就是这个数,
+    而且 `restore` 不会出现 `level` 和 `totalXp` 自相矛盾的情况。
+  - 怪物身价 `XP_MOB_BASE + wave * XP_MOB_PER_WAVE`(12/16/20),Boss 60。
+    整局 212 点,三级刚好花掉 180——**第一级落在第二波**,
+    因为第一波只付 24 点而第一级要 30,不能上来就白送一级。
+  - 升级加 3 点伤害 + 14 点最大生命,并**只治疗新增的那 14 点**:
+    20/140 升级后是 34/154,缺血量不变。升级是奖励,不是免费满血。
+    对照把它改成 `heal(99999)` → 1 条红。
+  - `bonusDamage` 是 `Combatant` 上唯一可变的战斗数值,`damage` 仍然只读:
+    存档记录基础值,等级加成可单独还原,两者不会糊成一个谁也拆不开的数。
+  - 对照实验:`gain` 的 `while` 改 `if`（单次只升一级) → 4 条红;
+    `restore` 去掉 `need - 1` 上限（读档即升级) → 1 条红;
+    `_award` 移出 `!isDead` 判断（死了还吃经验) → 1 条红。
+  - 新增 24 个用例（HeroProgress 15 + 竞技场集成 9),1126/84 → 1150/85。
 
 
 
@@ -1036,7 +1053,7 @@ const bus = new EventBus<GameEvents>();
 | 类型安全 | 9/10 | ComponentCtor 与 EventMap 覆盖核心扩展面；`tsc` 现已覆盖 examples 与 e2e |
 | 可扩展性 | 9/10 | 加载注册表、自定义事件、WebGL extractor 注册表、序列化注册表均已就绪 |
 | 文档质量 | 8/10 | README 与本报告已同步当前实现 |
-| 测试覆盖 | 8/10 | 1126 个单测 + 11 个浏览器测试；已接入 v8 覆盖率与分模块阈值（整体 84.7% 语句 / 78.1% 分支，`src/core/**` 96.0% / 85.0%），三个 fixture 已按 2,500 像素预算比对基线，道具级不变量改在 `RenderSnapshot` 层测；帧时间契约由 `FrameClock` 单点实现 + 一份共享用例表钉住 |
+| 测试覆盖 | 8/10 | 1150 个单测 + 11 个浏览器测试；已接入 v8 覆盖率与分模块阈值（整体 84.7% 语句 / 78.1% 分支，`src/core/**` 96.0% / 85.0%），三个 fixture 已按 2,500 像素预算比对基线，道具级不变量改在 `RenderSnapshot` 层测；帧时间契约由 `FrameClock` 单点实现 + 一份共享用例表钉住 |
 
 
 

@@ -35,6 +35,8 @@ export function registerCombatantPersistence(opts: CombatantPersistenceOptions =
     health: unit.health.maxHp,
     ...(unit.health.hp < unit.health.maxHp ? { hp: unit.health.hp } : {}),
     damage: unit.damage,
+    ...(unit.bonusDamage > 0 ? { bonusDamage: unit.bonusDamage } : {}),
+    ...(unit.xpValue > 0 ? { xpValue: unit.xpValue } : {}),
     attackRange: unit.attackRange,
     attackInterval: unit.attackInterval,
     speed: unit.movement.speed,
@@ -42,22 +44,31 @@ export function registerCombatantPersistence(opts: CombatantPersistenceOptions =
     color: unit.color,
   }));
 
-  Engine.registerProp(COMBATANT_TYPE, (json) => new Combatant(
-    String(json.id),
-    number(json.x, 0),
-    number(json.y, 0),
-    {
-      faction: json.faction === 'hero' ? 'hero' : 'enemy',
-      hp: number(json.health, 40),
-      damage: number(json.damage, 6),
-      attackRange: number(json.attackRange, 0.9),
-      attackInterval: number(json.attackInterval, 1),
-      speed: number(json.speed, 2.4),
-      radius: number(json.radius, 14),
-      color: typeof json.color === 'string' ? json.color : undefined,
-      collider: opts.collider ?? null,
-    },
-  ));
+  Engine.registerProp(COMBATANT_TYPE, (json) => {
+    const unit = new Combatant(
+      String(json.id),
+      number(json.x, 0),
+      number(json.y, 0),
+      {
+        faction: json.faction === 'hero' ? 'hero' : 'enemy',
+        hp: number(json.health, 40),
+        damage: number(json.damage, 6),
+        attackRange: number(json.attackRange, 0.9),
+        attackInterval: number(json.attackInterval, 1),
+        speed: number(json.speed, 2.4),
+        radius: number(json.radius, 14),
+        color: typeof json.color === 'string' ? json.color : undefined,
+        collider: opts.collider ?? null,
+        xpValue: number(json.xpValue, 0),
+      },
+    );
+    // Mutable, so it cannot go through the constructor options. Restored rather
+    // than re-derived from the level: `health` above already carries the
+    // maximum-hp half of the same bonus, and deriving one while loading the
+    // other would be two sources of truth for one level-up.
+    unit.bonusDamage = number(json.bonusDamage, 0);
+    return unit;
+  });
 }
 
 /** Drop both registrations. Intended for tests. */

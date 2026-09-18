@@ -26,6 +26,7 @@ import { PathCache } from '../../src/index';
 import type { TileCollider } from '../../src/index';
 import { Combatant } from './Combatant';
 import { AbilityBook, type AbilityBookSnapshot } from './Abilities';
+import { HeroProgress, type HeroProgressSnapshot } from './Progression';
 import { WaveDirector, type ArpgPhase, type WaveDirectorSnapshot } from './WaveDirector';
 
 /** A blocked arena tile. */
@@ -47,6 +48,7 @@ export type ArenaEventType =
   | 'cleave'      // the hero's area skill connected
   | 'dash'        // the hero closed or broke away
   | 'kill'        // an enemy died
+  | 'level-up'    // the hero gained a level
   | 'wave-start'
   | 'boss'
   | 'victory'
@@ -67,6 +69,15 @@ export interface ArenaRunSnapshot {
    * have it, and those load as "everything available" rather than failing.
    */
   abilities?: AbilityBookSnapshot;
+  /**
+   * Experience and level. Optional for the same reason as `abilities`: a save
+   * from before progression existed loads as a fresh level-1 hero.
+   *
+   * Only the progression is here. The hero's maximum hp and `bonusDamage` are
+   * fighter state and travel with the serialized scene, so restoring does not
+   * re-apply the level bonuses — that would double them.
+   */
+  progress?: HeroProgressSnapshot;
 }
 
 /** What the player (or a test) asks of the hero this frame. */
@@ -150,6 +161,17 @@ export class ArenaRun {
   /** How far a dash travels, before the collider sweep shortens it. */
   static readonly DASH_DISTANCE = 2.6;
 
+  /**
+   * Experience a wave mob is worth: `XP_MOB_BASE + wave * XP_MOB_PER_WAVE`.
+   *
+   * Tuned against `HeroProgress.XP_BASE` so a full run levels three times —
+   * wave 1 pays 24 against the 30 the first level costs, so the first level-up
+   * lands in wave 2, and the boss's 60 is what finishes the third.
+   */
+  static readonly XP_MOB_BASE = 8;
+  static readonly XP_MOB_PER_WAVE = 4;
+  static readonly XP_BOSS = 60;
+
   private readonly _opts: ArenaRunOptions;
   private readonly _cols: number;
   private readonly _rows: number;
@@ -171,6 +193,7 @@ export class ArenaRun {
   private _enemies: Combatant[] = [];
   private _director!: WaveDirector;
   private readonly _abilities = new AbilityBook();
+  private readonly _progress = new HeroProgress();
 
   constructor(opts: ArenaRunOptions = {}) {
     this._opts = opts;
@@ -189,6 +212,8 @@ export class ArenaRun {
   get director(): WaveDirector { return this._director; }
   /** Skill cooldowns, for a HUD to read. */
   get abilities(): AbilityBook { return this._abilities; }
+  /** The hero's level and experience, for a HUD to read. */
+  get progress(): HeroProgress { return this._progress; }
   get phase(): ArpgPhase { return this._director.phase; }
   get isOver(): boolean { return this._director.isOver; }
   /** Blocked cover tiles, for the caller to draw something on. */
@@ -213,6 +238,7 @@ export class ArenaRun {
     this._hero = this._spawnHero();
     this._director = this._newDirector();
     this._abilities.reset();
+    this._progress.reset();
     this._director.start();
   }
 
@@ -224,7 +250,11 @@ export class ArenaRun {
    * A checkpoint is the pair.
    */
   snapshot(): ArenaRunSnapshot {
-    return { director: this._director.snapshot(), abilities: this._abilities.snapshot() };
+    return {
+      director: this._director.snapshot(),
+      abilities: this._abilities.snapshot(),
+      progress: this._progress.snapshot(),
+    };
   }
 
   /**
@@ -249,6 +279,9 @@ export class ArenaRun {
     // A save from before skills existed has no `abilities` key; `restore` reads
     // that as "everything available" rather than leaving a timer undefined.
     this._abilities.restore(snapshot.abilities);
+    // Progression only — the hero's maxHp and `bonusDamage` came back with the
+    // serialized scene, so re-applying the level bonuses here would double them.
+    this._progress.restore(snapshot.progress);
     for (const unit of fighters) {
       // Restored fighters arrive from `Engine.buildProps`, which rebuilds an
       // object from its saved fields and nothing else — a callback is not a
@@ -322,6 +355,7 @@ export class ArenaRun {
       if (!this._hero.isDead) {
         this._hero.health.heal(ArenaRun.LIFE_ON_KILL);
         this._floatHeal(ArenaRun.LIFE_ON_KILL);
+        this._award(enemy.xpValue);
       }
       this._director.reportMobDefeated();
     }
@@ -364,6 +398,43 @@ export class ArenaRun {
       duration: 700,
       speed: 30,
       fontSize: 12,
+    });
+  }
+
+  /**
+   * Award experience for a kill and apply any levels it bought.
+   *
+   * The bonuses are re-derived from the level rather than accumulated: setting
+   * `bonusDamage` to `progress.damageBonus` is idempotent, so a double call
+   * cannot inflate it, while `+= DAMAGE_PER_LEVEL` would. Maximum hp has to be
+   * additive because `setMax` takes an absolute value and the hero's base is
+   * whatever it was spawned with, so `levels` is used for that one.
+   */
+  private _award(xp: number): void {
+    if (xp <= 0) return;
+    const levels = this._progress.gain(xp);
+    if (levels <= 0) return;
+
+    const hero = this._hero;
+    hero.bonusDamage = this._progress.damageBonus;
+
+    // Healing by exactly the amount added keeps the missing-hp gap unchanged: a
+    // level-up is a reward, not a free full heal, and a hero at 20 of 140 should
+    // not come out of it at 34 of 154 *and* topped up.
+    const addedHp = HeroProgress.MAX_HP_PER_LEVEL * levels;
+    hero.health.setMax(hero.health.maxHp + addedHp);
+    hero.health.heal(addedHp);
+
+    this._emit('level-up', hero.position.x, hero.position.y);
+    this._opts.onFloatingText?.({
+      x: hero.position.x,
+      y: hero.position.y,
+      z: hero.radius * 3.4,
+      text: `LEVEL ${this._progress.level}`,
+      color: '#ffe070',
+      duration: 1200,
+      speed: 26,
+      fontSize: 15,
     });
   }
 
@@ -615,6 +686,7 @@ export class ArenaRun {
       attackInterval: 1.25, radius: 13, color: wave >= 3 ? '#e0743c' : '#c8563c',
       collider: this._opts.collider ?? null,
       pathCache: this._pathCache,
+      xpValue: ArenaRun.XP_MOB_BASE + wave * ArenaRun.XP_MOB_PER_WAVE,
     });
     this._enemies.push(unit);
     this._wire(unit);
@@ -626,6 +698,7 @@ export class ArenaRun {
       hp: 220, damage: 14, speed: 1.35, attackRange: 1.3, attackInterval: 1.4,
       radius: 24, color: '#b048d0', collider: this._opts.collider ?? null,
       pathCache: this._pathCache,
+      xpValue: ArenaRun.XP_BOSS,
     });
     this._enemies.push(unit);
     this._wire(unit);

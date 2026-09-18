@@ -64,6 +64,9 @@ export const ARENA_CUES: Record<ArenaEventType, CuePlan> = {
   cleave:       { url: renderCue({ duration: 0.36, wave: 'saw', from: 260, to: 90, decay: 9, gain: 0.5 }), volume: 0.85, spatial: true },
   dash:         { url: renderCue({ duration: 0.2, wave: 'noise', from: 1, decay: 18, gain: 0.32, seed: 19 }), volume: 0.6, spatial: true },
   kill:         { url: renderCue({ duration: 0.34, wave: 'noise', from: 1, decay: 13, gain: 0.4, seed: 7 }), volume: 0.65, spatial: true },
+  // Rising, and not panned: a level belongs to the player, not to a spot on the
+  // floor, so panning it would push a reward cue off to one ear.
+  'level-up':   { url: renderCue({ duration: 0.7, wave: 'sine', from: 392, to: 784, decay: 4, gain: 0.42 }), volume: 0.85, spatial: false },
   'wave-start': { url: renderCue({ duration: 0.5, wave: 'sine', from: 440, to: 660, decay: 5, gain: 0.4 }), volume: 0.8, spatial: false },
   boss:         { url: renderCue({ duration: 0.9, wave: 'saw', from: 110, to: 52, decay: 3, gain: 0.5 }), volume: 0.9, spatial: false },
   victory:      { url: renderCue({ duration: 0.9, wave: 'sine', from: 523, to: 784, decay: 3.5, gain: 0.4 }), volume: 0.9, spatial: false },
@@ -135,7 +138,7 @@ export interface CueOverrideSource {
  * anything. But a synthesized square wave is a synthesized square wave, so the
  * demo reads `/sfx/arpg-cues.json` and substitutes any file it can actually
  * load. The committed manifest declares no cues, which is why the default path
- * costs zero requests instead of nine 404s.
+ * costs zero requests instead of ten 404s.
  *
  * A cue whose file fails to load keeps its synthesized version. That is the
  * whole point of doing this per cue: a half-installed pack must not leave the
