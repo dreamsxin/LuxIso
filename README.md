@@ -122,7 +122,7 @@ npm run test:webgl # builds, then runs 9 deterministic captures + lifecycle test
 
 | Layer | Command | Scope |
 |---|---|---|
-| Unit | `npm test` | 1097 tests across 83 files (Vitest 4) |
+| Unit | `npm test` | 1116 tests across 84 files (Vitest 4) |
 
 
 
@@ -1163,7 +1163,7 @@ object is unreachable and both disappear together.
 | EventBus event maps | Event names and payload types are coupled; custom maps supported |
 | Scene.toJSON(): runtime state + built-in prop serialization | Environment, camera, view, light IDs/options, collider, built-ins |
 | Lib build: ESM + CJS dual output + .d.ts (npm run build:lib) | |
-| Unit tests: 1097 tests across 83 files (Vitest 4, Node ≥ 22) | |
+| Unit tests: 1116 tests across 84 files (Vitest 4, Node ≥ 22) | |
 
 
 

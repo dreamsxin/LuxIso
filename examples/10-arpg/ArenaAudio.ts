@@ -58,6 +58,11 @@ interface CuePlan {
 export const ARENA_CUES: Record<ArenaEventType, CuePlan> = {
   'hero-hit':   { url: renderCue({ duration: 0.14, wave: 'square', from: 320, to: 170, decay: 26, gain: 0.45 }), volume: 0.7, spatial: true },
   'hero-hurt':  { url: renderCue({ duration: 0.28, wave: 'saw', from: 160, to: 70, decay: 11, gain: 0.5 }), volume: 0.9, spatial: true },
+  // Longer and lower than a basic hit: the cleave is one sound for a blow that
+  // may have landed on four bodies, so it has to read as heavier rather than as
+  // four of the same thing.
+  cleave:       { url: renderCue({ duration: 0.36, wave: 'saw', from: 260, to: 90, decay: 9, gain: 0.5 }), volume: 0.85, spatial: true },
+  dash:         { url: renderCue({ duration: 0.2, wave: 'noise', from: 1, decay: 18, gain: 0.32, seed: 19 }), volume: 0.6, spatial: true },
   kill:         { url: renderCue({ duration: 0.34, wave: 'noise', from: 1, decay: 13, gain: 0.4, seed: 7 }), volume: 0.65, spatial: true },
   'wave-start': { url: renderCue({ duration: 0.5, wave: 'sine', from: 440, to: 660, decay: 5, gain: 0.4 }), volume: 0.8, spatial: false },
   boss:         { url: renderCue({ duration: 0.9, wave: 'saw', from: 110, to: 52, decay: 3, gain: 0.5 }), volume: 0.9, spatial: false },
@@ -130,7 +135,7 @@ export interface CueOverrideSource {
  * anything. But a synthesized square wave is a synthesized square wave, so the
  * demo reads `/sfx/arpg-cues.json` and substitutes any file it can actually
  * load. The committed manifest declares no cues, which is why the default path
- * costs zero requests instead of seven 404s.
+ * costs zero requests instead of nine 404s.
  *
  * A cue whose file fails to load keeps its synthesized version. That is the
  * whole point of doing this per cue: a half-installed pack must not leave the

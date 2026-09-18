@@ -15,10 +15,17 @@
  * Given a `collider`, the arena raises four pillars for cover and reports them
  * through `pillars` for the caller to draw. Cover is what turned the mobs'
  * straight-line chase into a pathfinding one.
+ *
+ * The hero has two skills on top of the basic attack — a cleave and a dash — and
+ * they live here rather than on `Combatant` for the same reason the rest of this
+ * file does: what they do needs the whole arena (every enemy in a radius, the
+ * nearest one to lunge at), and that makes them provable at a fixed dt instead of
+ * by feel. `AbilityBook` owns only the cooldowns.
  */
 import { PathCache } from '../../src/index';
 import type { TileCollider } from '../../src/index';
 import { Combatant } from './Combatant';
+import { AbilityBook, type AbilityBookSnapshot } from './Abilities';
 import { WaveDirector, type ArpgPhase, type WaveDirectorSnapshot } from './WaveDirector';
 
 /** A blocked arena tile. */
@@ -37,6 +44,8 @@ export interface PillarTile { col: number; row: number; }
 export type ArenaEventType =
   | 'hero-hit'    // the hero landed a blow
   | 'hero-hurt'   // something landed a blow on the hero
+  | 'cleave'      // the hero's area skill connected
+  | 'dash'        // the hero closed or broke away
   | 'kill'        // an enemy died
   | 'wave-start'
   | 'boss'
@@ -53,6 +62,11 @@ export interface ArenaEvent {
 /** A run's bookkeeping, saved next to the serialized scene. */
 export interface ArenaRunSnapshot {
   director: WaveDirectorSnapshot;
+  /**
+   * Skill cooldowns. Optional because saves written before skills existed do not
+   * have it, and those load as "everything available" rather than failing.
+   */
+  abilities?: AbilityBookSnapshot;
 }
 
 /** What the player (or a test) asks of the hero this frame. */
@@ -62,6 +76,10 @@ export interface HeroIntent {
   y?: number;
   /** Swing at the nearest enemy in reach. */
   attack?: boolean;
+  /** Hit everything within `ArenaRun.CLEAVE_RADIUS`. Ignored while cooling down. */
+  cleave?: boolean;
+  /** Lunge along the movement axis, or at the nearest enemy if the axis is idle. */
+  dash?: boolean;
 }
 
 export interface ArenaRunOptions {
@@ -97,6 +115,20 @@ export class ArenaRun {
    */
   static readonly LIFE_ON_KILL = 12;
 
+  /** How far the cleave reaches, centre to centre, in world units. */
+  static readonly CLEAVE_RADIUS = 2.2;
+  /**
+   * Damage the cleave deals to every enemy it reaches.
+   *
+   * Larger than a basic hit (16) but well under its damage per second: the basic
+   * attack lands every 0.4 s, so 22 every 3.5 s only pays off when it catches
+   * more than one target. That is the whole shape of the skill — it rewards
+   * standing in the middle of a wave, which is also the most dangerous place.
+   */
+  static readonly CLEAVE_DAMAGE = 22;
+  /** How far a dash travels, before the collider sweep shortens it. */
+  static readonly DASH_DISTANCE = 2.6;
+
   private readonly _opts: ArenaRunOptions;
   private readonly _cols: number;
   private readonly _rows: number;
@@ -117,6 +149,7 @@ export class ArenaRun {
   private _hero!: Combatant;
   private _enemies: Combatant[] = [];
   private _director!: WaveDirector;
+  private readonly _abilities = new AbilityBook();
 
   constructor(opts: ArenaRunOptions = {}) {
     this._opts = opts;
@@ -133,6 +166,8 @@ export class ArenaRun {
   get hero(): Combatant { return this._hero; }
   get enemies(): readonly Combatant[] { return this._enemies; }
   get director(): WaveDirector { return this._director; }
+  /** Skill cooldowns, for a HUD to read. */
+  get abilities(): AbilityBook { return this._abilities; }
   get phase(): ArpgPhase { return this._director.phase; }
   get isOver(): boolean { return this._director.isOver; }
   /** Blocked cover tiles, for the caller to draw something on. */
@@ -156,6 +191,7 @@ export class ArenaRun {
     this._enemies = [];
     this._hero = this._spawnHero();
     this._director = this._newDirector();
+    this._abilities.reset();
     this._director.start();
   }
 
@@ -167,7 +203,7 @@ export class ArenaRun {
    * A checkpoint is the pair.
    */
   snapshot(): ArenaRunSnapshot {
-    return { director: this._director.snapshot() };
+    return { director: this._director.snapshot(), abilities: this._abilities.snapshot() };
   }
 
   /**
@@ -189,6 +225,9 @@ export class ArenaRun {
     this._enemies = fighters.filter((unit) => unit !== hero);
     this._director = this._newDirector();
     if (snapshot.director) this._director.restore(snapshot.director);
+    // A save from before skills existed has no `abilities` key; `restore` reads
+    // that as "everything available" rather than leaving a timer undefined.
+    this._abilities.restore(snapshot.abilities);
     for (const unit of fighters) {
       // Restored fighters arrive from `Engine.buildProps`, which rebuilds an
       // object from its saved fields and nothing else — a callback is not a
@@ -224,6 +263,11 @@ export class ArenaRun {
     if (!Number.isFinite(dt) || dt <= 0) return;
     const fighting = this.phase === 'wave' || this.phase === 'boss';
 
+    // Timers first, requests second: a skill used this frame must not also be
+    // handed this frame's dt back off its own cooldown.
+    this._hero.tick(dt);
+    this._abilities.tick(dt);
+
     if (fighting && !this._hero.isDead) {
       const x = intent.x ?? 0;
       const y = intent.y ?? 0;
@@ -231,11 +275,14 @@ export class ArenaRun {
         // Swept against the collider, so a long frame cannot tunnel through a wall.
         this._hero.movement.nudge(x * this._heroSpeed * dt, y * this._heroSpeed * dt);
       }
+      // Dash before cleave, because pressing both means "get in there and swing":
+      // the other order would cleave the spot the hero is about to leave.
+      if (intent.dash) this._dash(x, y);
+      if (intent.cleave) this._cleave();
       this._hero.position.x = Math.min(this._max, Math.max(this._min, this._hero.position.x));
       this._hero.position.y = Math.min(this._max, Math.max(this._min, this._hero.position.y));
     }
 
-    this._hero.tick(dt);
     if (fighting && intent.attack) this._hero.swing(this.nearestEnemy());
 
     for (const enemy of this._enemies) enemy.think(dt, fighting ? this._hero : null);
@@ -262,6 +309,81 @@ export class ArenaRun {
 
   private _emit(type: ArenaEventType, x: number, y: number): void {
     this._opts.onEvent?.({ type, x, y });
+  }
+
+  /**
+   * Hit every living enemy inside `CLEAVE_RADIUS`.
+   *
+   * Not routed through `Combatant.swing`: that is single-target, gated by
+   * `attackRange`, and shares the basic attack's cooldown — a skill that stole
+   * the basic attack's timer would be a downgrade. Damage is applied directly
+   * and the hero's id is passed as the source, so `HealthComponent` still
+   * attributes it.
+   *
+   * One `cleave` event, not one `hero-hit` per target. Four simultaneous
+   * `hero-hit` cues is precisely the amplitude spike `ArenaAudio`'s voice budget
+   * exists to prevent, and a swing that connects with four bodies is one sound
+   * to a player anyway.
+   *
+   * @returns whether it went off. A cleave that would reach nothing does not
+   *   start its cooldown — see `AbilityBook`'s note on why that check lives here.
+   */
+  private _cleave(): boolean {
+    if (!this._abilities.ready('cleave')) return false;
+    const hero = this._hero;
+
+    const targets: Combatant[] = [];
+    for (const enemy of this._enemies) {
+      if (enemy.isDead) continue;
+      const distance = Math.hypot(
+        enemy.position.x - hero.position.x,
+        enemy.position.y - hero.position.y,
+      );
+      if (distance <= ArenaRun.CLEAVE_RADIUS) targets.push(enemy);
+    }
+    if (targets.length === 0) return false;
+
+    this._abilities.use('cleave');
+    for (const target of targets) target.health.takeDamage(ArenaRun.CLEAVE_DAMAGE, hero.id);
+    this._emit('cleave', hero.position.x, hero.position.y);
+    return true;
+  }
+
+  /**
+   * Lunge `DASH_DISTANCE` along the movement axis.
+   *
+   * With the axis idle it goes at the nearest enemy instead, which is what the
+   * arena's central pressure asks for: the boss outreaches the hero, so the
+   * skill that matters is the one that closes. Delivered through `nudge`, so the
+   * sweep shortens it at a pillar rather than teleporting through — a dash is a
+   * fast move, not a blink.
+   *
+   * @returns whether it went off. With no direction and no enemy to pick one
+   *   there is nothing to do, and the cooldown stays untouched.
+   */
+  private _dash(axisX: number, axisY: number): boolean {
+    if (!this._abilities.ready('dash')) return false;
+
+    let dx = axisX;
+    let dy = axisY;
+    if (dx === 0 && dy === 0) {
+      const target = this.nearestEnemy();
+      if (!target) return false;
+      dx = target.position.x - this._hero.position.x;
+      dy = target.position.y - this._hero.position.y;
+    }
+    const length = Math.hypot(dx, dy);
+    if (!Number.isFinite(length) || length < 1e-6) return false;
+
+    this._abilities.use('dash');
+    this._hero.movement.nudge(
+      (dx / length) * ArenaRun.DASH_DISTANCE,
+      (dy / length) * ArenaRun.DASH_DISTANCE,
+    );
+    // Reported where the hero landed, not where it left from: the cue belongs to
+    // the arrival, which is the half the player is looking at.
+    this._emit('dash', this._hero.position.x, this._hero.position.y);
+    return true;
   }
 
   /**

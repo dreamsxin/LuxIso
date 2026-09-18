@@ -1,7 +1,7 @@
 # LuxIso 架构分析报告 v5
 
 > 更新日期：2026-09-12
-> 基线：Canvas 2D 默认 + WebGL2 预览，1097 个 Vitest 测试 / 83 个测试文件（含 v8 覆盖率阈值），11 个 Playwright WebGL 测试
+> 基线：Canvas 2D 默认 + WebGL2 预览，1116 个 Vitest 测试 / 84 个测试文件（含 v8 覆盖率阈值），11 个 Playwright WebGL 测试
 
 
 
@@ -959,6 +959,21 @@ const bus = new EventBus<GameEvents>();
     连同当时的 `assetLoader.size` 一起断言下来——只断言最终 size 为 0 是看不出那个窗口的。
   - 新增 8 个用例,1089/83 → 1097/83;`src/core/**` 阈值随之上抬到
     95.9 / 84.9 / 96 / 97.7（实测 95.96 / 84.97 / 96.06 / 97.78)。
+- **技能系统第一版:苦力挥砍(cleave)和冲刺(dash),全部用对照实验证明。**
+  - `AbilityBook` 只管冷却;`ArenaRun._cleave()` 和 `_dash()` 持有逻辑。
+    拆法的重点:技能要碰世界(半径内全部敌人 / 最近的敌人方向),放在 `Combatant` 上
+    就需要从里面看整个战场;放在 `ArenaRun` 上它和基础攻击一样全部在固定 dt 下可测。
+  - **挥砍**:半径 2.2 wu,固定 22 伤害,3.5 s 冷却。对空挥不进冷却——
+    烧一个五秒技能却什么都没发生对玩家来说是 bug。一个 `cleave` 事件,不是 N 个 `hero-hit`;
+    对照把发射改成 per-target → 1 条红。
+  - **冲刺**:沿轴 2.6 wu,通过 `nudge` 走碰撞;轴静止时朝最近的敌人。
+    这是回答竞技场的核心威胁——Boss 比英雄远 0.15 wu,主动缩距离值得比伤害贵。
+    对照去掉最近敌人回退 → 1 条红;半径放大 1000 倍 → 2 条红。
+  - 冷却走 `snapshot` / `restore`,兼容之前没有技能的存档(缺键=可用)。
+    对照把 `snapshot` 去掉 `abilities` → 1 条红。
+  - HUD:两个技能按钮叠在 ATTACK 上方,标签显示剩余秒数或键名,冷却中变暗。
+  - 新增 19 个用例(AbilityBook 10 + cleave 5 + dash 3 + checkpoint 1),
+    1097/83 → 1116/84。
 
 
 
@@ -1006,7 +1021,7 @@ const bus = new EventBus<GameEvents>();
 | 类型安全 | 9/10 | ComponentCtor 与 EventMap 覆盖核心扩展面；`tsc` 现已覆盖 examples 与 e2e |
 | 可扩展性 | 9/10 | 加载注册表、自定义事件、WebGL extractor 注册表、序列化注册表均已就绪 |
 | 文档质量 | 8/10 | README 与本报告已同步当前实现 |
-| 测试覆盖 | 8/10 | 1097 个单测 + 11 个浏览器测试；已接入 v8 覆盖率与分模块阈值（整体 84.7% 语句 / 78.1% 分支，`src/core/**` 96.0% / 85.0%），三个 fixture 已按 2,500 像素预算比对基线，道具级不变量改在 `RenderSnapshot` 层测；帧时间契约由 `FrameClock` 单点实现 + 一份共享用例表钉住 |
+| 测试覆盖 | 8/10 | 1116 个单测 + 11 个浏览器测试；已接入 v8 覆盖率与分模块阈值（整体 84.7% 语句 / 78.1% 分支，`src/core/**` 96.0% / 85.0%），三个 fixture 已按 2,500 像素预算比对基线，道具级不变量改在 `RenderSnapshot` 层测；帧时间契约由 `FrameClock` 单点实现 + 一份共享用例表钉住 |
 
 
 

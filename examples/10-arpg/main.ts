@@ -16,7 +16,7 @@
  *     (`sfx.ts`), so the demo ships no binary assets.
  *
  * Controls: WASD / arrows or the lower-left stick to move, Space / J or the
- * ATTACK button to swing, R to restart, M to mute.
+ * ATTACK button to swing, Q to cleave, E to dash, R to restart, M to mute.
  */
 import {
   Scene, Floor, Boulder, TileCollider, InputManager, InputMap, TouchStick, HudLayer,
@@ -82,6 +82,8 @@ map.define('move_down', ['s', 'S', 'ArrowDown']);
 map.define('move_left', ['a', 'A', 'ArrowLeft']);
 map.define('move_right', ['d', 'D', 'ArrowRight']);
 map.define('attack', [' ', 'Space', 'j', 'J']);
+map.define('cleave', ['q', 'Q']);
+map.define('dash', ['e', 'E']);
 map.define('restart', ['r', 'R']);
 map.define('save', ['k', 'K']);
 map.define('load', ['l', 'L']);
@@ -92,6 +94,10 @@ const stick = new TouchStick({ x: 110, y: 260, radius: 56 });
 map.addAxisSource(stick);
 
 // ── HUD ───────────────────────────────────────────────────────────────────────
+
+/** Skill button tints: available, and waiting out a cooldown. */
+const SKILL_READY_BG = 'rgba(70,110,150,0.6)';
+const SKILL_COOLING_BG = 'rgba(40,48,58,0.55)';
 
 const hud = new HudLayer();
 hud.minHitSize = 44;
@@ -104,6 +110,19 @@ const attackButton = hud.addButton({
   id: 'attack', x: 0, y: 0, w: 92, h: 92, label: 'ATTACK',
   bgColor: 'rgba(200,80,60,0.55)', hoverColor: 'rgba(240,120,90,0.8)',
   onClick: () => { attackQueued = true; },
+});
+// The two skills. Their labels carry the cooldown, which is the whole reason a
+// skill needs a HUD at all: the player has to know whether the key will do
+// anything before pressing it.
+const cleaveButton = hud.addButton({
+  id: 'cleave', x: 0, y: 0, w: 92, h: 44, label: 'CLEAVE Q',
+  bgColor: SKILL_READY_BG, hoverColor: 'rgba(255,190,110,0.85)', fontSize: 11,
+  onClick: () => { cleaveQueued = true; },
+});
+const dashButton = hud.addButton({
+  id: 'dash', x: 0, y: 0, w: 92, h: 44, label: 'DASH E',
+  bgColor: SKILL_READY_BG, hoverColor: 'rgba(140,220,255,0.85)', fontSize: 11,
+  onClick: () => { dashQueued = true; },
 });
 const hudOverlay = new HudOverlayRenderer(hudCanvas, hud, {
   // The stick is not a HudLayer element type, so it paints through the overlay's
@@ -175,11 +194,16 @@ for (const { col, row } of run.pillars) {
 
 /** Set by the ATTACK button, consumed by the next frame. */
 let attackQueued = false;
+/** Same for the two skill buttons — a tap must survive until the next step. */
+let cleaveQueued = false;
+let dashQueued = false;
 
 function restart(): void {
   hud.resetInput();
   stick.reset();
   attackQueued = false;
+  cleaveQueued = false;
+  dashQueued = false;
   run.restart();
 }
 
@@ -230,6 +254,8 @@ function loadCheckpoint(): void {
     hud.resetInput();
     stick.reset();
     attackQueued = false;
+    cleaveQueued = false;
+    dashQueued = false;
     notify('checkpoint loaded');
   } catch {
     notify('checkpoint unreadable');
@@ -244,6 +270,10 @@ function layoutHud(): void {
   const rect = glCanvas.getBoundingClientRect();
   attackButton.x = rect.width - attackButton.w - 22;
   attackButton.y = rect.height - attackButton.h - 22;
+  // Skills stack above ATTACK, in the same column the thumb already reaches.
+  cleaveButton.x = dashButton.x = attackButton.x;
+  dashButton.y = attackButton.y - dashButton.h - 8;
+  cleaveButton.y = dashButton.y - cleaveButton.h - 8;
   stick.setCentre(102, rect.height - 102);
 }
 
@@ -277,6 +307,20 @@ function swingRequested(): boolean {
   return requested;
 }
 
+/**
+ * Whether a skill was asked for this frame.
+ *
+ * Tapped, not held — the opposite of the basic attack, and for the same reason
+ * read the other way round: a held key would fire the skill on the first frame
+ * of every cooldown expiry, so the cooldown would decide the timing instead of
+ * the player. Choosing *when* to spend a five-second skill is the decision.
+ */
+function skillRequested(action: 'cleave' | 'dash'): boolean {
+  const queued = action === 'cleave' ? cleaveQueued : dashQueued;
+  if (action === 'cleave') cleaveQueued = false; else dashQueued = false;
+  return queued || map.wasPressed(action);
+}
+
 let lastTs: number | null = null;
 
 function frame(ts: number): void {
@@ -304,7 +348,12 @@ function frame(ts: number): void {
   // Opened before the step, so the events the step emits are spent against this
   // frame's voice budget and are panned around where the hero already is.
   arenaAudio.beginFrame(dt, run.hero.position.x, run.hero.position.y);
-  run.step(dt, { x: axis.x, y: axis.y, attack: swingRequested() });
+  run.step(dt, {
+    x: axis.x, y: axis.y,
+    attack: swingRequested(),
+    cleave: skillRequested('cleave'),
+    dash: skillRequested('dash'),
+  });
 
 
   // One clock for the whole frame: Scene derives its own dt from this timestamp,
@@ -333,6 +382,21 @@ function refreshHud(dt: number): void {
     ? `${PHASE_TEXT.intermission}  ${director.countdown.toFixed(1)}s`
     : PHASE_TEXT[director.phase];
   attackButton.visible = !director.isOver;
+  cleaveButton.visible = !director.isOver;
+  dashButton.visible = !director.isOver;
+  paintSkill(cleaveButton, 'cleave', 'CLEAVE Q');
+  paintSkill(dashButton, 'dash', 'DASH E');
+}
+
+/** A skill button reads either its key or the seconds left on it. */
+function paintSkill(
+  button: { label: string; bgColor: string },
+  id: 'cleave' | 'dash',
+  ready: string,
+): void {
+  const remaining = run.abilities.remaining(id);
+  button.label = remaining > 0 ? `${ready.split(' ')[0]} ${remaining.toFixed(1)}s` : ready;
+  button.bgColor = remaining > 0 ? SKILL_COOLING_BG : SKILL_READY_BG;
 }
 
 function draw(): void {
