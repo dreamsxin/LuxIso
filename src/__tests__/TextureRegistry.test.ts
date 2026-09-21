@@ -1,7 +1,7 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { createFakeGL } from './helpers/gl';
-import { GLResourceRegistry } from '../../webgl-next/src/device/GLResourceRegistry';
-import { TextureRegistry } from '../../webgl-next/src/resources/TextureRegistry';
+import {describe, it, expect, beforeEach, afterEach, vi} from 'vitest';
+import {createFakeGL} from './helpers/gl';
+import {GLResourceRegistry} from '../../webgl-next/src/device/GLResourceRegistry';
+import {TextureRegistry} from '../../webgl-next/src/resources/TextureRegistry';
 
 /**
  * The WebGL2 texture cache, and the leak it used to be.
@@ -39,11 +39,11 @@ beforeEach(() => {
       pending.push(this);
     }
   }
-  (globalThis as { Image: unknown }).Image = FakeImage;
+  (globalThis as {Image: unknown}).Image = FakeImage;
 });
 
 afterEach(() => {
-  (globalThis as { Image: unknown }).Image = originalImage;
+  (globalThis as {Image: unknown}).Image = originalImage;
   vi.restoreAllMocks();
 });
 
@@ -56,7 +56,7 @@ afterEach(() => {
  */
 function takePending(url: string): PendingImage {
   for (let i = pending.length - 1; i >= 0; i--) {
-    if (pending[i].src === url) return pending.splice(i, 1)[0];
+    if (pending[i].src === url) {return pending.splice(i, 1)[0];}
   }
   throw new Error(`no pending load for ${url}`);
 }
@@ -79,21 +79,21 @@ function setup(): {
   const fake = createFakeGL();
   const resources = new GLResourceRegistry(fake.gl);
   const textures = new TextureRegistry(fake.gl, resources);
-  return { fake, resources, textures };
+  return {fake, resources, textures};
 }
 
 describe('TextureRegistry — resolve', () => {
   it('creates the 1x1 white fallback up front', () => {
-    const { fake, textures } = setup();
+    const {fake, textures} = setup();
     expect(fake.created.length).toBe(1);
     expect(textures.white).toBe(fake.created[0]);
     expect(textures.size).toBe(0);
   });
 
   it('returns null while an image is still loading, then the texture', () => {
-    const { fake, textures } = setup();
+    const {fake, textures} = setup();
     expect(textures.resolve('atlas.png')).toBeNull();
-    expect(fake.created.length).toBe(1);   // nothing on the GPU yet
+    expect(fake.created.length).toBe(1); // nothing on the GPU yet
 
     finishLoad('atlas.png');
     const resolved = textures.resolve('atlas.png');
@@ -102,16 +102,16 @@ describe('TextureRegistry — resolve', () => {
   });
 
   it('loads a URL once however often it is resolved', () => {
-    const { fake, textures } = setup();
-    for (let i = 0; i < 10; i++) textures.resolve('atlas.png');
+    const {fake, textures} = setup();
+    for (let i = 0; i < 10; i++) {textures.resolve('atlas.png');}
     expect(pending.length).toBe(1);
     finishLoad('atlas.png');
-    for (let i = 0; i < 10; i++) textures.resolve('atlas.png');
-    expect(fake.created.length).toBe(2);   // white + the atlas
+    for (let i = 0; i < 10; i++) {textures.resolve('atlas.png');}
+    expect(fake.created.length).toBe(2); // white + the atlas
   });
 
   it('sets crossOrigin for remote URLs but not for inline data', () => {
-    const { textures } = setup();
+    const {textures} = setup();
     textures.resolve('https://cdn.example/atlas.png');
     textures.resolve('data:image/png;base64,AAAA');
     textures.resolve('blob:whatever');
@@ -124,7 +124,7 @@ describe('TextureRegistry — resolve', () => {
 describe('TextureRegistry — failure', () => {
   it('falls back to white and warns once, not once per frame', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    const { textures } = setup();
+    const {textures} = setup();
     textures.resolve('missing.png');
     failLoad('missing.png');
 
@@ -143,13 +143,13 @@ describe('TextureRegistry — eviction', () => {
   function advance(textures: TextureRegistry, frames: number, keep: string[] = []): void {
     for (let i = 0; i < frames; i++) {
       textures.beginFrame();
-      for (const url of keep) textures.resolve(url);
+      for (const url of keep) {textures.resolve(url);}
       textures.evictIdle();
     }
   }
 
   it('keeps a texture that is resolved every frame', () => {
-    const { fake, textures } = setup();
+    const {fake, textures} = setup();
     textures.beginFrame();
     textures.resolve('atlas.png');
     finishLoad('atlas.png');
@@ -162,13 +162,13 @@ describe('TextureRegistry — eviction', () => {
   });
 
   it('deletes a texture that goes unreferenced, through the resource registry', () => {
-    const { fake, resources, textures } = setup();
+    const {fake, resources, textures} = setup();
     textures.beginFrame();
     textures.resolve('atlas.png');
     finishLoad('atlas.png');
     textures.resolve('atlas.png');
     const atlas = fake.created[1];
-    expect(resources.counts.textures).toBe(2);   // white + atlas
+    expect(resources.counts.textures).toBe(2); // white + atlas
 
     advance(textures, TextureRegistry.DEFAULT_IDLE_FRAMES + 2);
 
@@ -180,7 +180,7 @@ describe('TextureRegistry — eviction', () => {
   });
 
   it('does not evict before the idle window elapses', () => {
-    const { fake, textures } = setup();
+    const {fake, textures} = setup();
     textures.beginFrame();
     textures.resolve('atlas.png');
     finishLoad('atlas.png');
@@ -192,7 +192,7 @@ describe('TextureRegistry — eviction', () => {
   });
 
   it('never evicts a record that is still loading', () => {
-    const { fake, textures } = setup();
+    const {fake, textures} = setup();
     textures.beginFrame();
     textures.resolve('slow.png');
 
@@ -206,7 +206,7 @@ describe('TextureRegistry — eviction', () => {
   });
 
   it('reloads a URL that comes back after being evicted', () => {
-    const { fake, textures } = setup();
+    const {fake, textures} = setup();
     textures.beginFrame();
     textures.resolve('atlas.png');
     finishLoad('atlas.png');
@@ -215,7 +215,7 @@ describe('TextureRegistry — eviction', () => {
     expect(textures.size).toBe(0);
 
     textures.beginFrame();
-    expect(textures.resolve('atlas.png')).toBeNull();   // loading again
+    expect(textures.resolve('atlas.png')).toBeNull(); // loading again
     finishLoad('atlas.png');
     expect(textures.resolve('atlas.png')).toBe(fake.created[2]);
     expect(textures.size).toBe(1);
@@ -223,7 +223,7 @@ describe('TextureRegistry — eviction', () => {
 
   it('gives a failed URL another chance once its record is evicted', () => {
     vi.spyOn(console, 'warn').mockImplementation(() => {});
-    const { textures } = setup();
+    const {textures} = setup();
     textures.beginFrame();
     textures.resolve('flaky.png');
     failLoad('flaky.png');
@@ -239,7 +239,7 @@ describe('TextureRegistry — eviction', () => {
   });
 
   it('does nothing once disposed', () => {
-    const { fake, textures } = setup();
+    const {fake, textures} = setup();
     textures.beginFrame();
     textures.resolve('atlas.png');
     finishLoad('atlas.png');

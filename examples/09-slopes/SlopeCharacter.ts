@@ -12,27 +12,27 @@
  *   • Speed tilt for momentum feedback
  *   • Gradient penalty: uphill slower, downhill faster (tanh-smooth)
  */
-import { IsoObject, DrawContext } from '../../src/elements/IsoObject';
-import { project } from '../../src/math/IsoProjection';
-import { AABB } from '../../src/math/depthSort';
-import { SlopeTerrain } from './SlopeTerrain';
+import {IsoObject, DrawContext} from '../../src/elements/IsoObject';
+import {project} from '../../src/math/IsoProjection';
+import {AABB} from '../../src/math/depthSort';
+import {SlopeTerrain} from './SlopeTerrain';
 
 export class SlopeCharacter extends IsoObject {
   terrain: SlopeTerrain;
-  speed   = 3.5;        // world units / second (horizontal)
-  radius  = 18;         // screen pixels
-  color   = '#5590dd';
+  speed = 3.5; // world units / second (horizontal)
+  radius = 18; // screen pixels
+  color = '#5590dd';
 
-  private _targetZ = 0;   // world-unit target height (terrain surface)
+  private _targetZ = 0; // world-unit target height (terrain surface)
   private _vx = 0; private _vy = 0;
-  private _lastTs  = 0;
-  private _footTrail: Array<{ x: number; y: number; z: number; a: number }> = [];
+  private _lastTs = 0;
+  private _footTrail: Array<{x: number; y: number; z: number; a: number}> = [];
 
   constructor(id: string, x: number, y: number, terrain: SlopeTerrain) {
     super(id, x, y, terrain.sampleHeight(x, y));
-    this.terrain     = terrain;
+    this.terrain = terrain;
     this.castsShadow = false;
-    this._targetZ    = this.position.z;
+    this._targetZ = this.position.z;
   }
 
   get aabb(): AABB {
@@ -43,8 +43,8 @@ export class SlopeCharacter extends IsoObject {
       minY: this.position.y - r,
       maxX: this.position.x + r,
       maxY: this.position.y + r,
-      baseZ: this.position.z * 32,         // approx tileH=32
-      maxZ:  this.position.z * 32 + 48,
+      baseZ: this.position.z * 32, // approx tileH=32
+      maxZ: this.position.z * 32 + 48,
     };
   }
 
@@ -56,10 +56,10 @@ export class SlopeCharacter extends IsoObject {
     } else {
       const len = Math.hypot(dx, dy) || 1;
       // Slope gradient: sample a tiny step ahead
-      const { x, y } = this.position;
+      const {x, y} = this.position;
       const ahead = 0.12;
       const hAhead = this.terrain.sampleHeight(x + dx * ahead / len, y + dy * ahead / len);
-      const gradient = (hAhead - this.position.z) / ahead;  // dz/ds, world units
+      const gradient = (hAhead - this.position.z) / ahead; // dz/ds, world units
       // tanh-shaped factor: uphill → < 1, downhill → > 1
       const slopeFactor = 1.0 - Math.tanh(gradient * 0.9) * 0.38;
       const spd = this.speed * Math.max(0.4, Math.min(1.6, slopeFactor));
@@ -79,7 +79,7 @@ export class SlopeCharacter extends IsoObject {
 
   update(ts?: number): void {
     const now = ts ?? performance.now();
-    const dt  = this._lastTs === 0 ? 0 : Math.min((now - this._lastTs) / 1000, 0.1);
+    const dt = this._lastTs === 0 ? 0 : Math.min((now - this._lastTs) / 1000, 0.1);
     this._lastTs = now;
 
     // Footstep trail
@@ -87,23 +87,23 @@ export class SlopeCharacter extends IsoObject {
       this._footTrail.push({
         x: this.position.x,
         y: this.position.y,
-        z: this.position.z,   // world units
+        z: this.position.z, // world units
         a: 0.5,
       });
-      if (this._footTrail.length > 14) this._footTrail.shift();
+      if (this._footTrail.length > 14) {this._footTrail.shift();}
     }
-    for (const pt of this._footTrail) pt.a *= 0.87;
+    for (const pt of this._footTrail) {pt.a *= 0.87;}
     this._footTrail = this._footTrail.filter(p => p.a > 0.04);
   }
 
   draw(dc: DrawContext): void {
-    const { ctx, tileW, tileH, originX, originY } = dc;
-    const { x, y, z } = this.position;   // z in world units
+    const {ctx, tileW, tileH, originX, originY} = dc;
+    const {x, y, z} = this.position; // z in world units
 
     // Helper: project world coords to screen (z → pixels)
     const toScreen = (wx: number, wy: number, wz: number) => {
-      const { sx, sy } = project(wx, wy, wz * tileH, tileW, tileH);
-      return { x: originX + sx, y: originY + sy };
+      const {sx, sy} = project(wx, wy, wz * tileH, tileW, tileH);
+      return {x: originX + sx, y: originY + sy};
     };
 
     // ── Footstep trail ────────────────────────────────────────────────────
@@ -117,7 +117,7 @@ export class SlopeCharacter extends IsoObject {
     }
 
     // Shadow & indicator anchor = terrain surface directly below character
-    const groundZ = this.terrain.sampleHeight(x, y);  // world units
+    const groundZ = this.terrain.sampleHeight(x, y); // world units
     const gp = toScreen(x, y, groundZ);
 
     // Gap between character and ground (spring lag, usually small but visible on jump/slope edge)
@@ -126,7 +126,7 @@ export class SlopeCharacter extends IsoObject {
     // ── Blob shadow on terrain surface ────────────────────────────────────
     // Scale/fade with the spring-lag gap (not absolute z, since character
     // rides the terrain — the gap is nearly 0 when settled).
-    const shadowFade  = Math.max(0, 1 - gap * 0.8);
+    const shadowFade = Math.max(0, 1 - gap * 0.8);
     const shadowScale = 0.55 + 0.45 * shadowFade;
     ctx.save();
     ctx.globalAlpha = 0.45 * shadowFade;
@@ -137,11 +137,11 @@ export class SlopeCharacter extends IsoObject {
     ctx.restore();
 
     // ── Elevation indicator line (terrain surface → body) ─────────────────
-    const bp = toScreen(x, y, z);   // body position on screen
+    const bp = toScreen(x, y, z); // body position on screen
     if (gap > 0.05) {
       ctx.save();
       ctx.strokeStyle = 'rgba(200,220,255,0.30)';
-      ctx.lineWidth   = 1;
+      ctx.lineWidth = 1;
       ctx.setLineDash([3, 4]);
       ctx.beginPath();
       ctx.moveTo(gp.x, gp.y);
@@ -164,7 +164,7 @@ export class SlopeCharacter extends IsoObject {
     // is already a screen-space direction) and omni lights (vector from body
     // to light's screen projection), weighted by intensity. Falls back to the
     // classic upper-left bias when the scene provides no lights.
-    let hdx = -0.5, hdy = -0.6;   // fallback (normalized below)
+    let hdx = -0.5, hdy = -0.6; // fallback (normalized below)
     let totalW = 0, accX = 0, accY = 0;
     for (const dl of dc.dirLights ?? []) {
       // dl.direction points toward the light in world space; angle is the
@@ -175,14 +175,14 @@ export class SlopeCharacter extends IsoObject {
       totalW += w;
     }
     for (const ol of dc.omniLights ?? []) {
-      if (ol.isGlobal) continue;
+      if (ol.isGlobal) {continue;}
       // OmniLight.position.z is in SCREEN PIXELS (same as ShadowCaster's lz),
       // while toScreen expects world-unit z (multiplied by tileH). Convert so
       // an elevated peak-glow light aims the highlight upward on screen.
       const lp = toScreen(ol.position.x, ol.position.y, ol.position.z / tileH);
       const dx = lp.x - (bp.x + tiltX), dy = lp.y - (bp.y + tiltY);
       const m = Math.hypot(dx, dy);
-      if (m < 1) continue;
+      if (m < 1) {continue;}
       const w = ol.intensity;
       accX += (dx / m) * w;
       accY += (dy / m) * w;
@@ -195,11 +195,11 @@ export class SlopeCharacter extends IsoObject {
     // Radial gradient sphere - lit center biased toward the light direction
     const grd = ctx.createRadialGradient(
       hdx * this.radius * 0.35, hdy * this.radius * 0.35, 1,
-       0, 0, this.radius,
+       0, 0, this.radius
     );
-    grd.addColorStop(0,   '#a0d0ff');
+    grd.addColorStop(0, '#a0d0ff');
     grd.addColorStop(0.55, this.color);
-    grd.addColorStop(1,   '#0e2860');
+    grd.addColorStop(1, '#0e2860');
 
     ctx.beginPath();
     ctx.arc(0, 0, this.radius, 0, Math.PI * 2);

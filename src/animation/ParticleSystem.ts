@@ -1,12 +1,12 @@
-import { IsoObject, DrawContext } from '../elements/IsoObject';
-import { project } from '../math/IsoProjection';
-import { AABB } from '../math/depthSort';
-import { SpriteSheet } from './SpriteSheet';
-import { lerpColor } from '../math/color';
-import { FrameClock } from '../time/FrameClock';
+import {IsoObject, DrawContext} from '../elements/IsoObject';
+import {project} from '../math/IsoProjection';
+import {AABB} from '../math/depthSort';
+import {SpriteSheet} from './SpriteSheet';
+import {lerpColor} from '../math/color';
+import {FrameClock} from '../time/FrameClock';
 
-export enum EmitterShape { POINT, CIRCLE, SQUARE }
-export enum ParticleBlend { ADD, ALPHA, MULTIPLY }
+export enum EmitterShape {POINT, CIRCLE, SQUARE}
+export enum ParticleBlend {ADD, ALPHA, MULTIPLY}
 
 export interface EmitterConfig {
   rate: number;
@@ -74,11 +74,11 @@ export interface ParticlePresets {
  * default cyan-white palette. They now honour it.
  */
 function burstPreset(base: EmitterConfig, opts?: BurstPresetOptions): EmitterConfig {
-  if (!opts) return base;
+  if (!opts) {return base;}
   return {
     ...base,
-    ...(opts.color !== undefined ? { color: opts.color } : {}),
-    ...(opts.count !== undefined ? { maxParticles: opts.count } : {}),
+    ...(opts.color !== undefined ? {color: opts.color} : {}),
+    ...(opts.count !== undefined ? {maxParticles: opts.count} : {}),
   };
 }
 
@@ -125,7 +125,7 @@ export class ParticleSystem extends IsoObject {
    * for the lifetime of the page.
    */
   static poolLimit = 512;
-  private _emitters: { config: EmitterConfig, accumulator: number }[] = [];
+  private _emitters: {config: EmitterConfig, accumulator: number}[] = [];
   onExhausted: (() => void) | null = null;
   private _clock = new FrameClock();
   private _sawParticles = false;
@@ -145,31 +145,31 @@ export class ParticleSystem extends IsoObject {
 
 
   static presets: ParticlePresets = {
-    crystalShatter: (o) => burstPreset(
-      { rate: 0, life: [0.4, 0.8], speed: [2, 5], size: [4, 8], color: ['#00ffff', '#ffffff'], gravity: 10 }, o),
-    dustPuff: (o) => burstPreset(
-      { rate: 0, life: [0.6, 1.0], speed: [0.5, 2], size: [8, 20], color: ['#887766'], gravity: 0 }, o),
-    coinSpill: (o) => burstPreset(
-      { rate: 0, life: [0.8, 1.5], speed: [1, 4], size: [5, 10], color: ['#ffff00', '#ffd700'], gravity: 12 }, o),
-    sparkBurst: (o) => burstPreset(
-      { rate: 0, life: [0.3, 0.6], speed: [4, 8], size: [2, 5], color: ['#ffffff', '#ffffcc'], gravity: 5 }, o),
+    crystalShatter: o => burstPreset(
+      {rate: 0, life: [0.4, 0.8], speed: [2, 5], size: [4, 8], color: ['#00ffff', '#ffffff'], gravity: 10}, o),
+    dustPuff: o => burstPreset(
+      {rate: 0, life: [0.6, 1.0], speed: [0.5, 2], size: [8, 20], color: ['#887766'], gravity: 0}, o),
+    coinSpill: o => burstPreset(
+      {rate: 0, life: [0.8, 1.5], speed: [1, 4], size: [5, 10], color: ['#ffff00', '#ffd700'], gravity: 12}, o),
+    sparkBurst: o => burstPreset(
+      {rate: 0, life: [0.3, 0.6], speed: [4, 8], size: [2, 5], color: ['#ffffff', '#ffffcc'], gravity: 5}, o),
     /** Ambient floating dust/motes that drift slowly across the scene. */
-    ambientDrift: (o) => ({
-      rate:  o?.count ?? 40,
-      life:  [2.0, 5.0],
+    ambientDrift: o => ({
+      rate: o?.count ?? 40,
+      life: [2.0, 5.0],
       speed: o?.speed ?? [0.05, 0.25],
       angle: [0, Math.PI * 2],
-      vz:    [0.02, 0.10],
-      size:  o?.size  ?? [2, 6],
+      vz: [0.02, 0.10],
+      size: o?.size ?? [2, 6],
       color: o?.color ?? ['#d4b060', '#e8c880', '#c09840'],
       gravity: -0.05,
       alphaStart: o?.alpha ?? 0.35,
-      alphaEnd:   0,
+      alphaEnd: 0,
       blend: o?.blend ?? 'screen',
       particleShape: o?.shape ?? 'circle',
     }),
-    FIRE:   { rate: 40, life: [0.5, 1.2], speed: [0.5, 1.5], size: [4, 12], color: ['#ff4400', '#ffaa00'], gravity: 2 },
-    SMOKE:  { rate: 10, life: [1.5, 3.0], speed: [0.2, 0.6], size: [10, 30], color: ['#333', '#666'], gravity: -1 },
+    FIRE: {rate: 40, life: [0.5, 1.2], speed: [0.5, 1.5], size: [4, 12], color: ['#ff4400', '#ffaa00'], gravity: 2},
+    SMOKE: {rate: 10, life: [1.5, 3.0], speed: [0.2, 0.6], size: [10, 30], color: ['#333', '#666'], gravity: -1},
   };
 
 
@@ -179,7 +179,7 @@ export class ParticleSystem extends IsoObject {
   }
 
   addEmitter(config: EmitterConfig): void {
-    this._emitters.push({ config, accumulator: 0 });
+    this._emitters.push({config, accumulator: 0});
   }
 
   get particleCount(): number {
@@ -187,12 +187,12 @@ export class ParticleSystem extends IsoObject {
   }
 
   forEachParticle(visitor: (particle: ParticleRenderState) => void): void {
-    for (const particle of this.particles) visitor(particle);
+    for (const particle of this.particles) {visitor(particle);}
   }
 
   spawn(opts: ParticleOptions): void {
     let p = ParticleSystem._pool.pop();
-    if (p) p.reset(opts); else p = new Particle(opts);
+    if (p) {p.reset(opts);} else {p = new Particle(opts);}
     this.particles.push(p);
     // Re-arm onExhausted here rather than in update(): a particle can be spawned
     // and expire inside the same update() call, which would otherwise leave the
@@ -204,7 +204,7 @@ export class ParticleSystem extends IsoObject {
   burst(count = 20, randomness = 0.5): void {
     // Legacy: burst first emitter
     const e = this._emitters[0];
-    if (!e) return;
+    if (!e) {return;}
     const c = e.config;
     for (let i = 0; i < count; i++) {
       this.spawnFromEmitter(c, randomness);
@@ -215,14 +215,18 @@ export class ParticleSystem extends IsoObject {
     // position.z and AABB Z share one unit: screen pixels.
     const baseZ = this.position.z;
     if (this.particles.length === 0) {
-      return { minX: this.position.x - 0.5, minY: this.position.y - 0.5, maxX: this.position.x + 0.5, maxY: this.position.y + 0.5, baseZ };
+      return {
+        minX: this.position.x - 0.5, minY: this.position.y - 0.5,
+        maxX: this.position.x + 0.5, maxY: this.position.y + 0.5,
+        baseZ,
+      };
     }
     let minX = 1e9, minY = 1e9, maxX = -1e9, maxY = -1e9;
     for (const p of this.particles) {
-      if (p.x < minX) minX = p.x; if (p.y < minY) minY = p.y;
-      if (p.x > maxX) maxX = p.x; if (p.y > maxY) maxY = p.y;
+      if (p.x < minX) {minX = p.x;} if (p.y < minY) {minY = p.y;}
+      if (p.x > maxX) {maxX = p.x;} if (p.y > maxY) {maxY = p.y;}
     }
-    return { minX, minY, maxX, maxY, baseZ };
+    return {minX, minY, maxX, maxY, baseZ};
   }
 
   update(ts?: number): void {
@@ -236,7 +240,7 @@ export class ParticleSystem extends IsoObject {
     const dt = this._clock.sample(ts ?? performance.now());
 
     for (const e of this._emitters) {
-      if (e.config.rate <= 0) continue;
+      if (e.config.rate <= 0) {continue;}
       e.accumulator += dt;
       const interval = 1 / e.config.rate;
       while (e.accumulator >= interval) {
@@ -269,7 +273,7 @@ export class ParticleSystem extends IsoObject {
 
   private spawnFromEmitter(c: EmitterConfig, randomness = 1.0): void {
     const limit = c.maxParticles ?? c.max;
-    if (limit !== undefined && this.particles.length >= limit) return;
+    if (limit !== undefined && this.particles.length >= limit) {return;}
 
     const rx = (Math.random() - 0.5) * (c.spawnRadius ?? c.radius ?? 0);
     const ry = (Math.random() - 0.5) * (c.spawnRadius ?? c.radius ?? 0);
@@ -306,9 +310,9 @@ export class ParticleSystem extends IsoObject {
   }
 
   draw(dc: DrawContext): void {
-    const { ctx, tileW, tileH, originX, originY } = dc;
+    const {ctx, tileW, tileH, originX, originY} = dc;
     for (const p of this.particles) {
-      const { sx, sy } = project(p.x, p.y, p.z, tileW, tileH);
+      const {sx, sy} = project(p.x, p.y, p.z, tileW, tileH);
       const bx = originX + sx;
       const by = originY + sy;
       const radius = p.size * (tileW / 32);
@@ -320,7 +324,7 @@ export class ParticleSystem extends IsoObject {
       const clip = p.spriteSheet && p.spriteClip ? p.spriteSheet.clips.get(p.spriteClip) : undefined;
       const frame = clip?.frames[Math.min(
         clip.frames.length - 1,
-        Math.floor(p.progress * clip.frames.length),
+        Math.floor(p.progress * clip.frames.length)
       )];
       ctx.globalAlpha = p.alpha;
       if (image && frame) {
@@ -386,7 +390,7 @@ class Particle implements ParticleRenderState {
   }
   update(dt: number): boolean {
     this.life -= dt;
-    if (this.life <= 0) return false;
+    if (this.life <= 0) {return false;}
     this.x += this.vx * dt; this.y += this.vy * dt; this.z += this.vz * dt;
     this.vz -= this.gravity * dt;
     this.rotation += this._rotSpeed * dt;
@@ -402,7 +406,7 @@ class Particle implements ParticleRenderState {
 }
 
 function normalizeParticleBlend(value?: ParticleBlend | string): ParticleBlend {
-  if (typeof value === 'number') return value;
+  if (typeof value === 'number') {return value;}
   switch (value?.toLowerCase()) {
     case 'add':
     case 'additive':
@@ -417,7 +421,7 @@ function normalizeParticleBlend(value?: ParticleBlend | string): ParticleBlend {
 }
 
 function particleCompositeOperation(blend: ParticleBlend): GlobalCompositeOperation {
-  if (blend === ParticleBlend.ADD) return 'lighter';
-  if (blend === ParticleBlend.MULTIPLY) return 'multiply';
+  if (blend === ParticleBlend.ADD) {return 'lighter';}
+  if (blend === ParticleBlend.MULTIPLY) {return 'multiply';}
   return 'source-over';
 }

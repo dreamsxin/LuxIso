@@ -7,10 +7,10 @@
  * Kept in its own module so `Combatant` itself stays free of renderer imports and
  * the Canvas2D page does not pull in the extractor.
  */
-import { hexToRgb } from '../../src/index';
-import { SceneExtractor } from '../../webgl-next/src/extraction/SceneExtractor';
-import type { RenderColor } from '../../webgl-next/src/extraction/GeometryBuilder';
-import { Combatant } from './Combatant';
+import {hexToRgb} from '../../src/index';
+import {SceneExtractor} from '../../webgl-next/src/extraction/SceneExtractor';
+import type {RenderColor} from '../../webgl-next/src/extraction/GeometryBuilder';
+import {Combatant} from './Combatant';
 
 function tint(hex: string, factor: number, alpha = 1): RenderColor {
   const [r, g, b] = hexToRgb(hex);
@@ -44,7 +44,7 @@ export function registerCombatantExtractor(): void {
       [bx + r * 0.62, by],
       [bx + r * 0.42, bodyTop],
       [bx - r * 0.42, bodyTop],
-      { color: tint(unit.color, 0.9), sample: base, pickId: ctx.pickId },
+      {color: tint(unit.color, 0.9), sample: base, pickId: ctx.pickId}
     );
 
     // Cap, brighter so the flat colour still reads as a rounded top.
@@ -53,7 +53,7 @@ export function registerCombatantExtractor(): void {
       [bx + r * 0.42, bodyTop],
       [bx + r * 0.3, bodyTop - r * 0.34],
       [bx - r * 0.3, bodyTop - r * 0.34],
-      { color: tint(unit.color, 1.3), sample: base, pickId: ctx.pickId },
+      {color: tint(unit.color, 1.3), sample: base, pickId: ctx.pickId}
     );
 
     // Health bar, unlit so it stays readable in the dark.
@@ -65,7 +65,7 @@ export function registerCombatantExtractor(): void {
       const left = bx - w / 2;
       ctx.builder.quad(
         [left, barY], [left + w, barY], [left + w, barY + h], [left, barY + h],
-        { color: [0, 0, 0, 0.55], sample: base, lit: false, pickId: ctx.pickId },
+        {color: [0, 0, 0, 0.55], sample: base, lit: false, pickId: ctx.pickId}
       );
       if (frac > 0) {
         const fill: RenderColor = frac > 0.5
@@ -73,7 +73,7 @@ export function registerCombatantExtractor(): void {
           : frac > 0.25 ? [0.94, 0.75, 0.25, 1] : [0.88, 0.25, 0.25, 1];
         ctx.builder.quad(
           [left, barY], [left + w * frac, barY], [left + w * frac, barY + h], [left, barY + h],
-          { color: fill, sample: base, lit: false, pickId: ctx.pickId },
+          {color: fill, sample: base, lit: false, pickId: ctx.pickId}
         );
       }
     }

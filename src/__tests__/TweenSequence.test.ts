@@ -1,11 +1,11 @@
-import { describe, it, expect, vi } from 'vitest';
-import { TweenSequence } from '../ecs/components/TweenSequence';
-import { Entity } from '../ecs/Entity';
-import { AABB } from '../math/depthSort';
-import { DrawContext } from '../elements/IsoObject';
+import {describe, it, expect, vi} from 'vitest';
+import {TweenSequence} from '../ecs/components/TweenSequence';
+import {Entity} from '../ecs/Entity';
+import {AABB} from '../math/depthSort';
+import {DrawContext} from '../elements/IsoObject';
 
 class TestEntity extends Entity {
-  get aabb(): AABB { return { minX: 0, minY: 0, maxX: 1, maxY: 1, baseZ: 0 }; }
+  get aabb(): AABB { return {minX: 0, minY: 0, maxX: 1, maxY: 1, baseZ: 0}; }
   draw(_dc: DrawContext): void {}
 }
 
@@ -17,9 +17,9 @@ describe('TweenSequence', () => {
     const sequenceComplete = vi.fn();
 
     const sequence = new TweenSequence([
-      { targets: [{ prop: 'x', from: 0, to: 10 }], duration: 0.1, onComplete: step1Complete },
-      { targets: [{ prop: 'y', from: 0, to: 20 }], duration: 0.1, onComplete: step2Complete },
-    ], { onComplete: sequenceComplete });
+      {targets: [{prop: 'x', from: 0, to: 10}], duration: 0.1, onComplete: step1Complete},
+      {targets: [{prop: 'y', from: 0, to: 20}], duration: 0.1, onComplete: step2Complete},
+    ], {onComplete: sequenceComplete});
 
     entity.addComponent(sequence);
 
@@ -49,8 +49,8 @@ describe('TweenSequence', () => {
     const sequenceComplete = vi.fn();
 
     const sequence = new TweenSequence([
-      { targets: [{ prop: 'x', from: 0, to: 10 }], duration: 0.1 },
-    ], { repeat: 1, onComplete: sequenceComplete }); // repeat once (total 2 passes)
+      {targets: [{prop: 'x', from: 0, to: 10}], duration: 0.1},
+    ], {repeat: 1, onComplete: sequenceComplete}); // repeat once (total 2 passes)
 
     entity.addComponent(sequence);
 

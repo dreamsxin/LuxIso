@@ -21,7 +21,7 @@ export function projectIso(
   y: number,
   zPixels: number,
   tileW: number,
-  tileH: number,
+  tileH: number
 ): ProjectedPoint {
   return {
     x: (x - y) * (tileW / 2),

@@ -1,9 +1,9 @@
-import { describe, it, expect } from 'vitest';
-import { Chest } from '../elements/props/Chest';
-import { createDrawContext } from './helpers/canvas';
-import { HealthComponent } from '../ecs/components/HealthComponent';
-import { OmniLight } from '../lighting/OmniLight';
-import { project } from '../math/IsoProjection';
+import {describe, it, expect} from 'vitest';
+import {Chest} from '../elements/props/Chest';
+import {createDrawContext} from './helpers/canvas';
+import {HealthComponent} from '../ecs/components/HealthComponent';
+import {OmniLight} from '../lighting/OmniLight';
+import {project} from '../math/IsoProjection';
 
 /**
  * Chest lid tests.
@@ -18,7 +18,7 @@ import { project } from '../math/IsoProjection';
 function run(chest: Chest, frames: number, seconds: number): void {
   const step = (seconds * 1000) / frames;
   chest.update(0);
-  for (let i = 1; i <= frames; i++) chest.update(i * step);
+  for (let i = 1; i <= frames; i++) {chest.update(i * step);}
 }
 
 describe('Chest — lid state', () => {
@@ -68,8 +68,8 @@ describe('Chest — frame-rate independence', () => {
     slow.open();
     fast.open();
 
-    run(slow, 15, 0.5);   // 30 FPS
-    run(fast, 72, 0.5);   // 144 FPS
+    run(slow, 15, 0.5); // 30 FPS
+    run(fast, 72, 0.5); // 144 FPS
 
     // The old fixed-fraction lerp left these far apart: 72 frames of 10% is
     // essentially fully open while 15 frames is barely half.
@@ -175,17 +175,17 @@ function drawAt(chest: Chest, lights: OmniLight[] = []) {
 }
 
 /** Screen position of a world point under the test draw context. */
-function screen(wx: number, wy: number): { x: number; y: number } {
+function screen(wx: number, wy: number): {x: number; y: number} {
   const p = project(wx, wy, 0, TILE_W, TILE_H);
-  return { x: ORIGIN_X + p.sx, y: ORIGIN_Y + p.sy };
+  return {x: ORIGIN_X + p.sx, y: ORIGIN_Y + p.sy};
 }
 
 /** Every y the painting touches, across path building and rectangles. */
 function paintedYs(recorder: ReturnType<typeof drawAt>): number[] {
   const ys: number[] = [];
   for (const call of recorder.calls) {
-    if (call.fn === 'moveTo' || call.fn === 'lineTo') ys.push(call.args[1]);
-    if (call.fn === 'arc' || call.fn === 'ellipse') ys.push(call.args[1]);
+    if (call.fn === 'moveTo' || call.fn === 'lineTo') {ys.push(call.args[1]);}
+    if (call.fn === 'arc' || call.fn === 'ellipse') {ys.push(call.args[1]);}
   }
   return ys;
 }
@@ -193,7 +193,7 @@ function paintedYs(recorder: ReturnType<typeof drawAt>): number[] {
 /** Open the lid fully without waiting out the lerp. */
 function opened(chest: Chest): Chest {
   chest.open();
-  for (let i = 0; i < 200; i++) chest.update(i * 16);
+  for (let i = 0; i < 200; i++) {chest.update(i * 16);}
   return chest;
 }
 
@@ -207,8 +207,8 @@ describe('Chest — draw geometry', () => {
     const west = screen(3 - 0.38, 4 + 0.38);
     const east = screen(3 + 0.38, 4 - 0.38);
     const xs = recorder.calls
-      .filter((c) => c.fn === 'moveTo' || c.fn === 'lineTo')
-      .map((c) => c.args[0]);
+      .filter(c => c.fn === 'moveTo' || c.fn === 'lineTo')
+      .map(c => c.args[0]);
     expect(Math.min(...xs)).toBeGreaterThanOrEqual(west.x - 1);
     expect(Math.max(...xs)).toBeLessThanOrEqual(east.x + 1);
   });
@@ -220,7 +220,7 @@ describe('Chest — draw geometry', () => {
     expect(recorder.argsOf('fill').length).toBeGreaterThanOrEqual(8);
     // Four rivets, each a highlight arc plus a white speck.
     expect(recorder.argsOf('arc').length).toBeGreaterThanOrEqual(8);
-    expect(recorder.argsOf('ellipse').length).toBe(1);   // the latch plate
+    expect(recorder.argsOf('ellipse').length).toBe(1); // the latch plate
   });
 
   it('lays the lid flat on the body top while closed', () => {
@@ -253,7 +253,7 @@ describe('Chest — draw when open', () => {
     for (let step = 0; step <= 10; step++) {
       const chest = new Chest('c', 2, 2);
       chest.open();
-      for (let i = 0; i < step; i++) chest.update(i * 16);
+      for (let i = 0; i < step; i++) {chest.update(i * 16);}
       const recorder = drawAt(chest);
 
       for (const alpha of recorder.valuesOf('globalAlpha').map(Number)) {
@@ -261,20 +261,20 @@ describe('Chest — draw when open', () => {
         expect(alpha).toBeLessThanOrEqual(1);
       }
       for (const value of recorder.valuesOf('fillStyle')) {
-        if (typeof value === 'string') expect(value).not.toContain('NaN');
+        if (typeof value === 'string') {expect(value).not.toContain('NaN');}
       }
     }
   });
 
   it('brightens with a light and never overflows a channel', () => {
     const lit = drawAt(new Chest('c', 2, 2, '#ffffff'), Array.from(
-      { length: 8 },
+      {length: 8},
       (_, i) => new OmniLight({
         id: `l${i}`, x: 2, y: 2, z: 40, color: '#ffffff', intensity: 1, radius: 400,
-      }),
+      })
     ));
     for (const value of lit.valuesOf('fillStyle')) {
-      if (typeof value !== 'string') continue;
+      if (typeof value !== 'string') {continue;}
       for (const channel of value.match(/\d+/g) ?? []) {
         expect(Number(channel)).toBeLessThanOrEqual(255);
       }
@@ -302,7 +302,7 @@ describe('Chest — draw when open', () => {
    */
   it('declares a maxZ that follows the lid up', () => {
     const HS = 0.38;
-    const footprintOffset = HS * TILE_H;   // screen y, not height
+    const footprintOffset = HS * TILE_H; // screen y, not height
     const closed = new Chest('c', 3, 4);
     const open = opened(new Chest('c', 3, 4));
     const centre = screen(3, 4);
@@ -337,8 +337,8 @@ describe('Chest — health bar', () => {
 
   it('draws a track and a fill above the lid, and drops both when destroyed', () => {
     const chest = new Chest('c', 2, 2);
-    const health = chest.addComponent(new HealthComponent({ max: 40 }));
-    health.takeDamage(10);   // 75%
+    const health = chest.addComponent(new HealthComponent({max: 40}));
+    health.takeDamage(10); // 75%
 
     const rects = drawAt(chest).argsOf('fillRect');
     expect(rects.length).toBe(2);

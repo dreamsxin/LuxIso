@@ -2,42 +2,42 @@
  * LuxIso Scene Editor — main entry point.
  * Wires together EditorState, EditorRenderer, and the HTML UI panels.
  */
-import { EditorState, ToolType, EditorWall, EditorLight, EditorCharacter, EditorProp } from './EditorState';
-import { EditorRenderer } from './EditorRenderer';
-import { EditorWebGLPreview } from '../../webgl-next/src/editor/EditorWebGLPreview';
-import { WebGLUnavailableError } from '../../webgl-next/src/renderer/WebGLRenderer';
+import {EditorState, ToolType, EditorWall, EditorLight, EditorCharacter, EditorProp} from './EditorState';
+import {EditorRenderer} from './EditorRenderer';
+import {EditorWebGLPreview} from '../../webgl-next/src/editor/EditorWebGLPreview';
+import {WebGLUnavailableError} from '../../webgl-next/src/renderer/WebGLRenderer';
 
 // ── DOM refs ──────────────────────────────────────────────────────────────────
 
-const canvas   = document.getElementById('editor-canvas') as HTMLCanvasElement;
+const canvas = document.getElementById('editor-canvas') as HTMLCanvasElement;
 const webglCanvas = document.getElementById('editor-webgl-canvas') as HTMLCanvasElement;
 const canvasStack = document.getElementById('canvas-stack')!;
 const rendererButtons = document.querySelectorAll<HTMLButtonElement>('[data-renderer]');
 
 // Size canvas to match the default 10×10 scene
 const COLS = 10, ROWS = 10, TILE_W = 64, TILE_H = 32;
-canvas.width  = (COLS + ROWS) * (TILE_W / 2);
+canvas.width = (COLS + ROWS) * (TILE_W / 2);
 canvas.height = (COLS + ROWS) * (TILE_H / 2) + 120;
 
 const toolBtns = document.querySelectorAll<HTMLButtonElement>('[data-tool]');
-const propPanel    = document.getElementById('prop-panel')!;
-const propContent  = document.getElementById('prop-content')!;
-const jsonOutput   = document.getElementById('json-output') as HTMLTextAreaElement;
-const exportBtn    = document.getElementById('btn-export')!;
-const importBtn    = document.getElementById('btn-import')!;
-const clearBtn     = document.getElementById('btn-clear')!;
-const deleteBtn    = document.getElementById('btn-delete')!;
-const undoBtn      = document.getElementById('btn-undo') as HTMLButtonElement;
-const redoBtn      = document.getElementById('btn-redo') as HTMLButtonElement;
+const propPanel = document.getElementById('prop-panel')!;
+const propContent = document.getElementById('prop-content')!;
+const jsonOutput = document.getElementById('json-output') as HTMLTextAreaElement;
+const exportBtn = document.getElementById('btn-export')!;
+const importBtn = document.getElementById('btn-import')!;
+const clearBtn = document.getElementById('btn-clear')!;
+const deleteBtn = document.getElementById('btn-delete')!;
+const undoBtn = document.getElementById('btn-undo') as HTMLButtonElement;
+const redoBtn = document.getElementById('btn-redo') as HTMLButtonElement;
 const sceneNameInput = document.getElementById('scene-name') as HTMLInputElement;
 const sceneColsInput = document.getElementById('scene-cols') as HTMLInputElement;
 const sceneRowsInput = document.getElementById('scene-rows') as HTMLInputElement;
-const objectList   = document.getElementById('object-list')!;
-const statusbar    = document.getElementById('statusbar')!;
+const objectList = document.getElementById('object-list')!;
+const statusbar = document.getElementById('statusbar')!;
 
 // ── State & renderer ──────────────────────────────────────────────────────────
 
-const state    = new EditorState();
+const state = new EditorState();
 const renderer = new EditorRenderer(canvas, state);
 let webglPreview: EditorWebGLPreview | null = null;
 let rendererBackend: 'canvas' | 'webgl' = 'canvas';
@@ -52,14 +52,14 @@ try {
   }
 }
 
-rendererButtons.forEach((button) => {
+rendererButtons.forEach(button => {
   button.addEventListener('click', () => {
     const requested = button.dataset.renderer as 'canvas' | 'webgl';
-    if (requested === 'webgl' && !webglPreview) return;
+    if (requested === 'webgl' && !webglPreview) {return;}
     rendererBackend = requested;
     canvasStack.dataset.backend = rendererBackend;
     webglPreview?.setEnabled(rendererBackend === 'webgl');
-    rendererButtons.forEach((candidate) => candidate.classList.toggle('active', candidate === button));
+    rendererButtons.forEach(candidate => candidate.classList.toggle('active', candidate === button));
     refreshStatus();
   });
 });
@@ -82,11 +82,11 @@ updateToolUI();
 
 // ── Coordinate helper ─────────────────────────────────────────────────────────
 
-function getCanvasPos(e: MouseEvent): { cx: number; cy: number } {
+function getCanvasPos(e: MouseEvent): {cx: number; cy: number} {
   const rect = canvas.getBoundingClientRect();
   return {
-    cx: (e.clientX - rect.left) * (canvas.width  / rect.width),
-    cy: (e.clientY - rect.top)  * (canvas.height / rect.height),
+    cx: (e.clientX - rect.left) * (canvas.width / rect.width),
+    cy: (e.clientY - rect.top) * (canvas.height / rect.height),
   };
 }
 
@@ -97,11 +97,11 @@ function findObjectAt(wx: number, wy: number): string | undefined {
   // Iterate in reverse so topmost (last-placed) objects are preferred
   for (let i = all.length - 1; i >= 0; i--) {
     const obj = all[i];
-    const x = (obj as { x?: number }).x;
-    const y = (obj as { y?: number }).y;
-    if (x === undefined || y === undefined) continue;
+    const x = (obj as {x?: number}).x;
+    const y = (obj as {y?: number}).y;
+    if (x === undefined || y === undefined) {continue;}
     // ~1.2 world units ≈ 0.6 tile — large enough to click on props/lights
-    if (Math.hypot(wx - x, wy - y) < 1.2) return obj.id;
+    if (Math.hypot(wx - x, wy - y) < 1.2) {return obj.id;}
   }
   return undefined;
 }
@@ -123,11 +123,11 @@ function findObjectAtCanvas(cx: number, cy: number, wx: number, wy: number): str
 let _lastPaintCol = -1, _lastPaintRow = -1;
 /** Drag tracking state. */
 let _isDragging = false;
-let _dragStartWorld: { x: number; y: number } | null = null;
-let _dragOriginWorld: { x: number; y: number } | null = null;
+let _dragStartWorld: {x: number; y: number} | null = null;
+let _dragOriginWorld: {x: number; y: number} | null = null;
 
-canvas.addEventListener('mousemove', (e) => {
-  const { cx, cy } = getCanvasPos(e);
+canvas.addEventListener('mousemove', e => {
+  const {cx, cy} = getCanvasPos(e);
   const world = renderer.canvasToWorld(cx, cy);
   renderer.hoverWorld = world;
 
@@ -172,10 +172,10 @@ canvas.addEventListener('mouseleave', () => {
   _lastPaintCol = -1; _lastPaintRow = -1;
 });
 
-canvas.addEventListener('mousedown', (e) => {
-  if (e.button !== 0) return;           // left-button only for mousedown
+canvas.addEventListener('mousedown', e => {
+  if (e.button !== 0) {return;} // left-button only for mousedown
 
-  const { cx, cy } = getCanvasPos(e);
+  const {cx, cy} = getCanvasPos(e);
   const world = renderer.canvasToWorld(cx, cy);
   const s = state.scene;
   const col = Math.floor(world.x), row = Math.floor(world.y);
@@ -194,23 +194,23 @@ canvas.addEventListener('mousedown', (e) => {
   if (tool === 'select') {
     const hit = findObjectAtCanvas(cx, cy, world.x, world.y);
     if (hit) {
-      const obj = state.getById(hit) as { x: number; y: number } | undefined;
+      const obj = state.getById(hit) as {x: number; y: number} | undefined;
       state.dragId = hit;
       state.select(hit);
       updatePropPanel();
-      _dragStartWorld  = { ...world };
-      _dragOriginWorld = obj ? { x: obj.x, y: obj.y } : { ...world };
+      _dragStartWorld = {...world};
+      _dragOriginWorld = obj ? {x: obj.x, y: obj.y} : {...world};
     }
   }
 });
 
-canvas.addEventListener('mouseup', (e) => {
-  if (e.button !== 0) return;
+canvas.addEventListener('mouseup', e => {
+  if (e.button !== 0) {return;}
   _lastPaintCol = -1; _lastPaintRow = -1;
 
   if (state.dragId && _isDragging && _dragOriginWorld && _dragStartWorld) {
     // Commit move (create undo entry)
-    const { cx, cy } = getCanvasPos(e);
+    const {cx, cy} = getCanvasPos(e);
     const world = renderer.canvasToWorld(cx, cy);
     const dx = world.x - _dragStartWorld.x;
     const dy = world.y - _dragStartWorld.y;
@@ -218,7 +218,7 @@ canvas.addEventListener('mouseup', (e) => {
     const ny = _dragOriginWorld.y + dy;
     const snapped = renderer.snapToTile(nx, ny);
     // Restore pre-drag position first so moveObject creates correct undo
-    const obj = state.getById(state.dragId) as { x: number; y: number } | undefined;
+    const obj = state.getById(state.dragId) as {x: number; y: number} | undefined;
     if (obj) {
       obj.x = _dragOriginWorld.x;
       obj.y = _dragOriginWorld.y;
@@ -234,9 +234,9 @@ canvas.addEventListener('mouseup', (e) => {
 
 // ── Right-click = delete object under cursor ──────────────────────────────────
 
-canvas.addEventListener('contextmenu', (e) => {
+canvas.addEventListener('contextmenu', e => {
   e.preventDefault();
-  const { cx, cy } = getCanvasPos(e);
+  const {cx, cy} = getCanvasPos(e);
   const world = renderer.canvasToWorld(cx, cy);
   const hit = findObjectAtCanvas(cx, cy, world.x, world.y);
   if (hit) {
@@ -247,21 +247,21 @@ canvas.addEventListener('contextmenu', (e) => {
 
 // ── Click = place object ──────────────────────────────────────────────────────
 
-canvas.addEventListener('click', (e) => {
+canvas.addEventListener('click', e => {
   // Ignore if this was actually a drag release
   if (_isDragging) { _isDragging = false; return; }
 
-  const { cx, cy } = getCanvasPos(e);
+  const {cx, cy} = getCanvasPos(e);
   const world = renderer.canvasToWorld(cx, cy);
   const s = state.scene;
 
   // Clamp to scene bounds
-  if (world.x < 0 || world.x > s.cols || world.y < 0 || world.y > s.rows) return;
+  if (world.x < 0 || world.x > s.cols || world.y < 0 || world.y > s.rows) {return;}
 
   const tool = state.activeTool;
 
   // walkable/blocked handled in mousedown; wall/light/prop/select below
-  if (tool === 'walkable' || tool === 'blocked') return;
+  if (tool === 'walkable' || tool === 'blocked') {return;}
 
   if (tool === 'select') {
     const hit = findObjectAtCanvas(cx, cy, world.x, world.y);
@@ -346,11 +346,11 @@ canvas.addEventListener('click', (e) => {
       x: snapped.x, y: snapped.y,
       color: defaultColors[tool],
     };
-    if (p.kind === 'crystal') p.heightPx = 48;
-    if (p.kind === 'boulder') p.radius = 18;
-    if (p.kind === 'tree') Object.assign(p, { trunkColor: '#80583f', heightPx: 72, scale: 1 });
-    if (p.kind === 'flowers') Object.assign(p, { accentColor: '#fff0a6', count: 7, seed: 1 });
-    if (p.kind === 'lantern') Object.assign(p, { postColor: '#40504b', heightPx: 50 });
+    if (p.kind === 'crystal') {p.heightPx = 48;}
+    if (p.kind === 'boulder') {p.radius = 18;}
+    if (p.kind === 'tree') {Object.assign(p, {trunkColor: '#80583f', heightPx: 72, scale: 1});}
+    if (p.kind === 'flowers') {Object.assign(p, {accentColor: '#fff0a6', count: 7, seed: 1});}
+    if (p.kind === 'lantern') {Object.assign(p, {postColor: '#40504b', heightPx: 50});}
     state.addProp(p);
     return;
   }
@@ -373,8 +373,8 @@ function updatePropPanel(): void {
   propContent.querySelectorAll<HTMLInputElement>('[data-field]').forEach(input => {
     input.addEventListener('input', () => {
       const field = input.dataset.field!;
-      const val   = input.type === 'number' ? parseFloat(input.value) : input.value;
-      state.updateObject(id, { [field]: val } as never);
+      const val = input.type === 'number' ? parseFloat(input.value) : input.value;
+      state.updateObject(id, {[field]: val} as never);
     });
   });
 }
@@ -397,16 +397,16 @@ function escHtml(v: unknown): string {
 }
 
 function buildPropForm(obj: ReturnType<EditorState['getById']>): string {
-  if (!obj) return '';
+  if (!obj) {return '';}
   // Show kind as a read-only badge
   const kindBadge = 'kind' in obj
-    ? `<div class="obj-kind-badge">${escHtml((obj as { kind: string }).kind)}</div>`
+    ? `<div class="obj-kind-badge">${escHtml((obj as {kind: string}).kind)}</div>`
     : '';
 
   const fields = Object.entries(obj)
     .filter(([k]) => k !== 'id' && k !== 'kind' && k !== 'type')
     .map(([k, v]) => {
-      const isNum   = typeof v === 'number';
+      const isNum = typeof v === 'number';
       const isColor = typeof v === 'string' && v.startsWith('#');
       const inputType = isColor ? 'color' : isNum ? 'number' : 'text';
       const step = isNum && !Number.isInteger(v) ? '0.01' : '1';
@@ -422,8 +422,8 @@ function buildPropForm(obj: ReturnType<EditorState['getById']>): string {
 }
 
 state.onChange(() => {
-  if (state.selectedId) updatePropPanel();
-  else propPanel.classList.add('hidden');
+  if (state.selectedId) {updatePropPanel();}
+  else {propPanel.classList.add('hidden');}
   updateObjectList();
 });
 
@@ -436,13 +436,13 @@ function updateObjectList(): void {
     return;
   }
   const kindLabel = (o: ReturnType<EditorState['getById']>): string => {
-    if (!o) return '';
-    if ('kind' in o) return (o as { kind: string }).kind;
-    if ('type' in o) return (o as { type: string }).type;
-    if ('radius' in o && 'color' in o) return 'char';
-    if ('endX' in o) return 'wall';
-    if ('angle' in o || 'elevation' in o) return 'dirlight';
-    if ('radius' in o) return 'omni';
+    if (!o) {return '';}
+    if ('kind' in o) {return (o as {kind: string}).kind;}
+    if ('type' in o) {return (o as {type: string}).type;}
+    if ('radius' in o && 'color' in o) {return 'char';}
+    if ('endX' in o) {return 'wall';}
+    if ('angle' in o || 'elevation' in o) {return 'dirlight';}
+    if ('radius' in o) {return 'omni';}
     return '?';
   };
   objectList.innerHTML = objs.map(o => `
@@ -476,7 +476,7 @@ exportBtn.addEventListener('click', () => {
 
 importBtn.addEventListener('click', () => {
   const json = jsonOutput.value.trim();
-  if (json) state.loadJSON(json);
+  if (json) {state.loadJSON(json);}
 });
 
 clearBtn.addEventListener('click', () => {
@@ -496,13 +496,13 @@ sceneNameInput.value = state.scene.name;
 // ── Scene size ────────────────────────────────────────────────────────────────
 
 function applySceneSize(): void {
-  const cols = Math.max(2, Math.min(32, parseInt(sceneColsInput.value) || 10));
-  const rows = Math.max(2, Math.min(32, parseInt(sceneRowsInput.value) || 10));
+  const cols = Math.max(2, Math.min(32, parseInt(sceneColsInput.value, 10) || 10));
+  const rows = Math.max(2, Math.min(32, parseInt(sceneRowsInput.value, 10) || 10));
   sceneColsInput.value = String(cols);
   sceneRowsInput.value = String(rows);
   state.setSceneSize(cols, rows);
   const s = state.scene;
-  canvas.width  = (s.cols + s.rows) * (s.tileW / 2);
+  canvas.width = (s.cols + s.rows) * (s.tileW / 2);
   canvas.height = (s.cols + s.rows) * (s.tileH / 2) + 120;
 }
 sceneColsInput.addEventListener('change', applySceneSize);
@@ -535,10 +535,12 @@ const keyMap: Record<string, ToolType> = {
   '4': 'tree', '5': 'flowers', '6': 'lantern',
   b: 'blocked', p: 'walkable',
 };
-window.addEventListener('keydown', (e) => {
-  if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+window.addEventListener('keydown', e => {
+  if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {return;}
   if ((e.ctrlKey || e.metaKey) && e.key === 'z') { e.preventDefault(); state.undo(); updateUndoRedo(); return; }
-  if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || e.key === 'Z')) { e.preventDefault(); state.redo(); updateUndoRedo(); return; }
+  if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || e.key === 'Z')) {
+    e.preventDefault(); state.redo(); updateUndoRedo(); return;
+  }
   const tool = keyMap[e.key.toLowerCase()];
   if (tool) { state.setTool(tool); updateToolUI(); }
   if (e.key === 'Escape') { state.wallStart = null; state.select(null); updatePropPanel(); }
@@ -551,19 +553,19 @@ window.addEventListener('keydown', (e) => {
 // ── Status bar ────────────────────────────────────────────────────────────────
 
 const toolHints: Record<string, string> = {
-  select:    '[V] Click to select. Right-click to delete. Drag to move.',
-  wall:      '[W] Click start point, then end point to place a wall.',
+  select: '[V] Click to select. Right-click to delete. Drag to move.',
+  wall: '[W] Click start point, then end point to place a wall.',
   omnilight: '[L] Click to place an Omni Light.',
-  dirlight:  '[D] Click to place a Directional Light.',
+  dirlight: '[D] Click to place a Directional Light.',
   character: '[C] Click to place a Character.',
-  crystal:   '[1] Click to place a Crystal prop.',
-  boulder:   '[2] Click to place a Boulder prop.',
-  chest:     '[3] Click to place a Chest prop.',
-  tree:      '[4] Click to place a Tree prop.',
-  flowers:   '[5] Click to place a Flower Patch prop.',
-  lantern:   '[6] Click to place a Lantern prop.',
-  blocked:   '[B] Click or drag tiles to mark as blocked.',
-  walkable:  '[P] Click or drag tiles to mark as walkable.',
+  crystal: '[1] Click to place a Crystal prop.',
+  boulder: '[2] Click to place a Boulder prop.',
+  chest: '[3] Click to place a Chest prop.',
+  tree: '[4] Click to place a Tree prop.',
+  flowers: '[5] Click to place a Flower Patch prop.',
+  lantern: '[6] Click to place a Lantern prop.',
+  blocked: '[B] Click or drag tiles to mark as blocked.',
+  walkable: '[P] Click or drag tiles to mark as walkable.',
 };
 
 let _statusTileText = '';

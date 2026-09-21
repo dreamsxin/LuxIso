@@ -51,7 +51,7 @@ export class EventBus<Events extends object = OpenEventMap> implements EventEmit
    * Subscribe to an event once — auto-unsubscribes after first call.
    */
   once<K extends EventKey<Events>>(event: K, handler: Handler<Events[K]>): () => void {
-    const wrapper: Handler<Events[K]> = (payload) => {
+    const wrapper: Handler<Events[K]> = payload => {
       handler(payload);
       this.off(event, wrapper);
     };
@@ -70,8 +70,8 @@ export class EventBus<Events extends object = OpenEventMap> implements EventEmit
    */
   emit<K extends EventKey<Events>>(event: K, payload: Events[K]): void {
     const handlers = this._handlers.get(event);
-    if (!handlers) return;
-    for (const h of handlers) h(payload);
+    if (!handlers) {return;}
+    for (const h of handlers) {h(payload);}
   }
 
   /**
@@ -93,12 +93,12 @@ export class EventBus<Events extends object = OpenEventMap> implements EventEmit
 
 // ── Common event payload types ────────────────────────────────────────────────
 
-export interface DamageEvent   { amount: number; targetId?: string; sourceId?: string }
-export interface HealEvent     { amount: number }
-export interface DeathEvent    { id: string }
-export interface MoveEvent     { x: number; y: number; z: number }
-export interface ArrivalEvent  { id: string; x: number; y: number }
-export interface TriggerEvent  { triggerId: string; enterId: string }
+export interface DamageEvent {amount: number; targetId?: string; sourceId?: string}
+export interface HealEvent {amount: number}
+export interface DeathEvent {id: string}
+export interface MoveEvent {x: number; y: number; z: number}
+export interface ArrivalEvent {id: string; x: number; y: number}
+export interface TriggerEvent {triggerId: string; enterId: string}
 
 /** Built-in event contract used by engine components and globalBus. */
 export interface LuxIsoEventMap {

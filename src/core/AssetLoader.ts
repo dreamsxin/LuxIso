@@ -21,7 +21,7 @@
  */
 export class AssetLoader {
   // ── Instance state ────────────────────────────────────────────────────────
-  private _cache   = new Map<string, HTMLImageElement>();
+  private _cache = new Map<string, HTMLImageElement>();
   private _pending = new Map<string, Promise<HTMLImageElement>>();
   /**
    * Bumped whenever a URL is unloaded or the whole cache is cleared. An
@@ -35,10 +35,10 @@ export class AssetLoader {
   /** Load a single image (returns cached promise if already loading/loaded). */
   loadImage(url: string): Promise<HTMLImageElement> {
     const cached = this._cache.get(url);
-    if (cached) return Promise.resolve(cached);
+    if (cached) {return Promise.resolve(cached);}
 
     const inFlight = this._pending.get(url);
-    if (inFlight) return inFlight;
+    if (inFlight) {return inFlight;}
 
     const startedAt = this._epoch.get(url) ?? 0;
     const isCurrent = (): boolean => (this._epoch.get(url) ?? 0) === startedAt;
@@ -56,7 +56,7 @@ export class AssetLoader {
         resolve(img);
       };
       img.onerror = () => {
-        if (isCurrent()) this._pending.delete(url);
+        if (isCurrent()) {this._pending.delete(url);}
         reject(new Error(`AssetLoader: failed to load image "${url}"`));
       };
       img.src = url;
@@ -68,7 +68,7 @@ export class AssetLoader {
 
   /** Load multiple images in parallel; resolves when all are ready. */
   loadAll(urls: string[]): Promise<HTMLImageElement[]> {
-    return Promise.all(urls.map((u) => this.loadImage(u)));
+    return Promise.all(urls.map(u => this.loadImage(u)));
   }
 
   /** Synchronous get — returns undefined if not yet loaded. */

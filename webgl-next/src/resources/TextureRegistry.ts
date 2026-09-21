@@ -1,4 +1,4 @@
-import { GLResourceRegistry } from '../device/GLResourceRegistry';
+import {GLResourceRegistry} from '../device/GLResourceRegistry';
 
 interface TextureRecord {
   texture: WebGLTexture | null;
@@ -39,7 +39,7 @@ export class TextureRegistry {
 
   constructor(
     private readonly _gl: WebGL2RenderingContext,
-    private readonly _resources: GLResourceRegistry,
+    private readonly _resources: GLResourceRegistry
   ) {
     this.white = this._resources.texture();
     this._gl.bindTexture(this._gl.TEXTURE_2D, this.white);
@@ -52,7 +52,7 @@ export class TextureRegistry {
       0,
       this._gl.RGBA,
       this._gl.UNSIGNED_BYTE,
-      new Uint8Array([255, 255, 255, 255]),
+      new Uint8Array([255, 255, 255, 255])
     );
     this._configureTexture();
     this._gl.bindTexture(this._gl.TEXTURE_2D, null);
@@ -60,7 +60,7 @@ export class TextureRegistry {
 
   /** Open a frame. Every `resolve()` after this marks its URL as still in use. */
   beginFrame(): void {
-    if (this._disposed) return;
+    if (this._disposed) {return;}
     this._frame++;
   }
 
@@ -75,13 +75,13 @@ export class TextureRegistry {
    * @returns how many records were removed.
    */
   evictIdle(maxIdleFrames: number = TextureRegistry.DEFAULT_IDLE_FRAMES): number {
-    if (this._disposed) return 0;
+    if (this._disposed) {return 0;}
     const limit = Math.max(0, maxIdleFrames);
     let evicted = 0;
     for (const [url, record] of [...this._records]) {
-      if (record.loading) continue;
-      if (this._frame - record.lastFrame <= limit) continue;
-      if (record.texture) this._resources.releaseTexture(record.texture);
+      if (record.loading) {continue;}
+      if (this._frame - record.lastFrame <= limit) {continue;}
+      if (record.texture) {this._resources.releaseTexture(record.texture);}
       this._records.delete(url);
       this._reportedFailures.delete(url);
       evicted++;
@@ -90,10 +90,10 @@ export class TextureRegistry {
   }
 
   resolve(url: string): WebGLTexture | null {
-    if (this._disposed) return null;
+    if (this._disposed) {return null;}
     let record = this._records.get(url);
     if (!record) {
-      record = { texture: null, loading: true, failed: false, lastFrame: this._frame };
+      record = {texture: null, loading: true, failed: false, lastFrame: this._frame};
       this._records.set(url, record);
       this._load(url, record);
     }
@@ -117,7 +117,7 @@ export class TextureRegistry {
   get failedUrls(): readonly string[] {
     const failed: string[] = [];
     for (const [url, record] of this._records) {
-      if (record.failed) failed.push(url);
+      if (record.failed) {failed.push(url);}
     }
     return failed;
   }
@@ -126,13 +126,13 @@ export class TextureRegistry {
   get size(): number {
     let count = 0;
     for (const record of this._records.values()) {
-      if (record.texture) count++;
+      if (record.texture) {count++;}
     }
     return count;
   }
 
   dispose(): void {
-    if (this._disposed) return;
+    if (this._disposed) {return;}
     this._disposed = true;
     for (const image of this._loadingImages) {
       image.onload = null;
@@ -146,10 +146,10 @@ export class TextureRegistry {
   private _load(url: string, record: TextureRecord): void {
     const image = new Image();
     this._loadingImages.add(image);
-    if (!url.startsWith('data:') && !url.startsWith('blob:')) image.crossOrigin = 'anonymous';
+    if (!url.startsWith('data:') && !url.startsWith('blob:')) {image.crossOrigin = 'anonymous';}
     image.onload = () => {
       this._loadingImages.delete(image);
-      if (this._disposed) return;
+      if (this._disposed) {return;}
       const texture = this._resources.texture();
       const gl = this._gl;
       gl.bindTexture(gl.TEXTURE_2D, texture);
@@ -162,7 +162,7 @@ export class TextureRegistry {
     };
     image.onerror = () => {
       this._loadingImages.delete(image);
-      if (this._disposed) return;
+      if (this._disposed) {return;}
       record.loading = false;
       record.failed = true;
     };

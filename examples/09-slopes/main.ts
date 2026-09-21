@@ -14,25 +14,25 @@
 import {
   Engine, Scene, OmniLight, DirectionalLight, InputManager, BaseLight,
 } from '../../src/index';
-import { SlopeTerrain } from './SlopeTerrain';
-import { SlopeCharacter } from './SlopeCharacter';
+import {SlopeTerrain} from './SlopeTerrain';
+import {SlopeCharacter} from './SlopeCharacter';
 
 // ── Canvas & Engine ───────────────────────────────────────────────────────────
 
 const canvas = document.getElementById('canvas') as HTMLCanvasElement;
-canvas.width  = Math.min(window.innerWidth  - 24, 960);
+canvas.width = Math.min(window.innerWidth - 24, 960);
 canvas.height = Math.min(window.innerHeight - 120, 620);
 
-const engine = new Engine({ canvas });
-engine.originX = canvas.width  / 2;
+const engine = new Engine({canvas});
+engine.originX = canvas.width / 2;
 engine.originY = canvas.height * 0.40;
 
 // ── Scene ─────────────────────────────────────────────────────────────────────
 
 const COLS = 14, ROWS = 14;
-const scene = new Scene({ tileW: 64, tileH: 32, cols: COLS, rows: ROWS });
-scene.dynamicLighting  = true;
-scene.ambientColor     = '#b8ccc0';
+const scene = new Scene({tileW: 64, tileH: 32, cols: COLS, rows: ROWS});
+scene.dynamicLighting = true;
+scene.ambientColor = '#b8ccc0';
 scene.ambientIntensity = 0.40;
 engine.setScene(scene);
 
@@ -46,7 +46,7 @@ const sunLight = new DirectionalLight({
   id: 'sun', angle: 215, elevation: 60, color: '#fff4d0', intensity: 0.85,
 });
 const fillLight = new DirectionalLight({
-  id: 'fill', angle: 35,  elevation: 20, color: '#b0c8ff', intensity: 0.22,
+  id: 'fill', angle: 35, elevation: 20, color: '#b0c8ff', intensity: 0.22,
 });
 const peakGlow = new OmniLight({
   id: 'peak-glow', x: 7, y: 6, z: 120,
@@ -58,9 +58,9 @@ scene.addLight(peakGlow);
 
 // Toggleable light registry: key 1/2/3 flips each light's `enabled` flag.
 const toggleLights = [
-  { light: sunLight as BaseLight,  key: '1', label: 'Sun (dir 215°)' },
-  { light: fillLight as BaseLight, key: '2', label: 'Fill (dir 35°)' },
-  { light: peakGlow as BaseLight,  key: '3', label: 'Peak-glow (omni)' },
+  {light: sunLight as BaseLight, key: '1', label: 'Sun (dir 215°)'},
+  {light: fillLight as BaseLight, key: '2', label: 'Fill (dir 35°)'},
+  {light: peakGlow as BaseLight, key: '3', label: 'Peak-glow (omni)'},
 ];
 
 // ── Terrain ───────────────────────────────────────────────────────────────────
@@ -83,16 +83,16 @@ let prevTs = 0;
 
 engine.start(
   // onFrame — called after scene.draw()
-  (ts) => {
+  ts => {
     const dt = prevTs === 0 ? 1 / 60 : Math.min((ts - prevTs) / 1000, 0.1);
     prevTs = ts;
 
     // ── Input → movement ─────────────────────────────────────────────────
     let dx = 0, dy = 0;
-    if (input.isDown('ArrowLeft')  || input.isDown('a') || input.isDown('A')) dx -= 1;
-    if (input.isDown('ArrowRight') || input.isDown('d') || input.isDown('D')) dx += 1;
-    if (input.isDown('ArrowUp')    || input.isDown('w') || input.isDown('W')) dy -= 1;
-    if (input.isDown('ArrowDown')  || input.isDown('s') || input.isDown('S')) dy += 1;
+    if (input.isDown('ArrowLeft') || input.isDown('a') || input.isDown('A')) {dx -= 1;}
+    if (input.isDown('ArrowRight') || input.isDown('d') || input.isDown('D')) {dx += 1;}
+    if (input.isDown('ArrowUp') || input.isDown('w') || input.isDown('W')) {dy -= 1;}
+    if (input.isDown('ArrowDown') || input.isDown('s') || input.isDown('S')) {dy += 1;}
     hero.move(dx, dy, dt);
 
     // ── Light toggle (keys 1/2/3) ─────────────────────────────────────────
@@ -112,11 +112,11 @@ engine.start(
     const barW = 12, barH = 110;
     const barX = cw - 32, barY = ch / 2 - barH / 2;
     const lg = ctx.createLinearGradient(0, barY, 0, barY + barH);
-    lg.addColorStop(0,    '#e6e8eb'); // snow
+    lg.addColorStop(0, '#e6e8eb'); // snow
     lg.addColorStop(0.32, '#5f5549'); // rock
     lg.addColorStop(0.62, '#487838'); // grass
     lg.addColorStop(0.90, '#b4a56e'); // sand
-    lg.addColorStop(1,    '#2a5078'); // water
+    lg.addColorStop(1, '#2a5078'); // water
     ctx.fillStyle = lg;
     ctx.fillRect(barX, barY, barW, barH);
     ctx.strokeStyle = 'rgba(255,255,255,0.25)';
@@ -186,10 +186,10 @@ engine.start(
     const ctx = engine.ctx;
     const cw = canvas.width, ch = canvas.height;
     const sky = ctx.createLinearGradient(0, 0, 0, ch * 0.65);
-    sky.addColorStop(0,   '#0e1c30');
+    sky.addColorStop(0, '#0e1c30');
     sky.addColorStop(0.5, '#1a3428');
-    sky.addColorStop(1,   '#263c2a');
+    sky.addColorStop(1, '#263c2a');
     ctx.fillStyle = sky;
     ctx.fillRect(0, 0, cw, ch);
-  },
+  }
 );

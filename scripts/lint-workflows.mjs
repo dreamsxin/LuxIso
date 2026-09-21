@@ -20,8 +20,8 @@
  * Not a YAML parser and not a replacement for actionlint — it catches the class
  * of mistake that has bitten this repo, with no dependency to install.
  */
-import { readdirSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import {readdirSync, readFileSync} from 'node:fs';
+import {join} from 'node:path';
 
 const WORKFLOW_DIR = '.github/workflows';
 
@@ -37,8 +37,8 @@ function stripComment(value) {
 }
 
 function isPlainScalar(value) {
-  if (!value) return false;
-  return !/^['"|>&*!\[{]/.test(value);
+  if (!value) {return false;}
+  return !/^['"|>&*![{]/.test(value);
 }
 
 /**
@@ -70,7 +70,7 @@ export function lintWorkflow(text) {
       block = null;
     }
 
-    if (/^\s*#/.test(raw) || raw.trim() === '') return;
+    if (/^\s*#/.test(raw) || raw.trim() === '') {return;}
 
     if (/^\t| \t/.test(raw)) {
       findings.push({
@@ -81,12 +81,12 @@ export function lintWorkflow(text) {
     }
 
     const match = KEY_LINE.exec(raw);
-    if (!match) return;
+    if (!match) {return;}
     const [, , key, rawValue = ''] = match;
     const value = rawValue.trim();
 
     if (BLOCK_SCALAR.test(value)) {
-      block = { indent, key };
+      block = {indent, key};
       return;
     }
 
@@ -119,7 +119,7 @@ export function lintWorkflow(text) {
 export function lintWorkflowDir(dir = WORKFLOW_DIR, log = console.error) {
   let files;
   try {
-    files = readdirSync(dir).filter((name) => /\.ya?ml$/.test(name)).sort();
+    files = readdirSync(dir).filter(name => /\.ya?ml$/.test(name)).sort();
   } catch {
     log(`lint-workflows: no ${dir} directory; nothing to check.`);
     return 0;
@@ -128,14 +128,14 @@ export function lintWorkflowDir(dir = WORKFLOW_DIR, log = console.error) {
   let bad = 0;
   for (const name of files) {
     const findings = lintWorkflow(readFileSync(join(dir, name), 'utf8'));
-    if (findings.length === 0) continue;
+    if (findings.length === 0) {continue;}
     bad++;
     for (const f of findings) {
       log(`${dir}/${name}:${f.line}  ${f.rule}  ${f.message}`);
     }
   }
 
-  if (bad === 0) log(`lint-workflows: ${files.length} workflow file(s) OK.`);
+  if (bad === 0) {log(`lint-workflows: ${files.length} workflow file(s) OK.`);}
   return bad;
 }
 

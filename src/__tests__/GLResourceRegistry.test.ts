@@ -1,6 +1,6 @@
-import { describe, it, expect } from 'vitest';
-import { createFakeGL } from './helpers/gl';
-import { GLResourceRegistry } from '../../webgl-next/src/device/GLResourceRegistry';
+import {describe, it, expect} from 'vitest';
+import {createFakeGL} from './helpers/gl';
+import {GLResourceRegistry} from '../../webgl-next/src/device/GLResourceRegistry';
 
 /**
  * The WebGL2 handle registry — every GPU object the renderer owns passes through
@@ -90,21 +90,21 @@ describe('GLResourceRegistry — releaseTexture', () => {
 
 describe('GLResourceRegistry — creation failure', () => {
   it('throws a named error for each kind the driver refuses', () => {
-    let resources = new GLResourceRegistry(createFakeGL({ failCreate: ['buffer'] }).gl);
+    let resources = new GLResourceRegistry(createFakeGL({failCreate: ['buffer']}).gl);
     expect(() => resources.buffer()).toThrow(/buffer/i);
 
-    resources = new GLResourceRegistry(createFakeGL({ failCreate: ['vertexArray'] }).gl);
+    resources = new GLResourceRegistry(createFakeGL({failCreate: ['vertexArray']}).gl);
     expect(() => resources.vertexArray()).toThrow(/vertex array/i);
 
-    resources = new GLResourceRegistry(createFakeGL({ failCreate: ['texture'] }).gl);
+    resources = new GLResourceRegistry(createFakeGL({failCreate: ['texture']}).gl);
     expect(() => resources.texture()).toThrow(/texture/i);
 
-    resources = new GLResourceRegistry(createFakeGL({ failCreate: ['framebuffer'] }).gl);
+    resources = new GLResourceRegistry(createFakeGL({failCreate: ['framebuffer']}).gl);
     expect(() => resources.framebuffer()).toThrow(/framebuffer/i);
   });
 
   it('counts nothing for a refused handle', () => {
-    const fake = createFakeGL({ failCreate: ['texture'] });
+    const fake = createFakeGL({failCreate: ['texture']});
     const resources = new GLResourceRegistry(fake.gl);
     expect(() => resources.texture()).toThrow();
     expect(resources.counts.textures).toBe(0);
@@ -113,7 +113,7 @@ describe('GLResourceRegistry — creation failure', () => {
 
 describe('GLResourceRegistry — shader and program failure', () => {
   it('reports the compile log and deletes the shader it could not compile', () => {
-    const fake = createFakeGL({ failCompile: true, infoLog: 'syntax error line 3' });
+    const fake = createFakeGL({failCompile: true, infoLog: 'syntax error line 3'});
     const resources = new GLResourceRegistry(fake.gl);
 
     expect(() => resources.program(VERTEX, FRAGMENT)).toThrow('syntax error line 3');
@@ -122,13 +122,13 @@ describe('GLResourceRegistry — shader and program failure', () => {
   });
 
   it('falls back to a message when the driver gives no compile log', () => {
-    const fake = createFakeGL({ failCompile: true, infoLog: '' });
+    const fake = createFakeGL({failCompile: true, infoLog: ''});
     const resources = new GLResourceRegistry(fake.gl);
     expect(() => resources.program(VERTEX, FRAGMENT)).toThrow(/unknown shader compile error/i);
   });
 
   it('reports the link log and deletes both shaders and the program', () => {
-    const fake = createFakeGL({ failLink: true, infoLog: 'varying mismatch' });
+    const fake = createFakeGL({failLink: true, infoLog: 'varying mismatch'});
     const resources = new GLResourceRegistry(fake.gl);
 
     expect(() => resources.program(VERTEX, FRAGMENT)).toThrow('varying mismatch');
@@ -138,20 +138,20 @@ describe('GLResourceRegistry — shader and program failure', () => {
   });
 
   it('falls back to a message when the driver gives no link log', () => {
-    const fake = createFakeGL({ failLink: true, infoLog: '' });
+    const fake = createFakeGL({failLink: true, infoLog: ''});
     const resources = new GLResourceRegistry(fake.gl);
     expect(() => resources.program(VERTEX, FRAGMENT)).toThrow(/unknown shader link error/i);
   });
 
   it('throws when a shader handle cannot be created at all', () => {
-    const fake = createFakeGL({ failCreate: ['shader'] });
+    const fake = createFakeGL({failCreate: ['shader']});
     const resources = new GLResourceRegistry(fake.gl);
     expect(() => resources.program(VERTEX, FRAGMENT)).toThrow(/shader/i);
     expect(fake.liveShaders()).toEqual([]);
   });
 
   it('leaks no shader when the program handle cannot be created', () => {
-    const fake = createFakeGL({ failCreate: ['program'] });
+    const fake = createFakeGL({failCreate: ['program']});
     const resources = new GLResourceRegistry(fake.gl);
 
     expect(() => resources.program(VERTEX, FRAGMENT)).toThrow(/program/i);
@@ -171,7 +171,7 @@ describe('GLResourceRegistry — shader and program failure', () => {
     };
     gl.getShaderParameter = (): boolean => {
       compiled++;
-      return compiled === 1;   // vertex passes, fragment fails
+      return compiled === 1; // vertex passes, fragment fails
     };
 
     const resources = new GLResourceRegistry(fake.gl);

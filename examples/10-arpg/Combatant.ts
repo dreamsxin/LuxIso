@@ -19,7 +19,7 @@
 import {
   Entity, HealthComponent, MovementComponent, Pathfinder, project, blendColorRaw,
 } from '../../src/index';
-import type { AABB, DrawContext, PathCache, TileCollider } from '../../src/index';
+import type {AABB, DrawContext, PathCache, TileCollider} from '../../src/index';
 
 export type Faction = 'hero' | 'enemy';
 
@@ -95,7 +95,7 @@ export class Combatant extends Entity {
     this.castsShadow = true;
 
     this._collider = opts.collider ?? null;
-    this._health = this.addComponent(new HealthComponent({ max: Math.max(1, opts.hp ?? 40) }));
+    this._health = this.addComponent(new HealthComponent({max: Math.max(1, opts.hp ?? 40)}));
     this._movement = this.addComponent(new MovementComponent({
       speed: Math.max(0, opts.speed ?? 2.4),
       radius: 0.34,
@@ -121,8 +121,8 @@ export class Combatant extends Entity {
    * cannot hand out a free hit.
    */
   tick(dt: number): void {
-    if (this.isDead) return;
-    if (!Number.isFinite(dt) || dt <= 0) return;
+    if (this.isDead) {return;}
+    if (!Number.isFinite(dt) || dt <= 0) {return;}
     this._cooldown = Math.max(0, this._cooldown - dt);
   }
 
@@ -131,11 +131,11 @@ export class Combatant extends Entity {
    * reach, still cooling down, or either side is dead.
    */
   swing(target: Combatant | null): boolean {
-    if (this.isDead || !target || target.isDead) return false;
-    if (this._cooldown > 0) return false;
+    if (this.isDead || !target || target.isDead) {return false;}
+    if (this._cooldown > 0) {return false;}
     const dx = target.position.x - this.position.x;
     const dy = target.position.y - this.position.y;
-    if (Math.hypot(dx, dy) > this.attackRange) return false;
+    if (Math.hypot(dx, dy) > this.attackRange) {return false;}
 
     this._cooldown = this.attackInterval;
     const dealt = this.attackDamage;
@@ -154,9 +154,9 @@ export class Combatant extends Entity {
    * face, which is what an arena with cover in it turned up.
    */
   think(dt: number, target: Combatant | null): void {
-    if (this.isDead) return;
+    if (this.isDead) {return;}
     this.tick(dt);
-    if (Number.isFinite(dt) && dt > 0) this._repathIn = Math.max(0, this._repathIn - dt);
+    if (Number.isFinite(dt) && dt > 0) {this._repathIn = Math.max(0, this._repathIn - dt);}
     if (!target || target.isDead) {
       this._movement.stopMoving();
       return;
@@ -187,7 +187,7 @@ export class Combatant extends Entity {
       return;
     }
 
-    if (this._repathIn > 0 && this._movement.isMoving) return;
+    if (this._repathIn > 0 && this._movement.isMoving) {return;}
     this._repathIn = Combatant.REPATH_INTERVAL;
     // A* can fail outright — the target may be standing on a blocked tile after
     // a nudge. Pressing straight on is better than standing still: the sweep
@@ -211,8 +211,8 @@ export class Combatant extends Entity {
   }
 
   draw(dc: DrawContext): void {
-    const { ctx, tileW, tileH, originX, originY } = dc;
-    const { sx, sy } = project(this.position.x, this.position.y, this.position.z, tileW, tileH);
+    const {ctx, tileW, tileH, originX, originY} = dc;
+    const {sx, sy} = project(this.position.x, this.position.y, this.position.z, tileW, tileH);
     const cx = originX + sx;
     const cy = originY + sy;
     const r = this.radius;
@@ -241,7 +241,7 @@ export class Combatant extends Entity {
   }
 
   private _drawHealthBar(ctx: CanvasRenderingContext2D, x: number, y: number): void {
-    if (this._health.isDead) return;
+    if (this._health.isDead) {return;}
     const w = this.radius * 2.2, h = 3;
     ctx.fillStyle = 'rgba(0,0,0,0.55)';
     ctx.fillRect(x - w / 2, y, w, h);

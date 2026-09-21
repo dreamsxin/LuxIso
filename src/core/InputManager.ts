@@ -85,13 +85,13 @@ export class InputManager {
 
 
   // Keyboard state
-  private _held     = new Set<string>();
-  private _pressed  = new Set<string>();
+  private _held = new Set<string>();
+  private _pressed = new Set<string>();
   private _released = new Set<string>();
 
   // Pointer state
-  readonly pointer: PointerState = { x: 0, y: 0, down: false, pressed: false, released: false };
-  private _pointerPressedThisFrame  = false;
+  readonly pointer: PointerState = {x: 0, y: 0, down: false, pressed: false, released: false};
+  private _pointerPressedThisFrame = false;
   private _pointerReleasedThisFrame = false;
 
   // Active touches, in the order they touched down.
@@ -133,7 +133,7 @@ export class InputManager {
    * Multiple keys can map to the same action.
    */
   bindKey(key: string, action: string): void {
-    if (!this._bindings.has(action)) this._bindings.set(action, new Set());
+    if (!this._bindings.has(action)) {this._bindings.set(action, new Set());}
     this._bindings.get(action)!.add(key);
   }
 
@@ -145,16 +145,16 @@ export class InputManager {
   /** True while any key bound to `action` is held. */
   isAction(action: string): boolean {
     const keys = this._bindings.get(action);
-    if (!keys) return false;
-    for (const k of keys) if (this._held.has(k)) return true;
+    if (!keys) {return false;}
+    for (const k of keys) {if (this._held.has(k)) {return true;}}
     return false;
   }
 
   /** True on the first frame any key bound to `action` was pressed. */
   wasAction(action: string): boolean {
     const keys = this._bindings.get(action);
-    if (!keys) return false;
-    for (const k of keys) if (this._pressed.has(k)) return true;
+    if (!keys) {return false;}
+    for (const k of keys) {if (this._pressed.has(k)) {return true;}}
     return false;
   }
 
@@ -163,7 +163,7 @@ export class InputManager {
    * Returns an unsubscribe function.
    */
   onAction(action: string, cb: () => void): () => void {
-    if (!this._callbacks.has(action)) this._callbacks.set(action, new Set());
+    if (!this._callbacks.has(action)) {this._callbacks.set(action, new Set());}
     this._callbacks.get(action)!.add(cb);
     return () => this._callbacks.get(action)?.delete(cb);
   }
@@ -199,7 +199,7 @@ export class InputManager {
       for (const k of keys) {
         if (this._pressed.has(k)) {
           const cbs = this._callbacks.get(action);
-          if (cbs) for (const cb of cbs) cb();
+          if (cbs) {for (const cb of cbs) {cb();}}
           break;
         }
       }
@@ -207,9 +207,9 @@ export class InputManager {
 
     this._pressed.clear();
     this._released.clear();
-    this.pointer.pressed  = false;
+    this.pointer.pressed = false;
     this.pointer.released = false;
-    this._pointerPressedThisFrame  = false;
+    this._pointerPressedThisFrame = false;
     this._pointerReleasedThisFrame = false;
   }
 
@@ -250,22 +250,22 @@ export class InputManager {
       target: EventTarget,
       type: string,
       fn: EventListener,
-      opts?: AddEventListenerOptions,
+      opts?: AddEventListenerOptions
     ) => {
       target.addEventListener(type, fn, opts);
       this._listeners.push([target, type, fn]);
     };
 
     // Keyboard
-    add(window, 'keydown', (e) => {
+    add(window, 'keydown', e => {
       const ev = e as KeyboardEvent;
-      if (!this._held.has(ev.key))  this._pressed.add(ev.key);
-      if (!this._held.has(ev.code)) this._pressed.add(ev.code);
+      if (!this._held.has(ev.key)) {this._pressed.add(ev.key);}
+      if (!this._held.has(ev.code)) {this._pressed.add(ev.code);}
       this._held.add(ev.key);
       this._held.add(ev.code);
     });
 
-    add(window, 'keyup', (e) => {
+    add(window, 'keyup', e => {
       const ev = e as KeyboardEvent;
       this._released.add(ev.key);
       this._released.add(ev.code);
@@ -279,19 +279,19 @@ export class InputManager {
     add(window, 'blur', () => this._releaseAll());
     if (typeof document !== 'undefined') {
       add(document, 'visibilitychange', () => {
-        if (document.hidden) this._releaseAll();
+        if (document.hidden) {this._releaseAll();}
       });
     }
 
     // Mouse
-    add(this._canvas, 'mousemove', (e) => {
-      const { x, y } = this._canvasPos(e as MouseEvent);
+    add(this._canvas, 'mousemove', e => {
+      const {x, y} = this._canvasPos(e as MouseEvent);
       this.pointer.x = x; this.pointer.y = y;
     });
 
-    add(this._canvas, 'mousedown', (e) => {
+    add(this._canvas, 'mousedown', e => {
       const ev = e as MouseEvent;
-      const { x, y } = this._canvasPos(ev);
+      const {x, y} = this._canvasPos(ev);
       this.pointer.x = x; this.pointer.y = y;
       this.pointer.down = true;
       if (!this._pointerPressedThisFrame) {
@@ -304,14 +304,14 @@ export class InputManager {
     // On window, not the canvas: releasing outside the canvas after a drag that
     // started inside would otherwise never arrive and the pointer would stay
     // stuck down for the rest of the session.
-    add(window, 'mouseup', (e) => {
+    add(window, 'mouseup', e => {
       this._releaseKey(MOUSE_BUTTON_KEYS[(e as MouseEvent).button]);
       // `pointer.down` should clear only when no mouse button remains held.
       // The old code cleared it on every `mouseup`, which meant releasing the
       // right button during a left drag reported the pointer as released —
       // `isDown('MouseLeft')` stayed true while `pointer.down` went false.
-      if (this._isAnyMouseButtonDown()) return;
-      if (!this.pointer.down) return;
+      if (this._isAnyMouseButtonDown()) {return;}
+      if (!this.pointer.down) {return;}
       this.pointer.down = false;
       if (!this._pointerReleasedThisFrame) {
         this.pointer.released = true;
@@ -322,14 +322,14 @@ export class InputManager {
     // Touch. Every handler walks `changedTouches` — the fingers this event is
     // actually about — and keeps `_touches` as the full picture.
     const touchOpts: AddEventListenerOptions | undefined =
-      this._preventTouchDefault ? { passive: false } : undefined;
+      this._preventTouchDefault ? {passive: false} : undefined;
 
-    add(this._canvas, 'touchstart', (e) => {
+    add(this._canvas, 'touchstart', e => {
       const ev = e as TouchEvent;
-      if (this._preventTouchDefault) ev.preventDefault();
+      if (this._preventTouchDefault) {ev.preventDefault();}
       for (const t of Array.from(ev.changedTouches)) {
-        const { x, y } = this._canvasPosTouch(t);
-        this._touches.set(t.identifier, { id: t.identifier, x, y });
+        const {x, y} = this._canvasPosTouch(t);
+        this._touches.set(t.identifier, {id: t.identifier, x, y});
         // Only the first contact moves the pointer. Without this guard a second
         // finger anywhere on screen forged a fresh press every time it landed.
         if (this._primaryTouchId === null) {
@@ -344,11 +344,11 @@ export class InputManager {
       }
     }, touchOpts);
 
-    add(this._canvas, 'touchmove', (e) => {
+    add(this._canvas, 'touchmove', e => {
       const ev = e as TouchEvent;
-      if (this._preventTouchDefault) ev.preventDefault();
+      if (this._preventTouchDefault) {ev.preventDefault();}
       for (const t of Array.from(ev.changedTouches)) {
-        const { x, y } = this._canvasPosTouch(t);
+        const {x, y} = this._canvasPosTouch(t);
         const known = this._touches.get(t.identifier);
         if (known) { known.x = x; known.y = y; }
         if (this._primaryTouchId === t.identifier) {
@@ -361,9 +361,9 @@ export class InputManager {
       const ev = e as TouchEvent;
       for (const t of Array.from(ev.changedTouches)) {
         this._touches.delete(t.identifier);
-        if (this._primaryTouchId === t.identifier) this._primaryTouchId = null;
+        if (this._primaryTouchId === t.identifier) {this._primaryTouchId = null;}
       }
-      if (this._primaryTouchId !== null) return;
+      if (this._primaryTouchId !== null) {return;}
 
       // Promote the oldest survivor. Reporting a release here — which is what
       // the old unconditional `down = false` did — told the game the player had
@@ -388,24 +388,24 @@ export class InputManager {
 
   /** Register a synthetic key (mouse button) as pressed this frame. */
   private _pressKey(key: string | undefined): void {
-    if (!key) return;
-    if (!this._held.has(key)) this._pressed.add(key);
+    if (!key) {return;}
+    if (!this._held.has(key)) {this._pressed.add(key);}
     this._held.add(key);
   }
 
   private _releaseKey(key: string | undefined): void {
-    if (!key || !this._held.has(key)) return;
+    if (!key || !this._held.has(key)) {return;}
     this._held.delete(key);
     this._released.add(key);
   }
 
   /** Drop every held key and contact, as if the player let go of everything. */
   private _releaseAll(): void {
-    for (const key of this._held) this._released.add(key);
+    for (const key of this._held) {this._released.add(key);}
     this._held.clear();
     this._touches.clear();
     this._primaryTouchId = null;
-    if (!this.pointer.down) return;
+    if (!this.pointer.down) {return;}
     this.pointer.down = false;
     if (!this._pointerReleasedThisFrame) {
       this.pointer.released = true;
@@ -417,17 +417,17 @@ export class InputManager {
   /** True when at least one mouse button key is still held. */
   private _isAnyMouseButtonDown(): boolean {
     for (const name of MOUSE_BUTTON_KEYS) {
-      if (this._held.has(name)) return true;
+      if (this._held.has(name)) {return true;}
     }
     return false;
   }
 
 
-  private _canvasPos(e: MouseEvent): { x: number; y: number } {
+  private _canvasPos(e: MouseEvent): {x: number; y: number} {
     return this._toCanvasSpace(e.clientX, e.clientY);
   }
 
-  private _canvasPosTouch(t: Touch): { x: number; y: number } {
+  private _canvasPosTouch(t: Touch): {x: number; y: number} {
     return this._toCanvasSpace(t.clientX, t.clientY);
   }
 
@@ -438,13 +438,13 @@ export class InputManager {
    * the pixel ratio then undoes the high-DPI backing-store scale, leaving the
    * same units the game draws in.
    */
-  private _toCanvasSpace(clientX: number, clientY: number): { x: number; y: number } {
+  private _toCanvasSpace(clientX: number, clientY: number): {x: number; y: number} {
     const rect = this._canvas.getBoundingClientRect();
     const ratio = typeof this._pixelRatio === 'function' ? this._pixelRatio() : this._pixelRatio;
     const safe = ratio > 0 ? ratio : 1;
     return {
-      x: (clientX - rect.left) * (this._canvas.width  / rect.width)  / safe,
-      y: (clientY - rect.top)  * (this._canvas.height / rect.height) / safe,
+      x: (clientX - rect.left) * (this._canvas.width / rect.width) / safe,
+      y: (clientY - rect.top) * (this._canvas.height / rect.height) / safe,
     };
   }
 }

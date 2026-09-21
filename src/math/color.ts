@@ -9,11 +9,11 @@
 export function hexToRgb(hex: string): [number, number, number] {
   if (hex.startsWith('rgb')) {
     const m = hex.match(/rgb\s*\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
-    if (m) return [parseInt(m[1]), parseInt(m[2]), parseInt(m[3])];
+    if (m) {return [parseInt(m[1], 10), parseInt(m[2], 10), parseInt(m[3], 10)];}
     return [0, 0, 0];
   }
   let value = hex.replace('#', '');
-  if (value.length === 3) value = value.split('').map((channel) => channel + channel).join('');
+  if (value.length === 3) {value = value.split('').map(channel => channel + channel).join('');}
   const n = parseInt(value, 16);
   return [(n >> 16) & 0xff, (n >> 8) & 0xff, n & 0xff];
 }
@@ -43,7 +43,10 @@ export function shiftColor(hex: string, amount: number): string {
  */
 export function blendColor(hex: string, factor: number): string {
   const [r, g, b] = hexToRgb(hex);
-  return `rgb(${Math.min(255, Math.round(r * factor))},${Math.min(255, Math.round(g * factor))},${Math.min(255, Math.round(b * factor))})`;
+  const rr = Math.min(255, Math.round(r * factor));
+  const gg = Math.min(255, Math.round(g * factor));
+  const bb = Math.min(255, Math.round(b * factor));
+  return `rgb(${rr},${gg},${bb})`;
 }
 
 /**
@@ -52,7 +55,10 @@ export function blendColor(hex: string, factor: number): string {
  */
 export function blendColorRaw(hex: string, factor: number): string {
   const [r, g, b] = hexToRgb(hex);
-  return `${Math.min(255, Math.round(r * factor))},${Math.min(255, Math.round(g * factor))},${Math.min(255, Math.round(b * factor))}`;
+  const rr = Math.min(255, Math.round(r * factor));
+  const gg = Math.min(255, Math.round(g * factor));
+  const bb = Math.min(255, Math.round(b * factor));
+  return `${rr},${gg},${bb}`;
 }
 
 /**

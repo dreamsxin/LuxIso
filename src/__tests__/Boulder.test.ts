@@ -1,9 +1,9 @@
-import { describe, it, expect } from 'vitest';
-import { createDrawContext } from './helpers/canvas';
-import { Boulder } from '../elements/props/Boulder';
-import { HealthComponent } from '../ecs/components/HealthComponent';
-import { OmniLight } from '../lighting/OmniLight';
-import { project } from '../math/IsoProjection';
+import {describe, it, expect} from 'vitest';
+import {createDrawContext} from './helpers/canvas';
+import {Boulder} from '../elements/props/Boulder';
+import {HealthComponent} from '../ecs/components/HealthComponent';
+import {OmniLight} from '../lighting/OmniLight';
+import {project} from '../math/IsoProjection';
 
 /**
  * `Boulder`'s draw path — at 11% statements the least-covered file in the repo,
@@ -19,7 +19,7 @@ import { project } from '../math/IsoProjection';
 const R = 20;
 
 function ctxFor(boulder: Boulder, lights: OmniLight[] = []) {
-  const dc = createDrawContext({ omniLights: lights, originX: 200, originY: 150 });
+  const dc = createDrawContext({omniLights: lights, originX: 200, originY: 150});
   boulder.draw(dc);
   return dc.recorder;
 }
@@ -28,7 +28,7 @@ function ctxFor(boulder: Boulder, lights: OmniLight[] = []) {
 function outlineYs(recorder: ReturnType<typeof ctxFor>): number[] {
   const ys: number[] = [];
   for (const call of recorder.calls) {
-    if (call.fn !== 'moveTo' && call.fn !== 'lineTo') continue;
+    if (call.fn !== 'moveTo' && call.fn !== 'lineTo') {continue;}
     ys.push(call.args[1]);
   }
   return ys;
@@ -54,13 +54,13 @@ describe('Boulder — draw', () => {
   it('centres the rock on its projected position plus the origin', () => {
     const boulder = new Boulder('rock', 3, 4, '#7a7a8a', R);
     const recorder = ctxFor(boulder);
-    const { sx, sy } = project(3, 4, 0, 64, 32);
+    const {sx, sy} = project(3, 4, 0, 64, 32);
 
     // The bright top facet starts at (cx - 0.15r, cy - 0.42r); the outline as a
     // whole must sit around the projected centre.
     const xs = recorder.calls
-      .filter((c) => c.fn === 'moveTo' || c.fn === 'lineTo')
-      .map((c) => c.args[0]);
+      .filter(c => c.fn === 'moveTo' || c.fn === 'lineTo')
+      .map(c => c.args[0]);
     const cx = 200 + sx;
     expect(Math.min(...xs)).toBeGreaterThan(cx - R * 1.1);
     expect(Math.max(...xs)).toBeLessThan(cx + R * 1.1);
@@ -85,11 +85,11 @@ describe('Boulder — draw', () => {
   it('brightens with an omni light overhead and never exceeds full', () => {
     const dark = ctxFor(new Boulder('rock', 1, 1, '#808080', R));
     const lit = ctxFor(new Boulder('rock', 1, 1, '#808080', R), [
-      new OmniLight({ id: 'sun', x: 1, y: 1, z: 40, color: '#ffffff', intensity: 1, radius: 400 }),
+      new OmniLight({id: 'sun', x: 1, y: 1, z: 40, color: '#ffffff', intensity: 1, radius: 400}),
     ]);
 
     const brightness = (recorder: ReturnType<typeof ctxFor>): number => {
-      const fills = recorder.valuesOf('fillStyle').filter((v) => typeof v === 'string') as string[];
+      const fills = recorder.valuesOf('fillStyle').filter(v => typeof v === 'string') as string[];
       const channels = fills[0].match(/\d+/g);
       return channels ? Number(channels[0]) : 0;
     };
@@ -97,12 +97,12 @@ describe('Boulder — draw', () => {
 
     // Piling lights on cannot push a channel past 255 — `illum` is clamped to 1.
     const flooded = ctxFor(new Boulder('rock', 1, 1, '#ffffff', R), Array.from(
-      { length: 8 },
+      {length: 8},
       (_, i) => new OmniLight({
         id: `l${i}`, x: 1, y: 1, z: 40, color: '#ffffff', intensity: 1, radius: 400,
-      }),
+      })
     ));
-    const fills = flooded.valuesOf('fillStyle').filter((v) => typeof v === 'string') as string[];
+    const fills = flooded.valuesOf('fillStyle').filter(v => typeof v === 'string') as string[];
     for (const fill of fills) {
       for (const channel of fill.match(/\d+/g) ?? []) {
         expect(Number(channel)).toBeLessThanOrEqual(255);
@@ -120,18 +120,18 @@ describe('Boulder — health bar', () => {
 
   it('draws a bar whose fill tracks the fraction, and colours by band', () => {
     const bands: Array<[number, string]> = [
-      [1.0, '#50e080'],   // > 50%
-      [0.4, '#f0c040'],   // > 25%
-      [0.1, '#e04040'],   // the rest
+      [1.0, '#50e080'], // > 50%
+      [0.4, '#f0c040'], // > 25%
+      [0.1, '#e04040'], // the rest
     ];
     for (const [fraction, color] of bands) {
       const boulder = new Boulder('rock', 1, 1, '#7a7a8a', R);
-      const health = boulder.addComponent(new HealthComponent({ max: 100 }));
+      const health = boulder.addComponent(new HealthComponent({max: 100}));
       health.takeDamage(100 * (1 - fraction));
 
       const recorder = ctxFor(boulder);
       const rects = recorder.argsOf('fillRect');
-      expect(rects.length).toBe(2);            // track, then fill
+      expect(rects.length).toBe(2); // track, then fill
       expect(rects[1][2]).toBeCloseTo(32 * fraction, 6);
       expect(recorder.valuesOf('fillStyle')).toContain(color);
     }
@@ -139,7 +139,7 @@ describe('Boulder — health bar', () => {
 
   it('drops the bar once the rock is destroyed, but still draws the rock', () => {
     const boulder = new Boulder('rock', 1, 1, '#7a7a8a', R);
-    const health = boulder.addComponent(new HealthComponent({ max: 30 }));
+    const health = boulder.addComponent(new HealthComponent({max: 30}));
     health.takeDamage(30);
 
     const recorder = ctxFor(boulder);
@@ -174,7 +174,7 @@ describe('Boulder — footprint versus drawing', () => {
   it('declares exactly the height it draws', () => {
     const boulder = new Boulder('rock', 3, 4, '#7a7a8a', R);
     const recorder = ctxFor(boulder);
-    const { sy } = project(3, 4, 0, 64, 32);
+    const {sy} = project(3, 4, 0, 64, 32);
     const cy = 150 + sy;
 
     const ys = outlineYs(recorder);

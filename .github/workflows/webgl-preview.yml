@@ -6,6 +6,9 @@ on:
       - '.github/workflows/**'
       - 'src/**'
       - 'webgl-next/**'
+      - 'examples/**'
+      - 'eslint.config.mjs'
+      - 'tsconfig*.json'
       - 'package.json'
       - 'package-lock.json'
       - 'playwright.webgl.config.ts'
@@ -15,6 +18,9 @@ on:
       - '.github/workflows/**'
       - 'src/**'
       - 'webgl-next/**'
+      - 'examples/**'
+      - 'eslint.config.mjs'
+      - 'tsconfig*.json'
       - 'package.json'
       - 'package-lock.json'
       - 'playwright.webgl.config.ts'
@@ -39,6 +45,9 @@ jobs:
       # annotation on a run — nothing failed a check and nothing surfaced
       # locally, so the workflow stayed undispatchable for several commits.
       - run: npm run lint:workflows
+      # Source gate. Runs before the slow steps so a formatting or correctness
+      # regression fails in seconds rather than after the browser matrix.
+      - run: npm run lint
       - run: npx playwright install --with-deps chromium
       # Unit suite with the coverage ratchets in vitest.config.ts. Fails the job
       # if a correctness-critical module loses coverage.

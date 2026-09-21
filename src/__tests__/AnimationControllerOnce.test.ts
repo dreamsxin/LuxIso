@@ -1,10 +1,10 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { AnimationController } from '../animation/AnimationController';
-import { AnimationComponent } from '../ecs/components/AnimationComponent';
-import { SpriteSheet } from '../animation/SpriteSheet';
-import { Entity } from '../ecs/Entity';
-import type { AABB } from '../math/depthSort';
-import type { DrawContext } from '../elements/IsoObject';
+import {describe, it, expect, vi, beforeEach, afterEach} from 'vitest';
+import {AnimationController} from '../animation/AnimationController';
+import {AnimationComponent} from '../ecs/components/AnimationComponent';
+import {SpriteSheet} from '../animation/SpriteSheet';
+import {Entity} from '../ecs/Entity';
+import type {AABB} from '../math/depthSort';
+import type {DrawContext} from '../elements/IsoObject';
 
 /**
  * AnimationController.playOnce and AnimationComponent timing.
@@ -17,12 +17,12 @@ import type { DrawContext } from '../elements/IsoObject';
  */
 
 class TestEntity extends Entity {
-  get aabb(): AABB { return { minX: 0, minY: 0, maxX: 1, maxY: 1, baseZ: 0 }; }
+  get aabb(): AABB { return {minX: 0, minY: 0, maxX: 1, maxY: 1, baseZ: 0}; }
   draw(_dc: DrawContext): void {}
 }
 
 function frames(n: number) {
-  return Array.from({ length: n }, (_, i) => ({ x: i * 16, y: 0, w: 16, h: 16 }));
+  return Array.from({length: n}, (_, i) => ({x: i * 16, y: 0, w: 16, h: 16}));
 }
 
 /** Every clip explicitly looping — the common authoring default. */
@@ -30,9 +30,9 @@ function loopingSheet(): SpriteSheet {
   return new SpriteSheet({
     url: 'hero.png',
     clips: [
-      { name: 'idle',   frames: frames(2), fps: 10, loop: true },
-      { name: 'walk',   frames: frames(4), fps: 10, loop: true },
-      { name: 'attack', frames: frames(3), fps: 10, loop: true },
+      {name: 'idle', frames: frames(2), fps: 10, loop: true},
+      {name: 'walk', frames: frames(4), fps: 10, loop: true},
+      {name: 'attack', frames: frames(3), fps: 10, loop: true},
     ],
   });
 }
@@ -42,8 +42,8 @@ function unflaggedSheet(): SpriteSheet {
   return new SpriteSheet({
     url: 'hero.png',
     clips: [
-      { name: 'idle',   frames: frames(2), fps: 10 },
-      { name: 'attack', frames: frames(3), fps: 10 },
+      {name: 'idle', frames: frames(2), fps: 10},
+      {name: 'attack', frames: frames(3), fps: 10},
     ],
   });
 }
@@ -84,7 +84,7 @@ describe('AnimationController — playOnce', () => {
     const done = vi.fn();
     const anim = new AnimationController(loopingSheet(), 'idle');
     anim.playOnce('attack', done);
-    for (let i = 0; i < 20; i++) anim.update(0.05);
+    for (let i = 0; i < 20; i++) {anim.update(0.05);}
     expect(done).toHaveBeenCalledTimes(1);
   });
 
@@ -153,7 +153,7 @@ describe('AnimationController — playOnce', () => {
   it('respects an explicitly non-looping clip', () => {
     const sheet = new SpriteSheet({
       url: 'hero.png',
-      clips: [{ name: 'die', frames: frames(2), fps: 10, loop: false }],
+      clips: [{name: 'die', frames: frames(2), fps: 10, loop: false}],
     });
     const anim = new AnimationController(sheet, 'die');
     anim.update(1.0);
@@ -164,7 +164,7 @@ describe('AnimationController — playOnce', () => {
   it('tolerates a clip with no frames', () => {
     const sheet = new SpriteSheet({
       url: 'hero.png',
-      clips: [{ name: 'idle', frames: [], fps: 10 }],
+      clips: [{name: 'idle', frames: [], fps: 10}],
     });
     const anim = new AnimationController(sheet, 'idle');
     expect(() => anim.update(1)).not.toThrow();
@@ -175,7 +175,7 @@ describe('AnimationController — playOnce', () => {
 describe('AnimationComponent — frame delta', () => {
   it('does not drop the frame after timestamp 0', () => {
     const entity = new TestEntity('hero', 0, 0, 0);
-    const anim = new AnimationComponent({ spriteSheet: loopingSheet(), initialClip: 'walk' });
+    const anim = new AnimationComponent({spriteSheet: loopingSheet(), initialClip: 'walk'});
     entity.addComponent(anim);
 
     anim.update(0);
@@ -188,7 +188,7 @@ describe('AnimationComponent — frame delta', () => {
 
   it('does not advance on the very first frame', () => {
     const entity = new TestEntity('hero', 0, 0, 0);
-    const anim = new AnimationComponent({ spriteSheet: loopingSheet(), initialClip: 'walk' });
+    const anim = new AnimationComponent({spriteSheet: loopingSheet(), initialClip: 'walk'});
     entity.addComponent(anim);
     anim.update(1000);
     expect(anim.controller.frameIndex).toBe(0);
@@ -196,7 +196,7 @@ describe('AnimationComponent — frame delta', () => {
 
   it('clamps a long stall', () => {
     const entity = new TestEntity('hero', 0, 0, 0);
-    const anim = new AnimationComponent({ spriteSheet: loopingSheet(), initialClip: 'walk' });
+    const anim = new AnimationComponent({spriteSheet: loopingSheet(), initialClip: 'walk'});
     entity.addComponent(anim);
     anim.update(1000);
     anim.update(11_000);
@@ -206,7 +206,7 @@ describe('AnimationComponent — frame delta', () => {
 
   it('never advances on a backwards timestamp', () => {
     const entity = new TestEntity('hero', 0, 0, 0);
-    const anim = new AnimationComponent({ spriteSheet: loopingSheet(), initialClip: 'walk' });
+    const anim = new AnimationComponent({spriteSheet: loopingSheet(), initialClip: 'walk'});
     entity.addComponent(anim);
     anim.update(1000);
     anim.update(1100);
@@ -217,7 +217,7 @@ describe('AnimationComponent — frame delta', () => {
 
   it('does nothing after onDetach', () => {
     const entity = new TestEntity('hero', 0, 0, 0);
-    const anim = new AnimationComponent({ spriteSheet: loopingSheet(), initialClip: 'walk' });
+    const anim = new AnimationComponent({spriteSheet: loopingSheet(), initialClip: 'walk'});
     entity.addComponent(anim);
     anim.update(1000);
     anim.onDetach();
@@ -240,7 +240,7 @@ describe('AnimationComponent — frame delta', () => {
 
   it('ignores sub-threshold jitter when picking a direction', () => {
     const entity = new TestEntity('hero', 0, 0, 0);
-    const anim = new AnimationComponent({ spriteSheet: loopingSheet() });
+    const anim = new AnimationComponent({spriteSheet: loopingSheet()});
     entity.addComponent(anim);
 
     entity.position.x = 1;

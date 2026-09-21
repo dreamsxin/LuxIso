@@ -98,6 +98,19 @@ measures a prop's silhouette straight out of the `RenderSnapshot`. A doubled
 radius is a doubled silhouette there, exactly, with no threshold and no browser.
 Only `Boulder` is covered so far.
 
+Draw *order* is the same kind of blind spot, and for a worse reason: the baselines
+are minted from whatever the build does, so an ordering defect gets baked into
+them and the gate then agrees with it. That is exactly what happened to
+particles — the extractor deferred them past every object, the baselines recorded
+it, and the 2,500-pixel budget had nothing to say. `src/__tests__/ParticleDrawOrderParity.test.ts`
+now holds both backends to the same answer from opposite sides: `topoSort` order
+on the Canvas2D side, vertex submission order read back out of the arena via the
+encoded pick ID on the GL side. No browser, no threshold.
+
+The fix moves pixels in all nine fixtures, so the three committed PNGs are stale
+until `webgl-baselines` re-mints them; until then the gate is expected to fail on
+those three.
+
 
 2,500 is a ratchet, set above the current known-good delta and only ever
 tightened. Once `webgl-baselines` regenerates the three PNGs that delta drops to

@@ -1,6 +1,6 @@
-import { describe, it, expect } from 'vitest';
-import { TileCollider } from '../physics/TileCollider';
-import { Pathfinder, PathCache } from '../physics/Pathfinder';
+import {describe, it, expect} from 'vitest';
+import {TileCollider} from '../physics/TileCollider';
+import {Pathfinder, PathCache} from '../physics/Pathfinder';
 
 describe('TileCollider — version counter', () => {
   it('starts at 0 and bumps on a real change', () => {
@@ -32,7 +32,7 @@ describe('PathCache — grid mutation invalidates cached paths', () => {
     const c = new TileCollider(7, 5);
     for (let row = 0; row < 5; row++) {
       for (let col = 0; col < 7; col++) {
-        if (row !== 2) c.setWalkable(col, row, false);
+        if (row !== 2) {c.setWalkable(col, row, false);}
       }
     }
     return c;
@@ -41,8 +41,8 @@ describe('PathCache — grid mutation invalidates cached paths', () => {
   it('stops serving a stale path after a tile is blocked', () => {
     const collider = corridor();
     const cache = new PathCache(64);
-    const start = { x: 0.5, y: 2.5 };
-    const goal  = { x: 6.5, y: 2.5 };
+    const start = {x: 0.5, y: 2.5};
+    const goal = {x: 6.5, y: 2.5};
 
     const first = Pathfinder.find(collider, start, goal, cache);
     expect(first).not.toBeNull();
@@ -60,8 +60,8 @@ describe('PathCache — grid mutation invalidates cached paths', () => {
     const collider = corridor();
     collider.setWalkable(3, 2, false);
     const cache = new PathCache(64);
-    const start = { x: 0.5, y: 2.5 };
-    const goal  = { x: 6.5, y: 2.5 };
+    const start = {x: 0.5, y: 2.5};
+    const goal = {x: 6.5, y: 2.5};
 
     expect(Pathfinder.find(collider, start, goal, cache)).toBeNull();
 
@@ -72,8 +72,8 @@ describe('PathCache — grid mutation invalidates cached paths', () => {
   it('serves a cache hit when the grid has not changed', () => {
     const collider = corridor();
     const cache = new PathCache(64);
-    const start = { x: 0.5, y: 2.5 };
-    const goal  = { x: 6.5, y: 2.5 };
+    const start = {x: 0.5, y: 2.5};
+    const goal = {x: 6.5, y: 2.5};
 
     const first = Pathfinder.find(collider, start, goal, cache);
     const second = Pathfinder.find(collider, start, goal, cache);
@@ -90,7 +90,7 @@ describe('Pathfinder — string-pulling respects corner-cutting rules', () => {
     c.setWalkable(2, 3, false);
     c.setWalkable(3, 2, false);
 
-    const path = Pathfinder.find(c, { x: 2.5, y: 2.5 }, { x: 3.5, y: 3.5 });
+    const path = Pathfinder.find(c, {x: 2.5, y: 2.5}, {x: 3.5, y: 3.5});
     expect(path).not.toBeNull();
 
     // Walk consecutive waypoints; no segment may make a diagonal tile step
@@ -98,7 +98,7 @@ describe('Pathfinder — string-pulling respects corner-cutting rules', () => {
     const pts = path!;
     for (let i = 1; i < pts.length; i++) {
       const c0 = Math.floor(pts[i - 1].x), r0 = Math.floor(pts[i - 1].y);
-      const c1 = Math.floor(pts[i].x),     r1 = Math.floor(pts[i].y);
+      const c1 = Math.floor(pts[i].x), r1 = Math.floor(pts[i].y);
       if (Math.abs(c1 - c0) === 1 && Math.abs(r1 - r0) === 1) {
         const cardinalsOpen = c.isWalkable(c1, r0) && c.isWalkable(c0, r1);
         expect(cardinalsOpen).toBe(true);
@@ -108,7 +108,7 @@ describe('Pathfinder — string-pulling respects corner-cutting rules', () => {
 
   it('still straightens a zigzag across open terrain', () => {
     const c = new TileCollider(10, 10);
-    const path = Pathfinder.find(c, { x: 0.5, y: 0.5 }, { x: 8.5, y: 8.5 });
+    const path = Pathfinder.find(c, {x: 0.5, y: 0.5}, {x: 8.5, y: 8.5});
     expect(path).not.toBeNull();
     // A fully open diagonal should collapse to very few waypoints.
     expect(path!.length).toBeLessThanOrEqual(3);

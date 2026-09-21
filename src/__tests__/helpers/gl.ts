@@ -9,7 +9,7 @@
  */
 
 /** A GL handle stand-in. Distinguishable by id when a test needs to name one. */
-export interface FakeHandle { readonly id: number; }
+export interface FakeHandle {readonly id: number;}
 
 /** Resource kinds whose `create*` call can be made to fail. */
 export type FakeGLResource =
@@ -81,12 +81,12 @@ export function createFakeGL(options: FakeGLOptions = {}): FakeGL {
 
   const fails = new Set(options.failCreate ?? []);
   const infoLog = options.infoLog ?? 'fake GL failure';
-  const handle = (): FakeHandle => ({ id: nextId++ });
+  const handle = (): FakeHandle => ({id: nextId++});
 
   const api: Record<string, unknown> = {
     ...ENUMS,
     createTexture: () => {
-      if (fails.has('texture')) return null;
+      if (fails.has('texture')) {return null;}
       const texture = handle();
       created.push(texture);
       return texture;
@@ -99,7 +99,7 @@ export function createFakeGL(options: FakeGLOptions = {}): FakeGL {
     createFramebuffer: () => (fails.has('framebuffer') ? null : handle()),
     deleteFramebuffer: () => {},
     createShader: () => {
-      if (fails.has('shader')) return null;
+      if (fails.has('shader')) {return null;}
       const shader = handle();
       shaders.push(shader);
       return shader;
@@ -108,7 +108,7 @@ export function createFakeGL(options: FakeGLOptions = {}): FakeGL {
     getShaderParameter: () => !options.failCompile,
     getShaderInfoLog: () => infoLog,
     createProgram: () => {
-      if (fails.has('program')) return null;
+      if (fails.has('program')) {return null;}
       const program = handle();
       programs.push(program);
       return program;
@@ -122,7 +122,7 @@ export function createFakeGL(options: FakeGLOptions = {}): FakeGL {
     get: (target, prop: string) => {
       if (prop in target) {
         const value = target[prop];
-        if (typeof value !== 'function') return value;
+        if (typeof value !== 'function') {return value;}
         return (...args: unknown[]) => {
           calls.push(prop);
           return (value as (...a: unknown[]) => unknown)(...args);
@@ -142,7 +142,7 @@ export function createFakeGL(options: FakeGLOptions = {}): FakeGL {
     programs,
     deletedPrograms,
     calls,
-    live: () => created.filter((texture) => !deleted.includes(texture)),
-    liveShaders: () => shaders.filter((shader) => !deletedShaders.includes(shader)),
+    live: () => created.filter(texture => !deleted.includes(texture)),
+    liveShaders: () => shaders.filter(shader => !deletedShaders.includes(shader)),
   };
 }

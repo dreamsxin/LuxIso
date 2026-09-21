@@ -1,12 +1,12 @@
-import { describe, it, expect, beforeEach } from 'vitest';
-import { MovementComponent } from '../ecs/components/MovementComponent';
-import { TimerComponent } from '../ecs/components/TimerComponent';
-import { TweenComponent, Easing } from '../ecs/components/TweenComponent';
-import { ParticleSystem, type EmitterConfig } from '../animation/ParticleSystem';
-import { FloatingText } from '../elements/props/FloatingText';
-import { Cloud } from '../elements/props/Cloud';
-import { Chest } from '../elements/props/Chest';
-import type { IsoObject } from '../elements/IsoObject';
+import {describe, it, expect, beforeEach} from 'vitest';
+import {MovementComponent} from '../ecs/components/MovementComponent';
+import {TimerComponent} from '../ecs/components/TimerComponent';
+import {TweenComponent, Easing} from '../ecs/components/TweenComponent';
+import {ParticleSystem, type EmitterConfig} from '../animation/ParticleSystem';
+import {FloatingText} from '../elements/props/FloatingText';
+import {Cloud} from '../elements/props/Cloud';
+import {Chest} from '../elements/props/Chest';
+import type {IsoObject} from '../elements/IsoObject';
 
 /**
  * The frame-delta contract, asserted once for every module that derives its own
@@ -47,8 +47,8 @@ interface Case {
 function owner(): IsoObject {
   return {
     id: 'e',
-    position: { x: 0, y: 0, z: 0 },
-    aabb: { minX: 0, minY: 0, maxX: 1, maxY: 1, baseZ: 0 },
+    position: {x: 0, y: 0, z: 0},
+    aabb: {minX: 0, minY: 0, maxX: 1, maxY: 1, baseZ: 0},
     draw: () => {},
   } as unknown as IsoObject;
 }
@@ -67,18 +67,18 @@ const CASES: Case[] = [
     name: 'MovementComponent',
     make: () => {
       const o = owner();
-      const mv = new MovementComponent({ speed: 1 });
+      const mv = new MovementComponent({speed: 1});
       mv.onAttach(o);
       mv.moveTo(1000, 0);
-      return { tick: (ts) => mv.update(ts), read: () => o.position.x };
+      return {tick: ts => mv.update(ts), read: () => o.position.x};
     },
   },
   {
     name: 'TimerComponent',
     make: () => {
       // Long enough that the timer never completes and `_elapsed` keeps growing.
-      const timer = new TimerComponent({ duration: 10000 });
-      return { tick: (ts) => timer.update(ts), read: () => timer.elapsed };
+      const timer = new TimerComponent({duration: 10000});
+      return {tick: ts => timer.update(ts), read: () => timer.elapsed};
     },
   },
   {
@@ -86,12 +86,12 @@ const CASES: Case[] = [
     make: () => {
       const o = owner();
       const tw = new TweenComponent({
-        targets: [{ prop: 'z', from: 0, to: 100000 }],
+        targets: [{prop: 'z', from: 0, to: 100000}],
         duration: 10000,
         easing: Easing.linear,
       });
       tw.onAttach(o);
-      return { tick: (ts) => tw.update(ts), read: () => o.position.z };
+      return {tick: ts => tw.update(ts), read: () => o.position.z};
     },
   },
   {
@@ -100,21 +100,21 @@ const CASES: Case[] = [
       const ps = new ParticleSystem('fx', 0, 0, 0);
       ps.addEmitter(emitter());
       // Particle count grows with integrated time, which is the readout here.
-      return { tick: (ts) => ps.update(ts), read: () => ps.particleCount };
+      return {tick: ts => ps.update(ts), read: () => ps.particleCount};
     },
   },
   {
     name: 'FloatingText',
     make: () => {
-      const ft = new FloatingText({ id: 'ft', x: 2, y: 3, z: 0, text: '-20' });
-      return { tick: (ts) => ft.update(ts), read: () => ft.position.z };
+      const ft = new FloatingText({id: 'ft', x: 2, y: 3, z: 0, text: '-20'});
+      return {tick: ts => ft.update(ts), read: () => ft.position.z};
     },
   },
   {
     name: 'Cloud',
     make: () => {
-      const cloud = new Cloud({ id: 'c', x: 0, y: 0, speed: 2, angle: 0 });
-      return { tick: (ts) => cloud.update(ts), read: () => cloud.position.x };
+      const cloud = new Cloud({id: 'c', x: 0, y: 0, speed: 2, angle: 0});
+      return {tick: ts => cloud.update(ts), read: () => cloud.position.x};
     },
   },
   {
@@ -122,7 +122,7 @@ const CASES: Case[] = [
     make: () => {
       const chest = new Chest('c', 2, 2);
       chest.open();
-      return { tick: (ts) => chest.update(ts), read: () => chest.lidAngle };
+      return {tick: ts => chest.update(ts), read: () => chest.lidAngle};
     },
   },
 ];
@@ -134,12 +134,12 @@ beforeEach(() => {
 /** Above every clamp in the codebase (0.1 s for most, 0.5 s for timer/tween). */
 const LONGEST_CLAMP_MS = 600;
 
-describe.each(CASES)('frame-delta contract — $name', ({ make }) => {
+describe.each(CASES)('frame-delta contract — $name', ({make}) => {
   it('treats a timestamp of 0 as an ordinary first frame', () => {
     const fromZero = make();
     const initial = fromZero.read();
     fromZero.tick(0);
-    expect(fromZero.read()).toBe(initial);   // rule 1a: no advance on frame one
+    expect(fromZero.read()).toBe(initial); // rule 1a: no advance on frame one
 
     fromZero.tick(100);
     const advanced = fromZero.read();
@@ -168,7 +168,7 @@ describe.each(CASES)('frame-delta contract — $name', ({ make }) => {
   it('clamps a long gap instead of integrating it', () => {
     const jumped = make();
     jumped.tick(1000);
-    jumped.tick(11_000);          // ten seconds — a hidden tab or a breakpoint
+    jumped.tick(11_000); // ten seconds — a hidden tab or a breakpoint
 
     const clamped = make();
     clamped.tick(1000);
@@ -185,7 +185,7 @@ describe.each(CASES)('frame-delta contract — $name', ({ make }) => {
 
     m.tick(NaN);
     m.tick(Infinity);
-    expect(m.read()).toBe(before);   // nothing advanced, nothing became NaN
+    expect(m.read()).toBe(before); // nothing advanced, nothing became NaN
 
     // And the next real stamp still measures from the last good one.
     m.tick(1200);

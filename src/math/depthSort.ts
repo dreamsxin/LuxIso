@@ -32,28 +32,28 @@ function isBehind(a: AABB, b: AABB): boolean {
   const centerA = (a.minX + a.maxX + a.minY + a.maxY) / 2;
   const centerB = (b.minX + b.maxX + b.minY + b.maxY) / 2;
 
-  if (!overlapX || !overlapY) return centerA < centerB;
+  if (!overlapX || !overlapY) {return centerA < centerB;}
 
   const maxZA = a.maxZ ?? a.baseZ + MIN_Z_EXTENT_PX;
   const maxZB = b.maxZ ?? b.baseZ + MIN_Z_EXTENT_PX;
   const overlapZ = a.baseZ < maxZB && maxZA > b.baseZ;
-  if (!overlapZ) return a.baseZ < b.baseZ;
+  if (!overlapZ) {return a.baseZ < b.baseZ;}
 
   const bContainsA = b.minX <= a.minX && b.maxX >= a.maxX &&
     b.minY <= a.minY && b.maxY >= a.maxY;
   const aContainsB = a.minX <= b.minX && a.maxX >= b.maxX &&
     a.minY <= b.minY && a.maxY >= b.maxY;
 
-  if (bContainsA && aContainsB) return centerA < centerB;
+  if (bContainsA && aContainsB) {return centerA < centerB;}
   if (bContainsA || aContainsB) {
-    if (maxZA !== maxZB) return maxZA < maxZB;
+    if (maxZA !== maxZB) {return maxZA < maxZB;}
     return centerA < centerB;
   }
 
   const aFarX = a.maxX <= b.maxX;
   const aFarY = a.maxY <= b.maxY;
-  if (aFarX && aFarY) return true;
-  if (!aFarX && !aFarY) return false;
+  if (aFarX && aFarY) {return true;}
+  if (!aFarX && !aFarY) {return false;}
   return a.maxX + a.maxY < b.maxX + b.maxY;
 }
 
@@ -72,7 +72,7 @@ class IndexMinHeap {
     items.push(index);
     while (position > 0) {
       const parent = (position - 1) >> 1;
-      if (!this._before(index, items[parent])) break;
+      if (!this._before(index, items[parent])) {break;}
       items[position] = items[parent];
       position = parent;
     }
@@ -83,15 +83,15 @@ class IndexMinHeap {
     const items = this._items;
     const first = items[0];
     const last = items.pop()!;
-    if (items.length === 0) return first;
+    if (items.length === 0) {return first;}
 
     let position = 0;
     while (true) {
       const left = position * 2 + 1;
-      if (left >= items.length) break;
+      if (left >= items.length) {break;}
       const right = left + 1;
       const child = right < items.length && this._before(items[right], items[left]) ? right : left;
-      if (!this._before(items[child], last)) break;
+      if (!this._before(items[child], last)) {break;}
       items[position] = items[child];
       position = child;
     }
@@ -111,7 +111,7 @@ type SpatialGrid = Map<number, Map<number, number[]>>;
 function bucket(grid: SpatialGrid, x: number, y: number, create: boolean): number[] | undefined {
   let column = grid.get(x);
   if (!column) {
-    if (!create) return undefined;
+    if (!create) {return undefined;}
     column = new Map();
     grid.set(x, column);
   }
@@ -129,9 +129,9 @@ function bucket(grid: SpatialGrid, x: number, y: number, create: boolean): numbe
  */
 export function topoSort<T extends Sortable>(objects: T[]): T[] {
   const count = objects.length;
-  if (count <= 1) return [...objects];
+  if (count <= 1) {return [...objects];}
 
-  const graph: number[][] = Array.from({ length: count }, () => []);
+  const graph: number[][] = Array.from({length: count}, () => []);
   const inDegree = new Int32Array(count);
   const depths = new Float64Array(count);
   const grid: SpatialGrid = new Map();
@@ -144,7 +144,7 @@ export function topoSort<T extends Sortable>(objects: T[]): T[] {
     const maxBucketX = Math.floor(bounds.maxX / BUCKET_SIZE);
     const maxBucketY = Math.floor(bounds.maxY / BUCKET_SIZE);
     for (let x = minBucketX; x <= maxBucketX; x++) {
-      for (let y = minBucketY; y <= maxBucketY; y++) bucket(grid, x, y, true)!.push(i);
+      for (let y = minBucketY; y <= maxBucketY; y++) {bucket(grid, x, y, true)!.push(i);}
     }
   }
 
@@ -158,11 +158,11 @@ export function topoSort<T extends Sortable>(objects: T[]): T[] {
     for (let x = minBucketX; x <= maxBucketX; x++) {
       for (let y = minBucketY; y <= maxBucketY; y++) {
         const candidates = bucket(grid, x, y, false);
-        if (!candidates) continue;
+        if (!candidates) {continue;}
         for (const candidate of candidates) {
-          if (candidate === i) continue;
+          if (candidate === i) {continue;}
           const pair = i < candidate ? i * count + candidate : candidate * count + i;
-          if (compared.has(pair)) continue;
+          if (compared.has(pair)) {continue;}
           compared.add(pair);
 
           const iBeforeCandidate = isBehind(objects[i].aabb, objects[candidate].aabb);
@@ -182,7 +182,7 @@ export function topoSort<T extends Sortable>(objects: T[]): T[] {
 
   const ready = new IndexMinHeap(depths);
   for (let i = 0; i < count; i++) {
-    if (inDegree[i] === 0) ready.push(i);
+    if (inDegree[i] === 0) {ready.push(i);}
   }
 
   const result: T[] = [];
@@ -192,7 +192,7 @@ export function topoSort<T extends Sortable>(objects: T[]): T[] {
     emitted[index] = 1;
     result.push(objects[index]);
     for (const next of graph[index]) {
-      if (--inDegree[next] === 0) ready.push(next);
+      if (--inDegree[next] === 0) {ready.push(next);}
     }
   }
 
@@ -201,9 +201,9 @@ export function topoSort<T extends Sortable>(objects: T[]): T[] {
   if (result.length < count) {
     const remaining = new IndexMinHeap(depths);
     for (let i = 0; i < count; i++) {
-      if (!emitted[i]) remaining.push(i);
+      if (!emitted[i]) {remaining.push(i);}
     }
-    while (remaining.size > 0) result.push(objects[remaining.pop()]);
+    while (remaining.size > 0) {result.push(objects[remaining.pop()]);}
   }
   return result;
 }

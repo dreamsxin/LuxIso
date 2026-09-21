@@ -1,6 +1,6 @@
-import { IsoObject } from '../../elements/IsoObject';
-import { Component } from '../Component';
-import type { EventEmitter, LuxIsoEventMap } from '../EventBus';
+import {IsoObject} from '../../elements/IsoObject';
+import {Component} from '../Component';
+import type {EventEmitter, LuxIsoEventMap} from '../EventBus';
 
 type TriggerEventMap = Pick<LuxIsoEventMap, 'triggerEnter' | 'triggerExit'>;
 
@@ -14,7 +14,7 @@ export interface TriggerZoneOptions {
   /** Called when an entity enters the zone. */
   onEnter?: (enterId: string) => void;
   /** Called when an entity exits the zone. */
-  onExit?:  (enterId: string) => void;
+  onExit?: (enterId: string) => void;
   /** Optional EventBus — emits 'triggerEnter' / 'triggerExit' events. */
   bus?: EventEmitter<TriggerEventMap>;
   /**
@@ -43,27 +43,27 @@ export interface TriggerZoneOptions {
 export class TriggerZoneComponent implements Component {
   readonly componentType = 'triggerZone' as const;
 
-  radius:  number;
+  radius: number;
   targets: IsoObject[];
 
-  private _owner:   IsoObject | null = null;
+  private _owner: IsoObject | null = null;
   // Two pre-allocated Sets swapped each frame to avoid per-frame allocation.
   private _inside = new Set<string>();
-  private _next   = new Set<string>();
+  private _next = new Set<string>();
   private _onEnter: ((id: string) => void) | undefined;
-  private _onExit:  ((id: string) => void) | undefined;
-  private _bus:     EventEmitter<TriggerEventMap> | null;
+  private _onExit: ((id: string) => void) | undefined;
+  private _bus: EventEmitter<TriggerEventMap> | null;
 
   constructor(opts: TriggerZoneOptions = {}) {
-    this.radius   = opts.radius  ?? 0.6;
-    this.targets  = opts.targets ?? [];
+    this.radius = opts.radius ?? 0.6;
+    this.targets = opts.targets ?? [];
     this._onEnter = opts.onEnter;
-    this._onExit  = opts.onExit;
-    this._bus     = opts.bus ?? null;
+    this._onExit = opts.onExit;
+    this._bus = opts.bus ?? null;
   }
 
   onAttach(owner: IsoObject): void { this._owner = owner; }
-  onDetach(): void                 { this._owner = null; this._inside.clear(); this._next.clear(); }
+  onDetach(): void { this._owner = null; this._inside.clear(); this._next.clear(); }
 
   /**
    * IDs of objects currently inside the zone.
@@ -84,17 +84,17 @@ export class TriggerZoneComponent implements Component {
   setOnExit(cb: (id: string) => void): void { this._onExit = cb; }
 
   update(_ts?: number): void {
-    if (!this._owner) return;
+    if (!this._owner) {return;}
 
     const ox = this._owner.position.x;
     const oy = this._owner.position.y;
-    const r  = this.radius;
+    const r = this.radius;
 
     // Reuse _next (cleared at end of previous frame) instead of allocating a new Set.
     const nowInside = this._next;
 
     for (const target of this.targets) {
-      if (target === this._owner) continue;
+      if (target === this._owner) {continue;}
       const dx = target.position.x - ox;
       const dy = target.position.y - oy;
       if (Math.hypot(dx, dy) <= r) {
@@ -106,7 +106,7 @@ export class TriggerZoneComponent implements Component {
     for (const id of nowInside) {
       if (!this._inside.has(id)) {
         this._onEnter?.(id);
-        this._bus?.emit('triggerEnter', { triggerId: this._owner.id, enterId: id });
+        this._bus?.emit('triggerEnter', {triggerId: this._owner.id, enterId: id});
       }
     }
 
@@ -114,14 +114,14 @@ export class TriggerZoneComponent implements Component {
     for (const id of this._inside) {
       if (!nowInside.has(id)) {
         this._onExit?.(id);
-        this._bus?.emit('triggerExit', { triggerId: this._owner.id, enterId: id });
+        this._bus?.emit('triggerExit', {triggerId: this._owner.id, enterId: id});
       }
     }
 
     // Swap: _inside = current frame; _next is cleared and ready for reuse.
-    const prev   = this._inside;
+    const prev = this._inside;
     this._inside = nowInside;
-    this._next   = prev;
+    this._next = prev;
     this._next.clear();
   }
 }

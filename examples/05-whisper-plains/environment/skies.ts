@@ -10,8 +10,8 @@
  * Each function takes exactly what it paints with (a context, a size, a
  * timestamp) so a test can hand it a recording context and assert what was drawn.
  */
-import { hexToRgba } from '../../../src/index';
-import type { DayNightCycle } from './DayNightCycle';
+import {hexToRgba} from '../../../src/index';
+import type {DayNightCycle} from './DayNightCycle';
 
 /** Stars per field. Constant so a test can assert the count. */
 const STAR_COUNT = 60;
@@ -34,7 +34,7 @@ export function drawStarField(
   h: number,
   ts: number,
   alpha: number,
-  colorFor: (i: number) => string,
+  colorFor: (i: number) => string
 ): void {
   const t = ts * 0.001;
   for (let i = 0; i < STAR_COUNT; i++) {
@@ -45,7 +45,7 @@ export function drawStarField(
       (Math.sin(i * 127.1) * 0.5 + 0.5) * w,
       (Math.sin(i * 311.7) * 0.5 + 0.5) * h * 0.52,
       0.5 + (i % 5) * 0.28,
-      0, Math.PI * 2,
+      0, Math.PI * 2
     );
     ctx.fill();
   }
@@ -54,7 +54,7 @@ export function drawStarField(
 
 /** Plains star palette: mostly white, with warm and cool outliers. */
 const plainsStarColor = (i: number): string =>
-  i % 9 === 0 ? '#ffd0a0' : i % 13 === 0 ? '#c0e0ff' : '#ffffff';
+  (i % 9 === 0 ? '#ffd0a0' : i % 13 === 0 ? '#c0e0ff' : '#ffffff');
 
 /** Lake star palette: white with warm outliers only. */
 const lakeStarColor = (i: number): string => (i % 9 === 0 ? '#ffd0a0' : '#ffffff');
@@ -68,7 +68,7 @@ export function drawPlainsSky(
   w: number,
   h: number,
   ts: number,
-  dn: DayNightCycle,
+  dn: DayNightCycle
 ): void {
   const c = dn.getColors();
   const grad = ctx.createLinearGradient(0, 0, 0, h * 0.72);
@@ -128,7 +128,7 @@ export function drawPlainsSky(
     }
     ctx.globalAlpha = 1;
   }
-  if (c.showStars) drawStarField(ctx, w, h, ts, c.starAlpha, plainsStarColor);
+  if (c.showStars) {drawStarField(ctx, w, h, ts, c.starAlpha, plainsStarColor);}
 }
 
 /** The lake's permanent night sky: cold gradient, a fixed moon, and stars. */
@@ -136,7 +136,7 @@ export function drawLakeSky(
   ctx: CanvasRenderingContext2D,
   w: number,
   h: number,
-  ts: number,
+  ts: number
 ): void {
   const grad = ctx.createLinearGradient(0, 0, 0, h * 0.75);
   grad.addColorStop(0, '#04091a');
@@ -171,7 +171,7 @@ export function drawDeepSky(
   ctx: CanvasRenderingContext2D,
   w: number,
   h: number,
-  ts: number,
+  ts: number
 ): void {
   const grad = ctx.createLinearGradient(0, 0, 0, h);
   grad.addColorStop(0, '#000810');

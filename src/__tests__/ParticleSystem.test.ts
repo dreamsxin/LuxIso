@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import {describe, it, expect, beforeEach, vi} from 'vitest';
 import {
   ParticleBlend,
   ParticleSystem,
@@ -30,7 +30,7 @@ describe('ParticleSystem — construction', () => {
     const ps = new ParticleSystem('fx', 2, 3, 0);
     expect(ps.particleCount).toBe(0);
     expect(ps.castsShadow).toBe(false);
-    expect(ps.position).toEqual({ x: 2, y: 3, z: 0 });
+    expect(ps.position).toEqual({x: 2, y: 3, z: 0});
   });
 });
 
@@ -50,14 +50,14 @@ describe('ParticleSystem — burst', () => {
 
   it('honours maxParticles as a live-particle cap', () => {
     const ps = new ParticleSystem('fx', 0, 0, 0);
-    ps.addEmitter(burstConfig({ maxParticles: 3 }));
+    ps.addEmitter(burstConfig({maxParticles: 3}));
     ps.burst(20);
     expect(ps.particleCount).toBe(3);
   });
 
   it('accepts the legacy `max` spelling too', () => {
     const ps = new ParticleSystem('fx', 0, 0, 0);
-    ps.addEmitter(burstConfig({ max: 2 }));
+    ps.addEmitter(burstConfig({max: 2}));
     ps.burst(20);
     expect(ps.particleCount).toBe(2);
   });
@@ -66,22 +66,22 @@ describe('ParticleSystem — burst', () => {
 describe('ParticleSystem — rate-based emission and ageing', () => {
   it('spawns from a rate emitter as time advances', () => {
     const ps = new ParticleSystem('fx', 0, 0, 0);
-    ps.addEmitter(burstConfig({ rate: 10, life: [10, 10] }));
+    ps.addEmitter(burstConfig({rate: 10, life: [10, 10]}));
 
-    ps.update(1_000);       // first update: dt is assumed 1/60
+    ps.update(1_000); // first update: dt is assumed 1/60
     const afterFirst = ps.particleCount;
-    ps.update(1_100);       // dt = 0.1s at 10/s -> one more particle
+    ps.update(1_100); // dt = 0.1s at 10/s -> one more particle
     expect(ps.particleCount).toBeGreaterThan(afterFirst);
   });
 
   it('removes particles once their life expires', () => {
     const ps = new ParticleSystem('fx', 0, 0, 0);
-    ps.addEmitter(burstConfig({ life: [0.05, 0.05] }));
+    ps.addEmitter(burstConfig({life: [0.05, 0.05]}));
     ps.burst(5);
     expect(ps.particleCount).toBe(5);
 
     ps.update(1_000);
-    ps.update(1_100);       // dt = 0.1s > life
+    ps.update(1_100); // dt = 0.1s > life
     expect(ps.particleCount).toBe(0);
   });
 
@@ -92,15 +92,15 @@ describe('ParticleSystem — rate-based emission and ageing', () => {
     }));
     ps.burst(1);
 
-    const read = (): { size: number; alpha: number } => {
-      let out = { size: -1, alpha: -1 };
-      ps.forEachParticle((p) => { out = { size: p.size, alpha: p.alpha }; });
+    const read = (): {size: number; alpha: number} => {
+      let out = {size: -1, alpha: -1};
+      ps.forEachParticle(p => { out = {size: p.size, alpha: p.alpha}; });
       return out;
     };
 
-    expect(read()).toEqual({ size: 10, alpha: 1 });
+    expect(read()).toEqual({size: 10, alpha: 1});
     ps.update(1_000);
-    ps.update(1_100);       // 0.1s into a 1s life
+    ps.update(1_100); // 0.1s into a 1s life
     const mid = read();
     expect(mid.size).toBeLessThan(10);
     expect(mid.alpha).toBeLessThan(1);
@@ -125,17 +125,17 @@ describe('ParticleSystem — onExhausted', () => {
   it('fires exactly once after the last particle dies', () => {
     const seen = vi.fn();
     const ps = new ParticleSystem('fx', 0, 0, 0);
-    ps.addEmitter(burstConfig({ life: [0.05, 0.05] }));
+    ps.addEmitter(burstConfig({life: [0.05, 0.05]}));
     ps.onExhausted = seen;
     ps.burst(3);
 
     ps.update(1_000);
-    expect(seen).not.toHaveBeenCalled();   // still alive
+    expect(seen).not.toHaveBeenCalled(); // still alive
 
-    ps.update(1_100);                       // all expire
+    ps.update(1_100); // all expire
     expect(seen).toHaveBeenCalledTimes(1);
 
-    ps.update(1_200);                       // must not fire again
+    ps.update(1_200); // must not fire again
     ps.update(1_300);
     expect(seen).toHaveBeenCalledTimes(1);
   });
@@ -143,17 +143,17 @@ describe('ParticleSystem — onExhausted', () => {
   it('does not fire while a rate emitter is still active', () => {
     const seen = vi.fn();
     const ps = new ParticleSystem('fx', 0, 0, 0);
-    ps.addEmitter(burstConfig({ rate: 5, life: [0.05, 0.05] }));
+    ps.addEmitter(burstConfig({rate: 5, life: [0.05, 0.05]}));
     ps.onExhausted = seen;
 
-    for (let t = 1_000; t <= 1_500; t += 100) ps.update(t);
+    for (let t = 1_000; t <= 1_500; t += 100) {ps.update(t);}
     expect(seen).not.toHaveBeenCalled();
   });
 
   it('can fire again after the system is re-burst', () => {
     const seen = vi.fn();
     const ps = new ParticleSystem('fx', 0, 0, 0);
-    ps.addEmitter(burstConfig({ life: [0.05, 0.05] }));
+    ps.addEmitter(burstConfig({life: [0.05, 0.05]}));
     ps.onExhausted = seen;
 
     ps.burst(2);
@@ -171,7 +171,7 @@ describe('ParticleSystem — onExhausted', () => {
 describe('ParticleSystem — recycle pool', () => {
   it('returns dead particles to the pool and reuses them', () => {
     const ps = new ParticleSystem('fx', 0, 0, 0);
-    ps.addEmitter(burstConfig({ life: [0.05, 0.05] }));
+    ps.addEmitter(burstConfig({life: [0.05, 0.05]}));
     ps.burst(4);
     expect(ParticleSystem.poolSize).toBe(0);
 
@@ -180,7 +180,7 @@ describe('ParticleSystem — recycle pool', () => {
     expect(ps.particleCount).toBe(0);
     expect(ParticleSystem.poolSize).toBe(4);
 
-    ps.burst(4);                             // served from the pool
+    ps.burst(4); // served from the pool
     expect(ps.particleCount).toBe(4);
     expect(ParticleSystem.poolSize).toBe(0);
   });
@@ -190,7 +190,7 @@ describe('ParticleSystem — recycle pool', () => {
     // resident for the lifetime of the page.
     ParticleSystem.poolLimit = 5;
     const ps = new ParticleSystem('fx', 0, 0, 0);
-    ps.addEmitter(burstConfig({ life: [0.05, 0.05] }));
+    ps.addEmitter(burstConfig({life: [0.05, 0.05]}));
     ps.burst(40);
 
     ps.update(1_000);
@@ -201,7 +201,7 @@ describe('ParticleSystem — recycle pool', () => {
 
   it('clearPool drops everything', () => {
     const ps = new ParticleSystem('fx', 0, 0, 0);
-    ps.addEmitter(burstConfig({ life: [0.05, 0.05] }));
+    ps.addEmitter(burstConfig({life: [0.05, 0.05]}));
     ps.burst(3);
     ps.update(1_000);
     ps.update(1_100);
@@ -218,13 +218,13 @@ describe('ParticleSystem — aabb', () => {
     const a = ps.aabb;
     expect(a.minX).toBeCloseTo(3.5);
     expect(a.maxX).toBeCloseTo(4.5);
-    expect(a.baseZ).toBe(48);          // pixels, same unit as position.z
+    expect(a.baseZ).toBe(48); // pixels, same unit as position.z
     expect(a.maxZ).toBeUndefined();
   });
 
   it('spans the live particles once they exist', () => {
     const ps = new ParticleSystem('fx', 0, 0, 0);
-    ps.addEmitter(burstConfig({ spawnRadius: 4 }));
+    ps.addEmitter(burstConfig({spawnRadius: 4}));
     ps.burst(30);
     const a = ps.aabb;
     expect(a.minX).toBeLessThanOrEqual(a.maxX);
@@ -235,10 +235,10 @@ describe('ParticleSystem — aabb', () => {
 describe('ParticleSystem — blend normalisation', () => {
   const blendOf = (blend: EmitterConfig['blend']): ParticleBlend => {
     const ps = new ParticleSystem('fx', 0, 0, 0);
-    ps.addEmitter(burstConfig({ blend }));
+    ps.addEmitter(burstConfig({blend}));
     ps.burst(1);
     let out = ParticleBlend.ALPHA;
-    ps.forEachParticle((p) => { out = p.blend; });
+    ps.forEachParticle(p => { out = p.blend; });
     return out;
   };
 
@@ -286,15 +286,15 @@ describe('ParticleSystem.presets', () => {
     // These factories used to be typed `(_o?: any)` and drop the argument, so
     // `sparkBurst({ color: 'red' })` silently produced the default palette.
     expect(ParticleSystem.presets.sparkBurst().color).toEqual(['#ffffff', '#ffffcc']);
-    expect(ParticleSystem.presets.sparkBurst({ color: '#ff0000' }).color).toBe('#ff0000');
-    expect(ParticleSystem.presets.dustPuff({ color: ['#111', '#222'] }).color).toEqual(['#111', '#222']);
+    expect(ParticleSystem.presets.sparkBurst({color: '#ff0000'}).color).toBe('#ff0000');
+    expect(ParticleSystem.presets.dustPuff({color: ['#111', '#222']}).color).toEqual(['#111', '#222']);
   });
 
   it('burst presets honour the count option as a particle cap', () => {
     expect(ParticleSystem.presets.coinSpill().maxParticles).toBeUndefined();
 
     const ps = new ParticleSystem('fx', 0, 0, 0);
-    ps.addEmitter(ParticleSystem.presets.coinSpill({ count: 4 }));
+    ps.addEmitter(ParticleSystem.presets.coinSpill({count: 4}));
     ps.burst(50);
     expect(ps.particleCount).toBe(4);
   });
@@ -325,12 +325,12 @@ describe('ParticleSystem.presets', () => {
 
   it('a preset config drives a real system end to end', () => {
     const ps = new ParticleSystem('fx', 1, 1, 0);
-    ps.addEmitter(ParticleSystem.presets.sparkBurst({ color: '#abcdef' }));
+    ps.addEmitter(ParticleSystem.presets.sparkBurst({color: '#abcdef'}));
     ps.burst(6);
     expect(ps.particleCount).toBe(6);
 
     const colors = new Set<string>();
-    ps.forEachParticle((p) => colors.add(p.color));
+    ps.forEachParticle(p => colors.add(p.color));
     expect([...colors]).toEqual(['#abcdef']);
   });
 });

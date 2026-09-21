@@ -1,8 +1,8 @@
-import { Scene } from './Scene';
-import { TriggerZoneComponent } from '../ecs/components/TriggerZoneComponent';
-import { project } from '../math/IsoProjection';
-import { IsoVec2 } from '../physics/Pathfinder';
-import { Entity } from '../ecs/Entity';
+import {Scene} from './Scene';
+import {TriggerZoneComponent} from '../ecs/components/TriggerZoneComponent';
+import {project} from '../math/IsoProjection';
+import {IsoVec2} from '../physics/Pathfinder';
+import {Entity} from '../ecs/Entity';
 
 export interface DebugRendererOptions {
   /** Show walkable/blocked tile grid. Default true. */
@@ -61,23 +61,23 @@ export class DebugRenderer {
     scene: Scene,
     originX: number,
     originY: number,
-    opts: DebugRendererOptions = {},
+    opts: DebugRendererOptions = {}
   ) {
-    this._scene   = scene;
+    this._scene = scene;
     this._originX = originX;
     this._originY = originY;
     this._opts = {
-      showCollision:   opts.showCollision   ?? true,
-      showAABB:        opts.showAABB        ?? false,
-      showLights:      opts.showLights      ?? true,
-      showTriggers:    opts.showTriggers    ?? true,
-      showFps:         opts.showFps         ?? true,
+      showCollision: opts.showCollision ?? true,
+      showAABB: opts.showAABB ?? false,
+      showLights: opts.showLights ?? true,
+      showTriggers: opts.showTriggers ?? true,
+      showFps: opts.showFps ?? true,
       showObjectCount: opts.showObjectCount ?? true,
-      blockedColor:    opts.blockedColor    ?? 'rgba(255,80,80,0.45)',
-      walkableColor:   opts.walkableColor   ?? 'rgba(80,255,80,0.06)',
-      aabbColor:       opts.aabbColor       ?? 'rgba(255,220,0,0.7)',
-      lightColor:      opts.lightColor      ?? 'rgba(255,200,60,0.4)',
-      triggerColor:    opts.triggerColor    ?? 'rgba(80,180,255,0.6)',
+      blockedColor: opts.blockedColor ?? 'rgba(255,80,80,0.45)',
+      walkableColor: opts.walkableColor ?? 'rgba(80,255,80,0.06)',
+      aabbColor: opts.aabbColor ?? 'rgba(255,220,0,0.7)',
+      lightColor: opts.lightColor ?? 'rgba(255,200,60,0.4)',
+      triggerColor: opts.triggerColor ?? 'rgba(80,180,255,0.6)',
     };
   }
 
@@ -92,11 +92,11 @@ export class DebugRenderer {
    * Call this in your postFrame callback, after scene.draw().
    */
   draw(ctx: CanvasRenderingContext2D, canvasW: number, canvasH: number, ts = performance.now()): void {
-    if (!this.enabled) return;
+    if (!this.enabled) {return;}
 
-    const scene    = this._scene;
-    const camera   = scene.camera;
-    const { tileW, tileH } = scene;
+    const scene = this._scene;
+    const camera = scene.camera;
+    const {tileW, tileH} = scene;
     const ox = this._originX;
     const oy = this._originY;
 
@@ -107,10 +107,10 @@ export class DebugRenderer {
     camera.applyTransform(ctx, canvasW, canvasH, tileW, tileH, ox, oy, scene.view);
 
 
-    if (this._opts.showCollision) this._drawCollision(ctx, tileW, tileH);
-    if (this._opts.showAABB)      this._drawAABBs(ctx, tileW, tileH);
-    if (this._opts.showLights)    this._drawLights(ctx, tileW, tileH);
-    if (this._opts.showTriggers)  this._drawTriggers(ctx, tileW, tileH);
+    if (this._opts.showCollision) {this._drawCollision(ctx, tileW, tileH);}
+    if (this._opts.showAABB) {this._drawAABBs(ctx, tileW, tileH);}
+    if (this._opts.showLights) {this._drawLights(ctx, tileW, tileH);}
+    if (this._opts.showTriggers) {this._drawTriggers(ctx, tileW, tileH);}
 
     camera.restoreTransform(ctx);
 
@@ -129,11 +129,11 @@ export class DebugRenderer {
     fromY: number,
     fromZ: number,
     canvasW: number,
-    canvasH: number,
+    canvasH: number
   ): void {
-    if (!this.enabled || waypoints.length === 0) return;
+    if (!this.enabled || waypoints.length === 0) {return;}
 
-    const { tileW, tileH } = this._scene;
+    const {tileW, tileH} = this._scene;
     const camera = this._scene.camera;
     const ox = this._originX;
     const oy = this._originY;
@@ -141,7 +141,7 @@ export class DebugRenderer {
     camera.applyTransform(ctx, canvasW, canvasH, tileW, tileH, ox, oy, this._scene.view);
 
 
-    const { sx: startX, sy: startY } = project(fromX, fromY, fromZ, tileW, tileH);
+    const {sx: startX, sy: startY} = project(fromX, fromY, fromZ, tileW, tileH);
 
     ctx.save();
     ctx.setLineDash([4, 5]);
@@ -150,7 +150,7 @@ export class DebugRenderer {
     ctx.beginPath();
     ctx.moveTo(startX, startY);
     for (const wp of waypoints) {
-      const { sx, sy } = project(wp.x, wp.y, fromZ, tileW, tileH);
+      const {sx, sy} = project(wp.x, wp.y, fromZ, tileW, tileH);
       ctx.lineTo(sx, sy);
     }
     ctx.stroke();
@@ -158,7 +158,7 @@ export class DebugRenderer {
     ctx.setLineDash([]);
     ctx.fillStyle = 'rgba(85,144,204,0.85)';
     for (const wp of waypoints) {
-      const { sx, sy } = project(wp.x, wp.y, fromZ, tileW, tileH);
+      const {sx, sy} = project(wp.x, wp.y, fromZ, tileW, tileH);
       ctx.beginPath();
       ctx.arc(sx, sy, 3, 0, Math.PI * 2);
       ctx.fill();
@@ -172,28 +172,28 @@ export class DebugRenderer {
 
   private _drawCollision(ctx: CanvasRenderingContext2D, tileW: number, tileH: number): void {
     const collider = this._scene.collider;
-    if (!collider) return;
+    if (!collider) {return;}
 
-    const { cols, rows } = collider;
+    const {cols, rows} = collider;
     ctx.save();
     ctx.lineWidth = 0.5;
 
     for (let row = 0; row < rows; row++) {
       for (let col = 0; col < cols; col++) {
         const walkable = collider.isWalkable(col, row);
-        if (walkable && !this._opts.walkableColor) continue;
+        if (walkable && !this._opts.walkableColor) {continue;}
 
         // Tile corners in world space
         const corners = [
-          project(col,     row,     0, tileW, tileH),
-          project(col + 1, row,     0, tileW, tileH),
+          project(col, row, 0, tileW, tileH),
+          project(col + 1, row, 0, tileW, tileH),
           project(col + 1, row + 1, 0, tileW, tileH),
-          project(col,     row + 1, 0, tileW, tileH),
+          project(col, row + 1, 0, tileW, tileH),
         ];
 
         ctx.beginPath();
         ctx.moveTo(corners[0].sx, corners[0].sy);
-        for (let i = 1; i < 4; i++) ctx.lineTo(corners[i].sx, corners[i].sy);
+        for (let i = 1; i < 4; i++) {ctx.lineTo(corners[i].sx, corners[i].sy);}
         ctx.closePath();
 
         if (!walkable) {
@@ -217,7 +217,7 @@ export class DebugRenderer {
     ctx.setLineDash([3, 3]);
 
     for (const obj of this._scene.allObjects) {
-      const { minX, minY, maxX, maxY } = obj.aabb;
+      const {minX, minY, maxX, maxY} = obj.aabb;
       const corners = [
         project(minX, minY, 0, tileW, tileH),
         project(maxX, minY, 0, tileW, tileH),
@@ -226,7 +226,7 @@ export class DebugRenderer {
       ];
       ctx.beginPath();
       ctx.moveTo(corners[0].sx, corners[0].sy);
-      for (let i = 1; i < 4; i++) ctx.lineTo(corners[i].sx, corners[i].sy);
+      for (let i = 1; i < 4; i++) {ctx.lineTo(corners[i].sx, corners[i].sy);}
       ctx.closePath();
       ctx.stroke();
     }
@@ -242,7 +242,7 @@ export class DebugRenderer {
     ctx.setLineDash([5, 4]);
 
     for (const light of this._scene.omniLights) {
-      const { sx, sy } = project(light.position.x, light.position.y, 0, tileW, tileH);
+      const {sx, sy} = project(light.position.x, light.position.y, 0, tileW, tileH);
       // `OmniLight.radius` is already in screen pixels, and this runs inside the
       // camera transform, so it is drawn as-is. The old expression divided and
       // multiplied by the same `tileW / 2` — a no-op dressed up as a conversion
@@ -278,11 +278,11 @@ export class DebugRenderer {
     ctx.setLineDash([4, 4]);
 
     for (const obj of this._scene.allObjects) {
-      if (!(obj instanceof Entity)) continue;
+      if (!(obj instanceof Entity)) {continue;}
       const trigger = obj.getComponent(TriggerZoneComponent);
-      if (!trigger) continue;
+      if (!trigger) {continue;}
 
-      const { sx, sy } = project(obj.position.x, obj.position.y, 0, tileW, tileH);
+      const {sx, sy} = project(obj.position.x, obj.position.y, 0, tileW, tileH);
       // The projection matrix is [[tw/2, -tw/2], [th/2, th/2]], whose singular
       // values are tw/√2 and th/√2 — so a world circle of radius r is an
       // ellipse with exactly those semi-axes scaled by r. The old code used
@@ -306,7 +306,7 @@ export class DebugRenderer {
     const dt = this._lastTs === null ? 0 : ts - this._lastTs;
     if (dt > 0) {
       this._fpsSamples.push(1000 / dt);
-      if (this._fpsSamples.length > 30) this._fpsSamples.shift();
+      if (this._fpsSamples.length > 30) {this._fpsSamples.shift();}
     }
     this._lastTs = ts;
 
@@ -315,14 +315,14 @@ export class DebugRenderer {
       : 0;
 
     const lines: string[] = ['[DEBUG]'];
-    if (this._opts.showFps)         lines.push(`FPS: ${avgFps.toFixed(0)}`);
+    if (this._opts.showFps) {lines.push(`FPS: ${avgFps.toFixed(0)}`);}
     if (this._opts.showObjectCount) {
       lines.push(`Objects: ${this._scene.allObjects.length}`);
     }
-    if (this._opts.showCollision)   lines.push('Collision: ON');
-    if (this._opts.showAABB)        lines.push('AABB: ON');
-    if (this._opts.showLights)      lines.push('Lights: ON');
-    if (this._opts.showTriggers)    lines.push('Triggers: ON');
+    if (this._opts.showCollision) {lines.push('Collision: ON');}
+    if (this._opts.showAABB) {lines.push('AABB: ON');}
+    if (this._opts.showLights) {lines.push('Lights: ON');}
+    if (this._opts.showTriggers) {lines.push('Triggers: ON');}
 
     ctx.save();
     ctx.font = '11px monospace';

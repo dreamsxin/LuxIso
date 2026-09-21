@@ -1,6 +1,6 @@
-import { IsoObject, DrawContext } from '../elements/IsoObject';
-import { AABB } from '../math/depthSort';
-import { Component, ComponentCtor } from './Component';
+import {IsoObject, DrawContext} from '../elements/IsoObject';
+import {AABB} from '../math/depthSort';
+import {Component, ComponentCtor} from './Component';
 
 /**
  * Entity extends IsoObject with a component map.
@@ -31,7 +31,7 @@ export abstract class Entity extends IsoObject {
   addComponent<T extends Component>(component: T): T {
     const ctor = component.constructor as ComponentCtor<T>;
     const previous = this._components.get(ctor);
-    if (previous === component) return component;
+    if (previous === component) {return component;}
     previous?.onDetach?.();
     this._components.set(ctor, component);
     component.onAttach?.(this);

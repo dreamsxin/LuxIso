@@ -4,9 +4,9 @@
  * LowPolyFlower— 低多边形花朵（茎 + 多瓣 + 花粉光点）
  * LowPolyRock  — 低多边形石块（草原装饰）
  */
-import { IsoObject, DrawContext } from '../../../src/elements/IsoObject';
-import { AABB } from '../../../src/math/depthSort';
-import { project } from '../../../src/math/IsoProjection';
+import {IsoObject, DrawContext} from '../../../src/elements/IsoObject';
+import {AABB} from '../../../src/math/depthSort';
+import {project} from '../../../src/math/IsoProjection';
 
 // ── 低多边形树 ─────────────────────────────────────────────────────────────
 
@@ -21,10 +21,10 @@ export class LowPolyTree extends IsoObject {
     color?: string; scale?: number; seed?: number; variant?: number;
   } = {}) {
     super(id, x, y, 0);
-    this._color     = opts.color   ?? '#4a8c3f';
-    this._scale     = opts.scale   ?? 1;
-    this._swayPhase = (opts.seed   ?? Math.random()) * Math.PI * 2;
-    this._variant   = opts.variant ?? Math.floor((opts.seed ?? Math.random()) * 3);
+    this._color = opts.color ?? '#4a8c3f';
+    this._scale = opts.scale ?? 1;
+    this._swayPhase = (opts.seed ?? Math.random()) * Math.PI * 2;
+    this._variant = opts.variant ?? Math.floor((opts.seed ?? Math.random()) * 3);
     this.castsShadow = false;
   }
 
@@ -46,9 +46,9 @@ export class LowPolyTree extends IsoObject {
   }
 
   draw(dc: DrawContext): void {
-    const { ctx, tileW, tileH, originX, originY } = dc;
-    const { x, y } = this.position;
-    const { sx, sy } = project(x, y, 0, tileW, tileH);
+    const {ctx, tileW, tileH, originX, originY} = dc;
+    const {x, y} = this.position;
+    const {sx, sy} = project(x, y, 0, tileW, tileH);
     const cx = originX + sx;
     const cy = originY + sy;
     const s = this._scale;
@@ -99,7 +99,7 @@ export class LowPolyTree extends IsoObject {
     const tw = 4 * s;
     const th = 16 * s;
     const trunkBase = '#5a3418';
-    const trunkLit  = '#7a4a28';
+    const trunkLit = '#7a4a28';
     const trunkDark = '#3d2210';
 
     // 左面（暗）
@@ -139,19 +139,19 @@ export class LowPolyTree extends IsoObject {
     const configs = [
       // variant 0: 三层圆润锥
       [
-        { r: 20*s, h: 20*s, baseY: -th - 2*s },
-        { r: 15*s, h: 18*s, baseY: -th - 14*s },
-        { r: 10*s, h: 16*s, baseY: -th - 24*s },
+        {r: 20 * s, h: 20 * s, baseY: -th - 2 * s},
+        {r: 15 * s, h: 18 * s, baseY: -th - 14 * s},
+        {r: 10 * s, h: 16 * s, baseY: -th - 24 * s},
       ],
       // variant 1: 两层尖锥
       [
-        { r: 18*s, h: 26*s, baseY: -th - 2*s },
-        { r: 11*s, h: 22*s, baseY: -th - 18*s },
+        {r: 18 * s, h: 26 * s, baseY: -th - 2 * s},
+        {r: 11 * s, h: 22 * s, baseY: -th - 18 * s},
       ],
       // variant 2: 矮胖单层
       [
-        { r: 24*s, h: 16*s, baseY: -th - 2*s },
-        { r: 16*s, h: 12*s, baseY: -th - 10*s },
+        {r: 24 * s, h: 16 * s, baseY: -th - 2 * s},
+        {r: 16 * s, h: 12 * s, baseY: -th - 10 * s},
       ],
     ][this._variant] ?? [];
 
@@ -163,10 +163,10 @@ export class LowPolyTree extends IsoObject {
 
       // 低多边形树冠：6个顶点围成底圈，投影到等距
       const SIDES = 6;
-      const pts: Array<{ x: number; y: number }> = [];
+      const pts: Array<{x: number; y: number}> = [];
       for (let i = 0; i < SIDES; i++) {
         const a = (i / SIDES) * Math.PI * 2;
-        pts.push({ x: Math.cos(a) * r, y: baseY + Math.sin(a) * r * 0.45 });
+        pts.push({x: Math.cos(a) * r, y: baseY + Math.sin(a) * r * 0.45});
       }
 
       // 每个侧面三角形（底边顶点 → 顶点）
@@ -189,7 +189,7 @@ export class LowPolyTree extends IsoObject {
       // 底面（可见部分）
       ctx.beginPath();
       ctx.moveTo(pts[0].x, pts[0].y);
-      for (let i = 1; i < SIDES; i++) ctx.lineTo(pts[i].x, pts[i].y);
+      for (let i = 1; i < SIDES; i++) {ctx.lineTo(pts[i].x, pts[i].y);}
       ctx.closePath();
       ctx.fillStyle = this._shiftColor(this._color, -20);
       ctx.fill();
@@ -199,8 +199,8 @@ export class LowPolyTree extends IsoObject {
   private _getFaceColors(layerIndex: number): string[] {
     const base = this._color;
     const light = this._shiftColor(base, 25 - layerIndex * 5);
-    const mid   = this._shiftColor(base, 8  - layerIndex * 5);
-    const dark  = this._shiftColor(base, -18 - layerIndex * 5);
+    const mid = this._shiftColor(base, 8 - layerIndex * 5);
+    const dark = this._shiftColor(base, -18 - layerIndex * 5);
     // 6面交替明暗，模拟方向光
     return [light, mid, dark, dark, mid, light];
   }
@@ -214,7 +214,7 @@ export class LowPolyTree extends IsoObject {
       b = parse(hex.slice(5, 7));
     } else {
       // rgb(...) format
-      const m = hex.match(/\d+/g) ?? ['0','0','0'];
+      const m = hex.match(/\d+/g) ?? ['0', '0', '0'];
       [r, g, b] = m.map(Number);
     }
     const clamp = (v: number) => Math.max(0, Math.min(255, v));
@@ -235,9 +235,9 @@ export class LowPolyGrass extends IsoObject {
     color?: string; height?: number; seed?: number; blades?: number;
   } = {}) {
     super(id, x, y, 0);
-    this._color      = opts.color  ?? '#5aaa40';
-    this._height     = opts.height ?? 12;
-    this._windPhase  = (opts.seed  ?? Math.random()) * Math.PI * 2;
+    this._color = opts.color ?? '#5aaa40';
+    this._height = opts.height ?? 12;
+    this._windPhase = (opts.seed ?? Math.random()) * Math.PI * 2;
     this._bladeCount = opts.blades ?? 4;
     this.castsShadow = false;
   }
@@ -260,9 +260,9 @@ export class LowPolyGrass extends IsoObject {
   }
 
   draw(dc: DrawContext): void {
-    const { ctx, tileW, tileH, originX, originY } = dc;
-    const { x, y } = this.position;
-    const { sx, sy } = project(x, y, 0, tileW, tileH);
+    const {ctx, tileW, tileH, originX, originY} = dc;
+    const {x, y} = this.position;
+    const {sx, sy} = project(x, y, 0, tileW, tileH);
     const cx = originX + sx;
     const cy = originY + sy;
     const wind = Math.sin(this._windPhase) * 2.5;
@@ -321,15 +321,15 @@ export class LowPolyFlower extends IsoObject {
   private _petalCount: number;
   private _lastTs = 0;
 
-  constructor(id: string, x: number, y: number, opts: { color?: string; seed?: number } = {}) {
+  constructor(id: string, x: number, y: number, opts: {color?: string; seed?: number} = {}) {
     super(id, x, y, 0);
     const colors = ['#ff6b9d', '#ffb347', '#ff6b6b', '#ffd700', '#c084fc', '#67e8f9'];
     const idx = Math.floor((opts.seed ?? Math.random()) * colors.length) % colors.length;
-    this._petalColor  = opts.color ?? colors[idx];
-    this._stemColor   = '#4a7c35';
-    this._phase       = (opts.seed ?? Math.random()) * Math.PI * 2;
-    this._petalCount  = 5 + (idx % 2);
-    this.castsShadow  = false;
+    this._petalColor = opts.color ?? colors[idx];
+    this._stemColor = '#4a7c35';
+    this._phase = (opts.seed ?? Math.random()) * Math.PI * 2;
+    this._petalCount = 5 + (idx % 2);
+    this.castsShadow = false;
   }
 
   get aabb(): AABB {
@@ -350,13 +350,13 @@ export class LowPolyFlower extends IsoObject {
   }
 
   draw(dc: DrawContext): void {
-    const { ctx, tileW, tileH, originX, originY } = dc;
-    const { x, y } = this.position;
-    const { sx, sy } = project(x, y, 0, tileW, tileH);
+    const {ctx, tileW, tileH, originX, originY} = dc;
+    const {x, y} = this.position;
+    const {sx, sy} = project(x, y, 0, tileW, tileH);
     const cx = originX + sx;
     const cy = originY + sy;
-    const bob = Math.sin(this._phase) * 2.5;       // 加大上下幅度
-    const sway = Math.sin(this._phase * 0.7) * 2;  // 左右摇摆
+    const bob = Math.sin(this._phase) * 2.5; // 加大上下幅度
+    const sway = Math.sin(this._phase * 0.7) * 2; // 左右摇摆
     const stemH = 10;
 
     ctx.save();
@@ -450,23 +450,27 @@ export class LowPolyRock extends IsoObject {
   private _size: number;
   private _seed: number;
 
-  constructor(id: string, x: number, y: number, opts: { color?: string; size?: number; seed?: number } = {}) {
+  constructor(id: string, x: number, y: number, opts: {color?: string; size?: number; seed?: number} = {}) {
     super(id, x, y, 0);
     this._color = opts.color ?? '#8a8a9a';
-    this._size  = opts.size  ?? 1;
-    this._seed  = opts.seed  ?? Math.random();
+    this._size = opts.size ?? 1;
+    this._seed = opts.seed ?? Math.random();
     this.castsShadow = false;
   }
 
   get aabb(): AABB {
     const r = 0.25 * this._size;
-    return { minX: this.position.x - r, minY: this.position.y - r, maxX: this.position.x + r, maxY: this.position.y + r, baseZ: 0 };
+    return {
+      minX: this.position.x - r, minY: this.position.y - r,
+      maxX: this.position.x + r, maxY: this.position.y + r,
+      baseZ: 0,
+    };
   }
 
   draw(dc: DrawContext): void {
-    const { ctx, tileW, tileH, originX, originY } = dc;
-    const { x, y } = this.position;
-    const { sx, sy } = project(x, y, 0, tileW, tileH);
+    const {ctx, tileW, tileH, originX, originY} = dc;
+    const {x, y} = this.position;
+    const {sx, sy} = project(x, y, 0, tileW, tileH);
     const cx = originX + sx;
     const cy = originY + sy;
     const s = this._size;
@@ -487,7 +491,7 @@ export class LowPolyRock extends IsoObject {
     // 主体
     ctx.beginPath();
     ctx.moveTo(pts[0][0], pts[0][1]);
-    for (let i = 1; i < VERTS; i++) ctx.lineTo(pts[i][0], pts[i][1]);
+    for (let i = 1; i < VERTS; i++) {ctx.lineTo(pts[i][0], pts[i][1]);}
     ctx.closePath();
     ctx.fillStyle = this._color;
     ctx.fill();
@@ -496,7 +500,7 @@ export class LowPolyRock extends IsoObject {
     ctx.stroke();
 
     // 高光面（顶部三角）
-    const topIdx = pts.reduce((best, p, i) => p[1] < pts[best][1] ? i : best, 0);
+    const topIdx = pts.reduce((best, p, i) => (p[1] < pts[best][1] ? i : best), 0);
     const p0 = pts[topIdx];
     const p1 = pts[(topIdx + 1) % VERTS];
     const p2 = pts[(topIdx - 1 + VERTS) % VERTS];

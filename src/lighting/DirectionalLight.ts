@@ -1,4 +1,4 @@
-import { BaseLight } from './BaseLight';
+import {BaseLight} from './BaseLight';
 
 export interface DirectionalLightOptions {
   id?: string;
@@ -32,7 +32,7 @@ export class DirectionalLight extends BaseLight {
    * To get the "toward light" vector for dot-product with face normals,
    * negate this: sourceDir = { dx: -incidentDx, dy: -incidentDy }.
    */
-  get incidentDirection(): { dx: number; dy: number } {
+  get incidentDirection(): {dx: number; dy: number} {
     // Rays travel opposite to the angle (angle describes source position, not ray direction)
     return {
       dx: -Math.cos(this.angle),
@@ -41,7 +41,7 @@ export class DirectionalLight extends BaseLight {
   }
 
   /** Unit vector pointing FROM the scene TOWARD the light source. */
-  get direction(): { dx: number; dy: number } {
+  get direction(): {dx: number; dy: number} {
     return {
       dx: Math.cos(this.angle),
       dy: Math.sin(this.angle),

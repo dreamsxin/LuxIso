@@ -1,4 +1,4 @@
-import type { RenderSnapshot } from '../contracts/RenderSnapshot';
+import type {RenderSnapshot} from '../contracts/RenderSnapshot';
 
 export interface ScreenPoint {
   x: number;
@@ -7,7 +7,7 @@ export interface ScreenPoint {
 
 /** CPU equivalent of the shared WebGL vertex transform for DOM overlays. */
 export function renderPointToScreen(x: number, y: number, snapshot: RenderSnapshot): ScreenPoint {
-  const { camera, tileW, tileH } = snapshot;
+  const {camera, tileW, tileH} = snapshot;
   const cameraIsoX = (camera.worldX - camera.worldY) * (tileW / 2);
   const cameraIsoY = (camera.worldX + camera.worldY) * (tileH / 2);
   let px = x - cameraIsoX;
@@ -20,5 +20,5 @@ export function renderPointToScreen(x: number, y: number, snapshot: RenderSnapsh
   const rotatedY = -sin * px / aspect + cos * py;
   px = rotatedX * camera.zoom;
   py = rotatedY * camera.zoom;
-  return { x: camera.originX + px, y: camera.originY + py };
+  return {x: camera.originX + px, y: camera.originY + py};
 }

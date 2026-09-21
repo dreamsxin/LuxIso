@@ -1,8 +1,8 @@
-import { Entity } from '../../ecs/Entity';
-import { AABB } from '../../math/depthSort';
-import { project } from '../../math/IsoProjection';
-import { lerpColor, shiftColor } from '../../math/color';
-import { DrawContext } from '../IsoObject';
+import {Entity} from '../../ecs/Entity';
+import {AABB} from '../../math/depthSort';
+import {project} from '../../math/IsoProjection';
+import {lerpColor, shiftColor} from '../../math/color';
+import {DrawContext} from '../IsoObject';
 
 export interface TreeOptions {
   id: string;
@@ -49,7 +49,7 @@ export class Tree extends Entity {
   }
 
   draw(dc: DrawContext): void {
-    const { ctx, tileW, tileH, originX, originY, omniLights } = dc;
+    const {ctx, tileW, tileH, originX, originY, omniLights} = dc;
     const projected = project(this.position.x, this.position.y, 0, tileW, tileH);
     const cx = originX + projected.sx;
     const cy = originY + projected.sy;
@@ -91,7 +91,7 @@ export class Tree extends Entity {
         canopyRadius * scale * 0.8,
         0,
         0,
-        Math.PI * 2,
+        Math.PI * 2
       );
       ctx.fillStyle = lerpColor(color, '#ffffff', illumination * 0.18);
       ctx.fill();
@@ -105,7 +105,7 @@ export class Tree extends Entity {
       canopyRadius * 0.13,
       -0.3,
       0,
-      Math.PI * 2,
+      Math.PI * 2
     );
     ctx.fillStyle = lerpColor(shiftColor(this._canopyColor, 56), '#ffffff', illumination * 0.32);
     ctx.fill();

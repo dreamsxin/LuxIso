@@ -1,10 +1,10 @@
-import { describe, it, expect, afterEach, vi } from 'vitest';
-import { Combatant } from '../../examples/10-arpg/Combatant';
-import { registerCombatantExtractor } from '../../examples/10-arpg/CombatantExtractor';
-import { SceneExtractor } from '../../webgl-next/src/extraction/SceneExtractor';
-import { Scene } from '../core/Scene';
-import { TileCollider } from '../physics/TileCollider';
-import { PathCache, Pathfinder } from '../physics/Pathfinder';
+import {describe, it, expect, afterEach, vi} from 'vitest';
+import {Combatant} from '../../examples/10-arpg/Combatant';
+import {registerCombatantExtractor} from '../../examples/10-arpg/CombatantExtractor';
+import {SceneExtractor} from '../../webgl-next/src/extraction/SceneExtractor';
+import {Scene} from '../core/Scene';
+import {TileCollider} from '../physics/TileCollider';
+import {PathCache, Pathfinder} from '../physics/Pathfinder';
 
 /**
  * The ARPG demo's fighting entity, and its opt-in to the WebGL2 path.
@@ -16,11 +16,11 @@ import { PathCache, Pathfinder } from '../physics/Pathfinder';
  */
 
 function hero(x = 0, y = 0): Combatant {
-  return new Combatant('hero', x, y, { faction: 'hero', hp: 100, damage: 10, attackInterval: 0.5 });
+  return new Combatant('hero', x, y, {faction: 'hero', hp: 100, damage: 10, attackInterval: 0.5});
 }
 
 function grunt(x = 0, y = 0): Combatant {
-  return new Combatant('grunt', x, y, { hp: 30, damage: 6, attackInterval: 1 });
+  return new Combatant('grunt', x, y, {hp: 30, damage: 6, attackInterval: 1});
 }
 
 describe('Combatant — construction', () => {
@@ -72,9 +72,9 @@ describe('Combatant — think', () => {
     const b = hero(0.5, 0);
     a.think(0.016, b);
     expect(b.health.hp).toBe(94);
-    a.think(0.5, b);            // still cooling down
+    a.think(0.5, b); // still cooling down
     expect(b.health.hp).toBe(94);
-    a.think(0.5, b);            // interval elapsed
+    a.think(0.5, b); // interval elapsed
     expect(b.health.hp).toBe(88);
   });
 
@@ -134,7 +134,7 @@ describe('Combatant — think', () => {
 
   it('measures reach as a circle, not per axis', () => {
     const range = 1;
-    const a = new Combatant('a', 0, 0, { attackRange: range, damage: 3 });
+    const a = new Combatant('a', 0, 0, {attackRange: range, damage: 3});
     // Inside both axes but outside the radius: hypot(0.8, 0.8) = 1.13.
     const far = hero(0.8, 0.8);
     a.think(0.016, far);
@@ -147,7 +147,7 @@ describe('Combatant — chasing around cover', () => {
   /** A barrier down col 6, with a gap at the last two rows. */
   function barrier(): TileCollider {
     const collider = new TileCollider(12, 12);
-    for (let row = 0; row < 10; row++) collider.setWalkable(6, row, false);
+    for (let row = 0; row < 10; row++) {collider.setWalkable(6, row, false);}
     return collider;
   }
 
@@ -160,17 +160,17 @@ describe('Combatant — chasing around cover', () => {
 
   it('walks straight at a target it can see', () => {
     const collider = barrier();
-    const mob = new Combatant('m', 1.5, 2.5, { collider, speed: 2.4 });
+    const mob = new Combatant('m', 1.5, 2.5, {collider, speed: 2.4});
     // Same side of the barrier: nothing on the line.
-    mob.think(1 / 60, new Combatant('h', 4.5, 2.5, { faction: 'hero', collider }));
+    mob.think(1 / 60, new Combatant('h', 4.5, 2.5, {faction: 'hero', collider}));
     expect(mob.movement.isMoving).toBe(true);
     expect(mob.movement.remainingWaypoints.length).toBe(0);
   });
 
   it('follows a path when the barrier hides the target', () => {
     const collider = barrier();
-    const mob = new Combatant('m', 1.5, 2.5, { collider, speed: 2.4 });
-    mob.think(1 / 60, new Combatant('h', 9.5, 2.5, { faction: 'hero', collider }));
+    const mob = new Combatant('m', 1.5, 2.5, {collider, speed: 2.4});
+    mob.think(1 / 60, new Combatant('h', 9.5, 2.5, {faction: 'hero', collider}));
     expect(mob.movement.isMoving).toBe(true);
     // A straight `moveTo` leaves no waypoints; a route around the barrier does.
     expect(mob.movement.remainingWaypoints.length).toBeGreaterThan(0);
@@ -178,14 +178,14 @@ describe('Combatant — chasing around cover', () => {
 
   it('reaches a target on the far side of the barrier', () => {
     const collider = barrier();
-    const target = new Combatant('h', 9.5, 2.5, { faction: 'hero', hp: 500, collider });
-    const mob = new Combatant('m', 1.5, 2.5, { collider, speed: 2.4, damage: 3 });
+    const target = new Combatant('h', 9.5, 2.5, {faction: 'hero', hp: 500, collider});
+    const mob = new Combatant('m', 1.5, 2.5, {collider, speed: 2.4, damage: 3});
     chase(mob, target, 30);
 
     // Through the gap, up the far side, and into reach — the hero is being hit.
     expect(target.health.hp).toBeLessThan(500);
     expect(Math.hypot(
-      target.position.x - mob.position.x, target.position.y - mob.position.y,
+      target.position.x - mob.position.x, target.position.y - mob.position.y
     )).toBeLessThanOrEqual(mob.attackRange + 1e-6);
     expect(collider.isWalkable(Math.floor(mob.position.x), Math.floor(mob.position.y))).toBe(true);
   });
@@ -193,8 +193,8 @@ describe('Combatant — chasing around cover', () => {
   it('re-paths on an interval rather than every frame', () => {
     const collider = barrier();
     const cache = new PathCache(32);
-    const target = new Combatant('h', 9.5, 2.5, { faction: 'hero', collider });
-    const mob = new Combatant('m', 1.5, 2.5, { collider, speed: 2.4, pathCache: cache });
+    const target = new Combatant('h', 9.5, 2.5, {faction: 'hero', collider});
+    const mob = new Combatant('m', 1.5, 2.5, {collider, speed: 2.4, pathCache: cache});
 
     const find = vi.spyOn(Pathfinder, 'find');
     for (let i = 0; i < 60; i++) { mob.think(1 / 60, target); mob.fixedUpdate(1 / 60); }
@@ -214,8 +214,8 @@ describe('Combatant — chasing around cover', () => {
     const collider = new TileCollider(12, 12);
     // Seal the target in: A* returns null because the goal tile is blocked.
     collider.setWalkable(9, 2, false);
-    const target = new Combatant('h', 9.5, 2.5, { faction: 'hero', collider });
-    const mob = new Combatant('m', 1.5, 8.5, { collider, speed: 2.4 });
+    const target = new Combatant('h', 9.5, 2.5, {faction: 'hero', collider});
+    const mob = new Combatant('m', 1.5, 8.5, {collider, speed: 2.4});
 
     mob.think(1 / 60, target);
     expect(mob.movement.isMoving).toBe(true);
@@ -271,10 +271,10 @@ describe('Combatant — WebGL2 extraction', () => {
     SceneExtractor.clearExtractors();
   });
 
-  const OPTS = { viewportWidth: 400, viewportHeight: 300 };
+  const OPTS = {viewportWidth: 400, viewportHeight: 300};
 
   function sceneWith(unit: Combatant): Scene {
-    const scene = new Scene({ tileW: 64, tileH: 32, cols: 8, rows: 8 });
+    const scene = new Scene({tileW: 64, tileH: 32, cols: 8, rows: 8});
     scene.addObject(unit);
     return scene;
   }

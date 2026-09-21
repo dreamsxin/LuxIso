@@ -1,20 +1,20 @@
-import { describe, expect, it } from 'vitest';
-import { Scene } from '../core/Scene';
-import { Character } from '../elements/Character';
-import { Floor } from '../elements/Floor';
-import { type DrawContext, IsoObject } from '../elements/IsoObject';
-import { Wall } from '../elements/Wall';
-import { Boulder } from '../elements/props/Boulder';
-import { Chest } from '../elements/props/Chest';
-import { Cloud } from '../elements/props/Cloud';
-import { Crystal } from '../elements/props/Crystal';
-import { Tree } from '../elements/props/Tree';
-import { FlowerPatch } from '../elements/props/FlowerPatch';
-import { Lantern } from '../elements/props/Lantern';
-import { DirectionalLight } from '../lighting/DirectionalLight';
-import { OmniLight } from '../lighting/OmniLight';
-import type { AABB } from '../math/depthSort';
-import { SceneExtractor } from '../../webgl-next/src/extraction/SceneExtractor';
+import {describe, expect, it} from 'vitest';
+import {Scene} from '../core/Scene';
+import {Character} from '../elements/Character';
+import {Floor} from '../elements/Floor';
+import {type DrawContext, IsoObject} from '../elements/IsoObject';
+import {Wall} from '../elements/Wall';
+import {Boulder} from '../elements/props/Boulder';
+import {Chest} from '../elements/props/Chest';
+import {Cloud} from '../elements/props/Cloud';
+import {Crystal} from '../elements/props/Crystal';
+import {Tree} from '../elements/props/Tree';
+import {FlowerPatch} from '../elements/props/FlowerPatch';
+import {Lantern} from '../elements/props/Lantern';
+import {DirectionalLight} from '../lighting/DirectionalLight';
+import {OmniLight} from '../lighting/OmniLight';
+import type {AABB} from '../math/depthSort';
+import {SceneExtractor} from '../../webgl-next/src/extraction/SceneExtractor';
 
 describe('WebGL Next SceneExtractor', () => {
   it('extracts every migrated built-in into ordered render ranges', () => {
@@ -76,7 +76,7 @@ describe('WebGL Next SceneExtractor', () => {
   });
 
   it('reports custom objects and emits visible diagnostic geometry', () => {
-    const scene = new Scene({ cols: 2, rows: 2 });
+    const scene = new Scene({cols: 2, rows: 2});
     scene.addObject(new DiagnosticObject('custom', 1, 1));
     const snapshot = new SceneExtractor().extract(scene, viewport());
 
@@ -91,10 +91,10 @@ describe('WebGL Next SceneExtractor', () => {
   });
 
   it('emits sealed, non-degenerate crystal faces around the center ridge', () => {
-    const scene = new Scene({ cols: 2, rows: 2, tileW: 64, tileH: 32 });
+    const scene = new Scene({cols: 2, rows: 2, tileW: 64, tileH: 32});
     scene.addObject(new Crystal('crystal', 1, 1, '#8060e0', 48));
     const geometry = new SceneExtractor().extract(scene, viewport()).geometry;
-    const { first, count } = geometry.opaque;
+    const {first, count} = geometry.opaque;
 
     expect(count).toBe(33);
     for (let vertex = first; vertex < first + count; vertex += 3) {
@@ -108,19 +108,19 @@ describe('WebGL Next SceneExtractor', () => {
 });
 
 function builtInScene(): Scene {
-  const scene = new Scene({ tileW: 64, tileH: 32, cols: 4, rows: 4 });
-  scene.addObject(new Floor({ id: 'floor', cols: 4, rows: 4, color: '#345645' }));
-  scene.addObject(new Wall({ id: 'wall', x: 0, y: 0, endX: 3, endY: 0 }));
-  scene.addObject(new Character({ id: 'character', x: 1, y: 1 }));
+  const scene = new Scene({tileW: 64, tileH: 32, cols: 4, rows: 4});
+  scene.addObject(new Floor({id: 'floor', cols: 4, rows: 4, color: '#345645'}));
+  scene.addObject(new Wall({id: 'wall', x: 0, y: 0, endX: 3, endY: 0}));
+  scene.addObject(new Character({id: 'character', x: 1, y: 1}));
   scene.addObject(new Crystal('crystal', 2, 1));
   scene.addObject(new Boulder('boulder', 2, 2));
   scene.addObject(new Chest('chest', 1, 2));
-  scene.addObject(new Tree({ id: 'tree', x: 0.8, y: 2.8 }));
-  scene.addObject(new FlowerPatch({ id: 'flowers', x: 2.8, y: 0.8, seed: 2 }));
-  scene.addObject(new Lantern({ id: 'lantern', x: 2.8, y: 2.8 }));
-  scene.addObject(new Cloud({ id: 'cloud', x: 3, y: 2 }));
-  scene.addLight(new OmniLight({ id: 'omni', x: 2, y: 2, z: 64 }));
-  scene.addLight(new DirectionalLight({ id: 'sun', angle: 220 }));
+  scene.addObject(new Tree({id: 'tree', x: 0.8, y: 2.8}));
+  scene.addObject(new FlowerPatch({id: 'flowers', x: 2.8, y: 0.8, seed: 2}));
+  scene.addObject(new Lantern({id: 'lantern', x: 2.8, y: 2.8}));
+  scene.addObject(new Cloud({id: 'cloud', x: 3, y: 2}));
+  scene.addLight(new OmniLight({id: 'omni', x: 2, y: 2, z: 64}));
+  scene.addLight(new DirectionalLight({id: 'sun', angle: 220}));
   return scene;
 }
 
@@ -130,12 +130,12 @@ function vertexPoint(data: Float32Array, vertex: number): readonly [number, numb
 }
 
 function viewport() {
-  return { viewportWidth: 800, viewportHeight: 600, originX: 400, originY: 120 };
+  return {viewportWidth: 800, viewportHeight: 600, originX: 400, originY: 120};
 }
 
 function findPickId(lookup: ReadonlyMap<number, string>, objectId: string): number {
   const match = [...lookup].find(([, id]) => id === objectId);
-  if (!match) throw new Error(`Missing pick ID for ${objectId}.`);
+  if (!match) {throw new Error(`Missing pick ID for ${objectId}.`);}
   return match[0];
 }
 

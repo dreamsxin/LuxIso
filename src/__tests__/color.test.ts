@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { hexToRgb, hexToRgba, shiftColor, blendColor, lerpColor } from '../math/color';
+import {describe, it, expect} from 'vitest';
+import {hexToRgb, hexToRgba, shiftColor, blendColor, lerpColor} from '../math/color';
 
 describe('hexToRgb', () => {
   it('parses white', () => expect(hexToRgb('#ffffff')).toEqual([255, 255, 255]));

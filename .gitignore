@@ -8,6 +8,9 @@ playwright-report/
 test-results/
 coverage/
 
+# Console and network logs written by the Playwright MCP browser tooling.
+.playwright-mcp/
+
 # Windows reserved device names accidentally created by shell redirects
 # (e.g. `... 2>nul` run from PowerShell). A file literally named `nul` also
 # breaks ripgrep and other tools that walk the tree.

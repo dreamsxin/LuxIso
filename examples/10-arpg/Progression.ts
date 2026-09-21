@@ -51,7 +51,9 @@ export class HeroProgress {
   /** Progress through the current level in [0, 1]. Full at max level. */
   get fraction(): number {
     const need = this.xpForNextLevel;
-    if (need <= 0) return 1;
+    if (need <= 0) {
+      return 1;
+    }
     return Math.min(1, this._xp / need);
   }
 
@@ -76,8 +78,12 @@ export class HeroProgress {
    *   and announce them without recomputing the difference itself.
    */
   gain(amount: number): number {
-    if (!Number.isFinite(amount) || amount <= 0) return 0;
-    if (this.isMaxLevel) return 0;
+    if (!Number.isFinite(amount) || amount <= 0) {
+      return 0;
+    }
+    if (this.isMaxLevel) {
+      return 0;
+    }
 
     this._xp += amount;
     let gained = 0;
@@ -88,7 +94,9 @@ export class HeroProgress {
     }
     // At the ceiling the leftover has nowhere to go; parking it would leave the
     // HUD bar showing progress towards a level that will never arrive.
-    if (this.isMaxLevel) this._xp = 0;
+    if (this.isMaxLevel) {
+      this._xp = 0;
+    }
     return gained;
   }
 
@@ -99,7 +107,7 @@ export class HeroProgress {
   }
 
   snapshot(): HeroProgressSnapshot {
-    return { level: this._level, xp: this._xp };
+    return {level: this._level, xp: this._xp};
   }
 
   /**
@@ -109,14 +117,21 @@ export class HeroProgress {
    * `[0, xpForNextLevel)`, so a truncated or hand-edited save degrades to a
    * legal state instead of producing a level-0 hero with a negative damage
    * bonus, or an xp value that levels the hero up on the next kill it earns.
+   *
+   * `null` is accepted as well as `undefined`: the input comes from
+   * `JSON.parse`, where a `"progress": null` field is what a hand-edited save
+   * most often holds, and reading through it would throw where the rest of this
+   * method degrades.
    */
-  restore(state: Partial<HeroProgressSnapshot> = {}): void {
-    const level = Number(state.level);
+  restore(state?: Partial<HeroProgressSnapshot> | null): void {
+    const saved = state ?? {};
+
+    const level = Number(saved.level);
     this._level = Number.isFinite(level)
       ? Math.max(1, Math.min(HeroProgress.MAX_LEVEL, Math.floor(level)))
       : 1;
 
-    const xp = Number(state.xp);
+    const xp = Number(saved.xp);
     const need = this.xpForNextLevel;
     this._xp = Number.isFinite(xp) && need > 0
       ? Math.max(0, Math.min(need - 1, Math.floor(xp)))

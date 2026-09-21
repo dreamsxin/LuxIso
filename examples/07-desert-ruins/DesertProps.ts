@@ -1,10 +1,10 @@
 /**
  * DesertProps — 金字塔、仙人掌、破碎石柱、石碑
  */
-import { IsoObject, DrawContext } from '../../src/elements/IsoObject';
-import { AABB } from '../../src/math/depthSort';
-import { project, drawIsoCube } from '../../src/math/IsoProjection';
-import { shiftColor } from '../../src/math/color';
+import {IsoObject, DrawContext} from '../../src/elements/IsoObject';
+import {AABB} from '../../src/math/depthSort';
+import {project, drawIsoCube} from '../../src/math/IsoProjection';
+import {shiftColor} from '../../src/math/color';
 
 // shiftHex → use framework shiftColor
 const shiftHex = shiftColor;
@@ -19,12 +19,16 @@ export class Pyramid extends IsoObject {
   }
 
   get aabb(): AABB {
-    return { minX: this.position.x - 1, minY: this.position.y - 1, maxX: this.position.x + 3, maxY: this.position.y + 3, baseZ: 0 };
+    return {
+      minX: this.position.x - 1, minY: this.position.y - 1,
+      maxX: this.position.x + 3, maxY: this.position.y + 3,
+      baseZ: 0,
+    };
   }
 
   draw(dc: DrawContext): void {
-    const { ctx, tileW, tileH, originX, originY } = dc;
-    const { x, y } = this.position;
+    const {ctx, tileW, tileH, originX, originY} = dc;
+    const {x, y} = this.position;
 
     // 5层，底层 2×2，每层缩小 0.35
     const layers = 5;
@@ -37,7 +41,10 @@ export class Pyramid extends IsoObject {
       const offset = i * shrink * 0.5;
       const zBase = i * layerH;
       const t = i / (layers - 1);
-      const topC = `rgb(${Math.round(0xd4 + t * (0xf0 - 0xd4))},${Math.round(0xa8 + t * (0xc8 - 0xa8))},${Math.round(0x55 + t * (0x70 - 0x55))})`;
+      const topR = Math.round(0xd4 + t * (0xf0 - 0xd4));
+      const topG = Math.round(0xa8 + t * (0xc8 - 0xa8));
+      const topB = Math.round(0x55 + t * (0x70 - 0x55));
+      const topC = `rgb(${topR},${topG},${topB})`;
       const leftC = shiftHex(topC, -30);
       const rightC = shiftHex(topC, -15);
       drawIsoCube(ctx, originX, originY, tileW, tileH,
@@ -59,13 +66,17 @@ export class Cactus extends IsoObject {
   }
 
   get aabb(): AABB {
-    return { minX: this.position.x - 0.3, minY: this.position.y - 0.3, maxX: this.position.x + 0.3, maxY: this.position.y + 0.3, baseZ: 0 };
+    return {
+      minX: this.position.x - 0.3, minY: this.position.y - 0.3,
+      maxX: this.position.x + 0.3, maxY: this.position.y + 0.3,
+      baseZ: 0,
+    };
   }
 
   draw(dc: DrawContext): void {
-    const { ctx, tileW, tileH, originX, originY } = dc;
-    const { x, y } = this.position;
-    const { sx, sy } = project(x, y, 0, tileW, tileH);
+    const {ctx, tileW, tileH, originX, originY} = dc;
+    const {x, y} = this.position;
+    const {sx, sy} = project(x, y, 0, tileW, tileH);
     const cx = originX + sx, cy = originY + sy;
     const h = (1.5 + this._seed * 0.8) * tileH;
     const w = tileW * 0.08;
@@ -120,20 +131,24 @@ export class BrokenPillar extends IsoObject {
     super(id, x, y, 0);
     this._seed = seed;
     // 预生成不规则顶部顶点偏移
-    this._topVerts = Array.from({ length: 6 }, (_, i) =>
+    this._topVerts = Array.from({length: 6}, (_, i) =>
       Math.sin(seed * 17.3 + i * 2.7) * 4
     );
     this.castsShadow = true;
   }
 
   get aabb(): AABB {
-    return { minX: this.position.x - 0.4, minY: this.position.y - 0.4, maxX: this.position.x + 0.4, maxY: this.position.y + 0.4, baseZ: 0 };
+    return {
+      minX: this.position.x - 0.4, minY: this.position.y - 0.4,
+      maxX: this.position.x + 0.4, maxY: this.position.y + 0.4,
+      baseZ: 0,
+    };
   }
 
   draw(dc: DrawContext): void {
-    const { ctx, tileW, tileH, originX, originY } = dc;
-    const { x, y } = this.position;
-    const { sx, sy } = project(x, y, 0, tileW, tileH);
+    const {ctx, tileW, tileH, originX, originY} = dc;
+    const {x, y} = this.position;
+    const {sx, sy} = project(x, y, 0, tileW, tileH);
     const cx = originX + sx, cy = originY + sy;
     const pillarH = (1.2 + this._seed * 0.6) * tileH;
     const bw = tileW * 0.18;
@@ -204,7 +219,11 @@ export class StoneTablet extends IsoObject {
   }
 
   get aabb(): AABB {
-    return { minX: this.position.x - 0.3, minY: this.position.y - 0.3, maxX: this.position.x + 0.3, maxY: this.position.y + 0.3, baseZ: 0 };
+    return {
+      minX: this.position.x - 0.3, minY: this.position.y - 0.3,
+      maxX: this.position.x + 0.3, maxY: this.position.y + 0.3,
+      baseZ: 0,
+    };
   }
 
   update(ts?: number): void {
@@ -215,9 +234,9 @@ export class StoneTablet extends IsoObject {
   }
 
   draw(dc: DrawContext): void {
-    const { ctx, tileW, tileH, originX, originY } = dc;
-    const { x, y } = this.position;
-    const { sx, sy } = project(x, y, 0, tileW, tileH);
+    const {ctx, tileW, tileH, originX, originY} = dc;
+    const {x, y} = this.position;
+    const {sx, sy} = project(x, y, 0, tileW, tileH);
     const cx = originX + sx, cy = originY + sy;
     const w = tileW * 0.14, h = tileH * 1.6;
 
@@ -262,7 +281,7 @@ export class StoneTablet extends IsoObject {
       for (let i = 0; i <= 3; i++) {
         const a = (i / 3) * Math.PI * 2 + tri * Math.PI / 3;
         const px = Math.cos(a) * rr, py = Math.sin(a) * rr * 0.5;
-        if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+        if (i === 0) {ctx.moveTo(px, py);} else {ctx.lineTo(px, py);}
       }
       ctx.closePath();
       ctx.stroke();

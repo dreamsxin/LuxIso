@@ -1,7 +1,7 @@
-import { describe, it, expect, vi } from 'vitest';
-import { TriggerZoneComponent } from '../ecs/components/TriggerZoneComponent';
-import { EventBus } from '../ecs/EventBus';
-import { IsoObject } from '../elements/IsoObject';
+import {describe, it, expect, vi} from 'vitest';
+import {TriggerZoneComponent} from '../ecs/components/TriggerZoneComponent';
+import {EventBus} from '../ecs/EventBus';
+import {IsoObject} from '../elements/IsoObject';
 
 /**
  * TriggerZoneComponent — the aggro/proximity primitive.
@@ -14,8 +14,8 @@ import { IsoObject } from '../elements/IsoObject';
 function obj(id: string, x = 0, y = 0, z = 0): IsoObject {
   return {
     id,
-    position: { x, y, z },
-    aabb: { minX: 0, minY: 0, maxX: 1, maxY: 1, baseZ: 0 },
+    position: {x, y, z},
+    aabb: {minX: 0, minY: 0, maxX: 1, maxY: 1, baseZ: 0},
     draw: () => {},
   } as unknown as IsoObject;
 }
@@ -25,7 +25,7 @@ describe('TriggerZoneComponent — enter and exit', () => {
     const onEnter = vi.fn();
     const owner = obj('mob', 0, 0);
     const player = obj('player', 0.5, 0);
-    const zone = new TriggerZoneComponent({ radius: 1, targets: [player], onEnter });
+    const zone = new TriggerZoneComponent({radius: 1, targets: [player], onEnter});
     zone.onAttach(owner);
 
     zone.update();
@@ -41,7 +41,7 @@ describe('TriggerZoneComponent — enter and exit', () => {
     const onExit = vi.fn();
     const owner = obj('mob', 0, 0);
     const player = obj('player', 0.5, 0);
-    const zone = new TriggerZoneComponent({ radius: 1, targets: [player], onExit });
+    const zone = new TriggerZoneComponent({radius: 1, targets: [player], onExit});
     zone.onAttach(owner);
 
     zone.update();
@@ -58,7 +58,7 @@ describe('TriggerZoneComponent — enter and exit', () => {
     const onEnter = vi.fn();
     const owner = obj('mob', 0, 0);
     const player = obj('player', 0.5, 0);
-    const zone = new TriggerZoneComponent({ radius: 1, targets: [player], onEnter });
+    const zone = new TriggerZoneComponent({radius: 1, targets: [player], onEnter});
     zone.onAttach(owner);
 
     zone.update();
@@ -74,7 +74,7 @@ describe('TriggerZoneComponent — enter and exit', () => {
     const onEnter = vi.fn();
     const owner = obj('mob', 0, 0);
     const player = obj('player', 5, 0);
-    const zone = new TriggerZoneComponent({ radius: 1, targets: [player], onEnter });
+    const zone = new TriggerZoneComponent({radius: 1, targets: [player], onEnter});
     zone.onAttach(owner);
 
     zone.update();
@@ -91,7 +91,7 @@ describe('TriggerZoneComponent — enter and exit', () => {
     // circle of radius 1. The option docblock used to describe a square.
     const diagonal = obj('diagonal', 0.8, 0.8);
     const straight = obj('straight', 0.9, 0);
-    const zone = new TriggerZoneComponent({ radius: 1, targets: [diagonal, straight] });
+    const zone = new TriggerZoneComponent({radius: 1, targets: [diagonal, straight]});
     zone.onAttach(owner);
     zone.update();
 
@@ -102,7 +102,7 @@ describe('TriggerZoneComponent — enter and exit', () => {
   it('ignores the owner even when it is in the target list', () => {
     const onEnter = vi.fn();
     const owner = obj('mob', 0, 0);
-    const zone = new TriggerZoneComponent({ radius: 1, targets: [owner], onEnter });
+    const zone = new TriggerZoneComponent({radius: 1, targets: [owner], onEnter});
     zone.onAttach(owner);
     zone.update();
     expect(onEnter).not.toHaveBeenCalled();
@@ -112,7 +112,7 @@ describe('TriggerZoneComponent — enter and exit', () => {
   it('ignores z entirely — the zone is a 2D footprint', () => {
     const owner = obj('mob', 0, 0, 0);
     const flyer = obj('flyer', 0.2, 0, 500);
-    const zone = new TriggerZoneComponent({ radius: 1, targets: [flyer] });
+    const zone = new TriggerZoneComponent({radius: 1, targets: [flyer]});
     zone.onAttach(owner);
     zone.update();
     expect(zone.contains('flyer')).toBe(true);
@@ -124,20 +124,20 @@ describe('TriggerZoneComponent — bus and callbacks', () => {
     const bus = new EventBus();
     const enters: unknown[] = [];
     const exits: unknown[] = [];
-    bus.on('triggerEnter', (p) => enters.push(p));
-    bus.on('triggerExit', (p) => exits.push(p));
+    bus.on('triggerEnter', p => enters.push(p));
+    bus.on('triggerExit', p => exits.push(p));
 
     const owner = obj('mob', 0, 0);
     const player = obj('player', 0.5, 0);
-    const zone = new TriggerZoneComponent({ radius: 1, targets: [player], bus });
+    const zone = new TriggerZoneComponent({radius: 1, targets: [player], bus});
     zone.onAttach(owner);
 
     zone.update();
     player.position.x = 9;
     zone.update();
 
-    expect(enters).toEqual([{ triggerId: 'mob', enterId: 'player' }]);
-    expect(exits).toEqual([{ triggerId: 'mob', enterId: 'player' }]);
+    expect(enters).toEqual([{triggerId: 'mob', enterId: 'player'}]);
+    expect(exits).toEqual([{triggerId: 'mob', enterId: 'player'}]);
   });
 
   it('setOnEnter and setOnExit replace the callbacks', () => {
@@ -145,7 +145,7 @@ describe('TriggerZoneComponent — bus and callbacks', () => {
     const second = vi.fn();
     const owner = obj('mob', 0, 0);
     const player = obj('player', 0.5, 0);
-    const zone = new TriggerZoneComponent({ radius: 1, targets: [player], onEnter: first });
+    const zone = new TriggerZoneComponent({radius: 1, targets: [player], onEnter: first});
     zone.onAttach(owner);
     zone.setOnEnter(second);
     zone.update();
@@ -157,7 +157,7 @@ describe('TriggerZoneComponent — bus and callbacks', () => {
   it('does nothing without an owner', () => {
     const onEnter = vi.fn();
     const player = obj('player', 0, 0);
-    const zone = new TriggerZoneComponent({ radius: 1, targets: [player], onEnter });
+    const zone = new TriggerZoneComponent({radius: 1, targets: [player], onEnter});
     zone.update();
     expect(onEnter).not.toHaveBeenCalled();
   });
@@ -166,7 +166,7 @@ describe('TriggerZoneComponent — bus and callbacks', () => {
     const onExit = vi.fn();
     const owner = obj('mob', 0, 0);
     const player = obj('player', 0.5, 0);
-    const zone = new TriggerZoneComponent({ radius: 1, targets: [player], onExit });
+    const zone = new TriggerZoneComponent({radius: 1, targets: [player], onExit});
     zone.onAttach(owner);
     zone.update();
     zone.onDetach();
@@ -181,7 +181,7 @@ describe('TriggerZoneComponent — dynamic targets and radius', () => {
     const onExit = vi.fn();
     const owner = obj('mob', 0, 0);
     const player = obj('player', 0.5, 0);
-    const zone = new TriggerZoneComponent({ radius: 1, targets: [player], onExit });
+    const zone = new TriggerZoneComponent({radius: 1, targets: [player], onExit});
     zone.onAttach(owner);
     zone.update();
 
@@ -194,7 +194,7 @@ describe('TriggerZoneComponent — dynamic targets and radius', () => {
   it('a target added mid-session enters normally', () => {
     const onEnter = vi.fn();
     const owner = obj('mob', 0, 0);
-    const zone = new TriggerZoneComponent({ radius: 1, onEnter });
+    const zone = new TriggerZoneComponent({radius: 1, onEnter});
     zone.onAttach(owner);
     zone.update();
 
@@ -208,7 +208,7 @@ describe('TriggerZoneComponent — dynamic targets and radius', () => {
     const owner = obj('mob', 0, 0);
     const a = obj('a', 0.2, 0);
     const b = obj('b', 0.3, 0);
-    const zone = new TriggerZoneComponent({ radius: 1, targets: [a, b] });
+    const zone = new TriggerZoneComponent({radius: 1, targets: [a, b]});
     zone.onAttach(owner);
     zone.update();
     expect(zone.insideIds.size).toBe(2);
@@ -221,7 +221,7 @@ describe('TriggerZoneComponent — dynamic targets and radius', () => {
   it('honours a radius change at runtime', () => {
     const owner = obj('mob', 0, 0);
     const player = obj('player', 2, 0);
-    const zone = new TriggerZoneComponent({ radius: 1, targets: [player] });
+    const zone = new TriggerZoneComponent({radius: 1, targets: [player]});
     zone.onAttach(owner);
     zone.update();
     expect(zone.contains('player')).toBe(false);
@@ -235,7 +235,7 @@ describe('TriggerZoneComponent — dynamic targets and radius', () => {
     const owner = obj('mob', 0, 0);
     const near = obj('near', 0.5, 0);
     const far = obj('far', 0.7, 0);
-    const zone = new TriggerZoneComponent({ targets: [near, far] });
+    const zone = new TriggerZoneComponent({targets: [near, far]});
     zone.onAttach(owner);
     zone.update();
     expect(zone.contains('near')).toBe(true);
@@ -245,7 +245,7 @@ describe('TriggerZoneComponent — dynamic targets and radius', () => {
   it('counts a target exactly on the boundary as inside', () => {
     const owner = obj('mob', 0, 0);
     const edge = obj('edge', 1, 0);
-    const zone = new TriggerZoneComponent({ radius: 1, targets: [edge] });
+    const zone = new TriggerZoneComponent({radius: 1, targets: [edge]});
     zone.onAttach(owner);
     zone.update();
     expect(zone.contains('edge')).toBe(true);

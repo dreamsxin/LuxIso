@@ -1,6 +1,6 @@
-import { IsoObject } from '../elements/IsoObject';
-import { unproject } from '../math/IsoProjection';
-import type { IsoView } from '../math/IsoProjection';
+import {IsoObject} from '../elements/IsoObject';
+import {unproject} from '../math/IsoProjection';
+import type {IsoView} from '../math/IsoProjection';
 
 export interface CameraBounds {
   minX: number;
@@ -112,9 +112,9 @@ export class Camera {
     tileH: number,
     originX: number,
     originY: number,
-    view?: IsoView,
+    view?: IsoView
   ): void {
-    const rot  = view?.rotation  ?? 0;
+    const rot = view?.rotation ?? 0;
     const elev = view?.elevation ?? 0.5;
     const offsetX = -(this.x - this.y) * (tileW / 2);
     const offsetY = -(this.x + this.y) * (tileH / 2);
@@ -162,8 +162,8 @@ export class Camera {
     wx: number, wy: number, wz: number,
     tileW: number, tileH: number,
     originX: number, originY: number,
-    view?: IsoView,
-  ): { sx: number; sy: number } {
+    view?: IsoView
+  ): {sx: number; sy: number} {
     const isoX = (wx - wy) * (tileW / 2);
     const isoY = (wx + wy) * (tileH / 2) - wz;
     const camOffX = -(this.x - this.y) * (tileW / 2);
@@ -188,11 +188,11 @@ export class Camera {
         sx = nx; sy = ny;
       }
       // Then the elevation scale
-      if (elev !== 0.5) sy *= elev / 0.5;
+      if (elev !== 0.5) {sy *= elev / 0.5;}
     }
 
 
-    return { sx: originX + sx * this.zoom, sy: originY + sy * this.zoom };
+    return {sx: originX + sx * this.zoom, sy: originY + sy * this.zoom};
   }
 
   /**
@@ -204,8 +204,8 @@ export class Camera {
     _canvasW: number, _canvasH: number,
     tileW: number, tileH: number,
     originX: number, originY: number,
-    view?: IsoView,
-  ): { x: number; y: number } {
+    view?: IsoView
+  ): {x: number; y: number} {
     // `zoom` is a plain public field, so it can hold 0 even though `setZoom`
     // clamps to [0.25, 4]. Dividing by it unguarded turned one bad assignment —
     // or one scene JSON with `"zoom": 0` — into an Infinity here and a NaN
@@ -218,7 +218,7 @@ export class Camera {
       const rot = view.rotation ?? 0;
       const elev = view.elevation ?? 0.5;
       // Undo elevation scale first (forward order was rotate -> elevate)
-      if (elev !== 0.5) sy /= elev / 0.5;
+      if (elev !== 0.5) {sy /= elev / 0.5;}
       // Undo rotation (inverse matrix)
       if (rot !== 0) {
         const rad = (rot * Math.PI) / 180;
@@ -237,7 +237,7 @@ export class Camera {
   }
 
   private _clamp(): void {
-    if (!this._bounds) return;
+    if (!this._bounds) {return;}
     this.x = Math.max(this._bounds.minX, Math.min(this._bounds.maxX, this.x));
     this.y = Math.max(this._bounds.minY, Math.min(this._bounds.maxY, this.y));
   }

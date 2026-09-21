@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'vitest';
-import { GLResourceRegistry } from '../../webgl-next/src/device/GLResourceRegistry';
-import { WebGLRenderer, WebGLUnavailableError } from '../../webgl-next/src/renderer/WebGLRenderer';
+import {describe, expect, it} from 'vitest';
+import {GLResourceRegistry} from '../../webgl-next/src/device/GLResourceRegistry';
+import {WebGLRenderer, WebGLUnavailableError} from '../../webgl-next/src/renderer/WebGLRenderer';
 import {
   pickingFragmentShader,
   shadowCompositeFragmentShader,
@@ -11,7 +11,7 @@ import {
 
 describe('WebGL Next renderer contract', () => {
   it('fails explicitly when WebGL2 is unavailable so callers can fall back', () => {
-    const canvas = { getContext: () => null } as unknown as HTMLCanvasElement;
+    const canvas = {getContext: () => null} as unknown as HTMLCanvasElement;
     expect(() => new WebGLRenderer(canvas)).toThrow(WebGLUnavailableError);
   });
 
@@ -28,10 +28,10 @@ describe('WebGL Next renderer contract', () => {
   it('deletes normal resources and abandons invalid context handles', () => {
     const deleted: string[] = [];
     const gl = {
-      createBuffer: () => ({ kind: 'buffer' }),
-      createVertexArray: () => ({ kind: 'vertex-array' }),
-      createTexture: () => ({ kind: 'texture' }),
-      createFramebuffer: () => ({ kind: 'framebuffer' }),
+      createBuffer: () => ({kind: 'buffer'}),
+      createVertexArray: () => ({kind: 'vertex-array'}),
+      createTexture: () => ({kind: 'texture'}),
+      createFramebuffer: () => ({kind: 'framebuffer'}),
       deleteBuffer: () => deleted.push('buffer'),
       deleteVertexArray: () => deleted.push('vertex-array'),
       deleteTexture: () => deleted.push('texture'),

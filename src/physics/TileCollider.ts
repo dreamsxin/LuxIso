@@ -27,20 +27,20 @@ export class TileCollider {
     this.cols = cols;
     this.rows = rows;
     // Default: all tiles walkable
-    this.grid = walkable ?? Array.from({ length: rows }, () => Array(cols).fill(true));
+    this.grid = walkable ?? Array.from({length: rows}, () => Array(cols).fill(true));
   }
 
   // ── Grid mutation ─────────────────────────────────────────────────────────
 
   setWalkable(col: number, row: number, walkable: boolean): void {
-    if (!this.inBounds(col, row)) return;
-    if (this.grid[row][col] === walkable) return;  // no-op: keep version stable
+    if (!this.inBounds(col, row)) {return;}
+    if (this.grid[row][col] === walkable) {return;} // no-op: keep version stable
     this.grid[row][col] = walkable;
     this._version++;
   }
 
   isWalkable(col: number, row: number): boolean {
-    if (!this.inBounds(col, row)) return false;
+    if (!this.inBounds(col, row)) {return false;}
     return this.grid[row][col];
   }
 
@@ -67,7 +67,7 @@ export class TileCollider {
 
     for (let r = r0; r <= r1; r++) {
       for (let c = c0; c <= c1; c++) {
-        if (!this.isWalkable(c, r)) return false;
+        if (!this.isWalkable(c, r)) {return false;}
       }
     }
     return true;
@@ -83,14 +83,14 @@ export class TileCollider {
   resolveMove(
     x: number, y: number,
     dx: number, dy: number,
-    r = 0.4,
-  ): { dx: number; dy: number } {
+    r = 0.4
+  ): {dx: number; dy: number} {
     const nx = x + dx;
     const ny = y + dy;
 
     // Full move
     if (this.canOccupy(nx - r, ny - r, nx + r, ny + r)) {
-      return { dx, dy };
+      return {dx, dy};
     }
 
     // X only
@@ -98,8 +98,8 @@ export class TileCollider {
     // Y only
     const yOnly = this.canOccupy(x - r, ny - r, x + r, ny + r);
 
-    if (xOnly) return { dx, dy: 0 };
-    if (yOnly) return { dx: 0, dy };
+    if (xOnly) {return {dx, dy: 0};}
+    if (yOnly) {return {dx: 0, dy};}
 
     // Both axes blocked — try a small diagonal slide away from the corner.
     // Find which corner of the current tile we're closest to and nudge away.
@@ -107,10 +107,10 @@ export class TileCollider {
     const pushX = x < cx ? -0.01 : 0.01;
     const pushY = y < cy ? -0.01 : 0.01;
     if (this.canOccupy(x + pushX - r, y + pushY - r, x + pushX + r, y + pushY + r)) {
-      return { dx: pushX, dy: pushY };
+      return {dx: pushX, dy: pushY};
     }
 
-    return { dx: 0, dy: 0 };
+    return {dx: 0, dy: 0};
   }
 
   /**
@@ -129,8 +129,8 @@ export class TileCollider {
     x: number, y: number,
     dx: number, dy: number,
     r = 0.4,
-    steps = 4,
-  ): { dx: number; dy: number } {
+    steps = 4
+  ): {dx: number; dy: number} {
     const dist = Math.max(Math.abs(dx), Math.abs(dy));
     const sampleSpan = Math.max(0.05, Math.min(0.5, r));
     const samples = Math.max(1, Math.ceil(dist / sampleSpan));
@@ -141,10 +141,10 @@ export class TileCollider {
       const t = i / samples;
       const tx = x + dx * t;
       const ty = y + dy * t;
-      if (!this.canOccupy(tx - r, ty - r, tx + r, ty + r)) break;
+      if (!this.canOccupy(tx - r, ty - r, tx + r, ty + r)) {break;}
       lo = t;
     }
-    if (lo === 1) return { dx, dy };
+    if (lo === 1) {return {dx, dy};}
 
     // Refine between the last clear sample and the first blocked one.
     let hi = Math.min(1, lo + 1 / samples);
@@ -158,7 +158,7 @@ export class TileCollider {
         hi = mid;
       }
     }
-    return { dx: dx * lo, dy: dy * lo };
+    return {dx: dx * lo, dy: dy * lo};
   }
 
   /**
@@ -168,15 +168,15 @@ export class TileCollider {
   static fromArray(
     cols: number,
     rows: number,
-    data: boolean[][] | boolean[],
+    data: boolean[][] | boolean[]
   ): TileCollider {
     let grid: boolean[][];
     if (Array.isArray(data[0])) {
       grid = data as boolean[][];
     } else {
       const flat = data as boolean[];
-      grid = Array.from({ length: rows }, (_, r) =>
-        Array.from({ length: cols }, (__, c) => flat[r * cols + c] ?? true),
+      grid = Array.from({length: rows}, (_, r) =>
+        Array.from({length: cols}, (__, c) => flat[r * cols + c] ?? true)
       );
     }
     return new TileCollider(cols, rows, grid);

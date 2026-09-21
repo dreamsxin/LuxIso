@@ -1,7 +1,7 @@
-import { project } from '../math/IsoProjection';
-import { AABB } from '../math/depthSort';
-import { IsoObject, DrawContext } from './IsoObject';
-import { hexToRgb } from '../math/color';
+import {project} from '../math/IsoProjection';
+import {AABB} from '../math/depthSort';
+import {IsoObject, DrawContext} from './IsoObject';
+import {hexToRgb} from '../math/color';
 
 export interface WallOpening {
   type: 'door' | 'window';
@@ -44,8 +44,8 @@ export class Wall extends IsoObject {
   openings: WallOpening[];
 
   // Precomputed isometric face normals (screen-space, unit vectors)
-  private static readonly NX_WALL = { nx:  0.8944, ny: -0.4472 }; // faces –Y
-  private static readonly NY_WALL = { nx: -0.8944, ny: -0.4472 }; // faces –X
+  private static readonly NX_WALL = {nx: 0.8944, ny: -0.4472}; // faces –Y
+  private static readonly NY_WALL = {nx: -0.8944, ny: -0.4472}; // faces –X
 
   constructor(opts: WallOptions) {
     super(opts.id, opts.x, opts.y, 0);
@@ -74,8 +74,8 @@ export class Wall extends IsoObject {
   }
 
   draw(dc: DrawContext): void {
-    const { ctx, tileW, tileH, originX, originY, omniLights, dirLights, ambientRgb } = dc;
-    const { x, y } = this.position;
+    const {ctx, tileW, tileH, originX, originY, omniLights, dirLights, ambientRgb} = dc;
+    const {x, y} = this.position;
 
     const isXWall = y === this.endY;
     const norm = isXWall ? Wall.NX_WALL : Wall.NY_WALL;
@@ -83,7 +83,7 @@ export class Wall extends IsoObject {
     // ── Midpoint for omni sampling ──
     const mx = (x + this.endX) / 2;
     const my = (y + this.endY) / 2;
-    const { sx: msx, sy: msy } = project(mx, my, 0, tileW, tileH);
+    const {sx: msx, sy: msy} = project(mx, my, 0, tileW, tileH);
     const wallMidSx = originX + msx;
     const wallMidSy = originY + msy;
 
@@ -99,7 +99,7 @@ export class Wall extends IsoObject {
       const lsx = originX + lp.sx;
       const lsy = originY + lp.sy - l.position.z;
       const factor = l.illuminateAt(wallMidSx, wallMidSy, lsx, lsy);
-      if (factor <= 0) continue;
+      if (factor <= 0) {continue;}
       const [lr, lg, lb] = hexToRgb(l.color);
       rTotal += (lr / 255) * factor;
       gTotal += (lg / 255) * factor;
@@ -111,14 +111,14 @@ export class Wall extends IsoObject {
     // Incident ray direction = -direction, so dot(normal, -lightDir) = dot(normal, incidentRay).
     // We want: factor > 0 when normal faces the source, i.e. dot(normal, sourceDir) > 0.
     for (const dl of dirLights) {
-      const { dx: ldx, dy: ldy } = dl.direction;
+      const {dx: ldx, dy: ldy} = dl.direction;
       const ndot = Math.max(0, norm.nx * ldx + norm.ny * ldy);
       // Vertical wall face irradiance scales with cos(elevation) (the sun's
       // horizontal component): at zenith (90 deg) a wall gets grazing/zero
       // light; at low sun it's brightly lit if it faces the source. (Floor,
       // a horizontal surface, correctly uses sin(elevation).)
       const factor = ndot * Math.cos(dl.elevation) * dl.intensity;
-      if (factor <= 0) continue;
+      if (factor <= 0) {continue;}
       const [lr, lg, lb] = hexToRgb(dl.color);
       rTotal += (lr / 255) * factor;
       gTotal += (lg / 255) * factor;
@@ -138,9 +138,9 @@ export class Wall extends IsoObject {
     ctx: CanvasRenderingContext2D,
     tileW: number, tileH: number,
     originX: number, originY: number,
-    rIllum: number, gIllum: number, bIllum: number,
+    rIllum: number, gIllum: number, bIllum: number
   ): void {
-    const { x, y } = this.position;
+    const {x, y} = this.position;
     const h = this.wallHeight;
 
     const p0 = project(x, y, 0, tileW, tileH);
@@ -184,8 +184,8 @@ export class Wall extends IsoObject {
 
     // Vertical edges
     ctx.beginPath();
-    ctx.moveTo(x0, y0);   ctx.lineTo(x0, y0 - h);
-    ctx.moveTo(x1, y1);   ctx.lineTo(x1, y1 - h);
+    ctx.moveTo(x0, y0); ctx.lineTo(x0, y0 - h);
+    ctx.moveTo(x1, y1); ctx.lineTo(x1, y1 - h);
     ctx.strokeStyle = 'rgba(0,0,0,0.28)';
     ctx.lineWidth = 0.75;
     ctx.stroke();
@@ -197,19 +197,19 @@ export class Wall extends IsoObject {
     ctx: CanvasRenderingContext2D,
     x0: number, y0: number,
     x1: number, y1: number,
-    h: number,
+    h: number
   ): void {
     const wallLen = Math.hypot(x1 - x0, y1 - y0);
     const dx = (x1 - x0) / wallLen;
     const dy = (y1 - y0) / wallLen;
 
     for (const op of this.openings) {
-      const opH    = op.height * h;
-      const opY    = (op.offsetY ?? 0) * h;
-      const ox0    = x0 + dx * op.offsetX * wallLen;
-      const oy0    = y0 + dy * op.offsetX * wallLen;
-      const ox1    = x0 + dx * (op.offsetX + op.width) * wallLen;
-      const oy1    = y0 + dy * (op.offsetX + op.width) * wallLen;
+      const opH = op.height * h;
+      const opY = (op.offsetY ?? 0) * h;
+      const ox0 = x0 + dx * op.offsetX * wallLen;
+      const oy0 = y0 + dy * op.offsetX * wallLen;
+      const ox1 = x0 + dx * (op.offsetX + op.width) * wallLen;
+      const oy1 = y0 + dy * (op.offsetX + op.width) * wallLen;
 
       const holeColor = op.type === 'door'
         ? 'rgba(5,5,8,0.95)'

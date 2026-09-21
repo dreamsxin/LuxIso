@@ -1,8 +1,8 @@
-import { Entity } from './Entity';
-import type { ComponentCtor } from './Component';
-import type { Scene } from '../core/Scene';
+import {Entity} from './Entity';
+import type {ComponentCtor} from './Component';
+import type {Scene} from '../core/Scene';
 
-export type { ComponentCtor } from './Component';
+export type {ComponentCtor} from './Component';
 
 /**
  * System — batch-processes all entities that match a component query.
@@ -73,7 +73,7 @@ export abstract class System {
     if (this._scene && this._scene !== scene) {
       throw new Error('System is already attached to another Scene');
     }
-    if (this._scene === scene) return;
+    if (this._scene === scene) {return;}
     this._scene = scene;
     try {
       this.onAttach?.(scene);
@@ -85,13 +85,13 @@ export abstract class System {
 
   /** @internal Scene removal hook. */
   detach(scene: Scene): void {
-    if (this._scene !== scene) return;
+    if (this._scene !== scene) {return;}
     this._scene = null;
     this.onDetach?.(scene);
   }
 
   /** Returns true if the entity has every component in `query`. */
   matches(entity: Entity): boolean {
-    return this.query.every((ctor) => entity.hasComponent(ctor));
+    return this.query.every(ctor => entity.hasComponent(ctor));
   }
 }

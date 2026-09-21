@@ -4,9 +4,9 @@
  * Fish      — 低多边形小鱼，成群游动
  * WaterLily — 升级版荷花，带花苞和开放状态
  */
-import { IsoObject, DrawContext } from '../../../src/elements/IsoObject';
-import { AABB } from '../../../src/math/depthSort';
-import { project } from '../../../src/math/IsoProjection';
+import {IsoObject, DrawContext} from '../../../src/elements/IsoObject';
+import {AABB} from '../../../src/math/depthSort';
+import {project} from '../../../src/math/IsoProjection';
 
 function clamp(v: number, lo: number, hi: number): number { return Math.max(lo, Math.min(hi, v)); }
 
@@ -37,10 +37,10 @@ export class FishSchool extends IsoObject {
     cols?: number; rows?: number; seed?: number;
   } = {}) {
     super(id, x, y, 0);
-    const seed   = opts.seed ?? Math.random();
-    this._cols   = opts.cols ?? 13;
-    this._rows   = opts.rows ?? 13;
-    this._color  = opts.color ?? '#f97316';
+    const seed = opts.seed ?? Math.random();
+    this._cols = opts.cols ?? 13;
+    this._rows = opts.rows ?? 13;
+    this._color = opts.color ?? '#f97316';
     this._accentColor = opts.accentColor ?? '#fbbf24';
     this._targetX = x; this._targetY = y;
     this.castsShadow = false;
@@ -60,7 +60,11 @@ export class FishSchool extends IsoObject {
   }
 
   get aabb(): AABB {
-    return { minX: this.position.x - 1.5, minY: this.position.y - 1.5, maxX: this.position.x + 1.5, maxY: this.position.y + 1.5, baseZ: 0 };
+    return {
+      minX: this.position.x - 1.5, minY: this.position.y - 1.5,
+      maxX: this.position.x + 1.5, maxY: this.position.y + 1.5,
+      baseZ: 0,
+    };
   }
 
   update(ts?: number): void {
@@ -93,9 +97,9 @@ export class FishSchool extends IsoObject {
   }
 
   draw(dc: DrawContext): void {
-    const { ctx, tileW, tileH, originX, originY } = dc;
+    const {ctx, tileW, tileH, originX, originY} = dc;
     for (const f of this._fish) {
-      const { sx, sy } = project(f.x, f.y, f.z, tileW, tileH);
+      const {sx, sy} = project(f.x, f.y, f.z, tileW, tileH);
       const fx = originX + sx, fy = originY + sy;
       const angle = Math.atan2(f.vy, f.vx);
       const tailWag = Math.sin(f.phase) * 0.4;
@@ -117,7 +121,9 @@ export class FishSchool extends IsoObject {
 
       // 腹部高光
       ctx.beginPath();
-      ctx.moveTo(bl * 0.6, 0); ctx.lineTo(bl * 0.2, -bw * 0.5); ctx.lineTo(-bl * 0.2, -bw * 0.3); ctx.lineTo(-bl * 0.2, bw * 0.3); ctx.lineTo(bl * 0.2, bw * 0.5);
+      ctx.moveTo(bl * 0.6, 0);
+      ctx.lineTo(bl * 0.2, -bw * 0.5); ctx.lineTo(-bl * 0.2, -bw * 0.3);
+      ctx.lineTo(-bl * 0.2, bw * 0.3); ctx.lineTo(bl * 0.2, bw * 0.5);
       ctx.closePath(); ctx.fillStyle = this._accentColor; ctx.fill();
 
       // 尾鳍（摆动）
@@ -153,10 +159,10 @@ export class WaterLilyFlower extends IsoObject {
   private _color: string;
   private _padColor: string;
 
-  constructor(id: string, x: number, y: number, opts: { seed?: number; open?: number } = {}) {
+  constructor(id: string, x: number, y: number, opts: {seed?: number; open?: number} = {}) {
     super(id, x, y, 3);
     const seed = opts.seed ?? Math.random();
-    this._phase    = seed * Math.PI * 2;
+    this._phase = seed * Math.PI * 2;
     this._openness = opts.open ?? (seed > 0.4 ? 1 : 0.3 + seed * 0.5);
     const colors: Array<[string, string]> = [
       ['#fce7f3', '#fbcfe8'], ['#fff7ed', '#fed7aa'],
@@ -168,7 +174,11 @@ export class WaterLilyFlower extends IsoObject {
   }
 
   get aabb(): AABB {
-    return { minX: this.position.x - 0.5, minY: this.position.y - 0.5, maxX: this.position.x + 0.5, maxY: this.position.y + 0.5, baseZ: 3 };
+    return {
+      minX: this.position.x - 0.5, minY: this.position.y - 0.5,
+      maxX: this.position.x + 0.5, maxY: this.position.y + 0.5,
+      baseZ: 3,
+    };
   }
 
   update(ts?: number): void {
@@ -180,9 +190,9 @@ export class WaterLilyFlower extends IsoObject {
   }
 
   draw(dc: DrawContext): void {
-    const { ctx, tileW, tileH, originX, originY } = dc;
-    const { x, y, z } = this.position;
-    const { sx, sy } = project(x, y, z, tileW, tileH);
+    const {ctx, tileW, tileH, originX, originY} = dc;
+    const {x, y, z} = this.position;
+    const {sx, sy} = project(x, y, z, tileW, tileH);
     const cx = originX + sx, cy = originY + sy;
     const scaleY = tileH / tileW;
 

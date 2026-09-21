@@ -1,17 +1,17 @@
-import { IsoObject } from '../elements/IsoObject';
-import { BaseLight } from '../lighting/BaseLight';
-import { OmniLight } from '../lighting/OmniLight';
-import { DirectionalLight } from '../lighting/DirectionalLight';
-import { Camera } from './Camera';
-import { Entity } from '../ecs/Entity';
-import { FrameClock } from '../time/FrameClock';
-import { System } from '../ecs/System';
-import { FloatingText, FloatingTextOptions } from '../elements/props/FloatingText';
-import { DEFAULT_ISO_VIEW } from '../math/IsoProjection';
-import type { IsoView } from '../math/IsoProjection';
-import { TileCollider } from '../physics/TileCollider';
-import { SceneRenderer } from './SceneRenderer';
-import { SceneSerializer } from './SceneSerializer';
+import {IsoObject} from '../elements/IsoObject';
+import {BaseLight} from '../lighting/BaseLight';
+import {OmniLight} from '../lighting/OmniLight';
+import {DirectionalLight} from '../lighting/DirectionalLight';
+import {Camera} from './Camera';
+import {Entity} from '../ecs/Entity';
+import {FrameClock} from '../time/FrameClock';
+import {System} from '../ecs/System';
+import {FloatingText, FloatingTextOptions} from '../elements/props/FloatingText';
+import {DEFAULT_ISO_VIEW} from '../math/IsoProjection';
+import type {IsoView} from '../math/IsoProjection';
+import {TileCollider} from '../physics/TileCollider';
+import {SceneRenderer} from './SceneRenderer';
+import {SceneSerializer} from './SceneSerializer';
 
 export interface SceneOptions {
   name?: string;
@@ -33,7 +33,7 @@ export class Scene {
   ambientColor = '#ffffff';
   ambientIntensity = 0.15;
   dynamicLighting = false;
-  view: IsoView = { ...DEFAULT_ISO_VIEW };
+  view: IsoView = {...DEFAULT_ISO_VIEW};
 
   private objects: IsoObject[] = [];
   private lights: BaseLight[] = [];
@@ -64,17 +64,17 @@ export class Scene {
   removeById(id: string): void {
     const objectCount = this.objects.length;
     const lightCount = this.lights.length;
-    this.objects = this.objects.filter((object) => object.id !== id);
-    this.lights = this.lights.filter((light) => light.id !== id);
-    if (this.objects.length !== objectCount) this._renderer.invalidateObjects();
-    if (this.lights.length !== lightCount) this._renderer.invalidateLightmap();
+    this.objects = this.objects.filter(object => object.id !== id);
+    this.lights = this.lights.filter(light => light.id !== id);
+    if (this.objects.length !== objectCount) {this._renderer.invalidateObjects();}
+    if (this.lights.length !== lightCount) {this._renderer.invalidateLightmap();}
   }
 
   getById(id: string): IsoObject | undefined {
-    return this.objects.find((object) => object.id === id);
+    return this.objects.find(object => object.id === id);
   }
 
-  getAll<T extends IsoObject>(ctor: new (...args: any[]) => T): T[] {
+  getAll<T extends IsoObject>(ctor: new (...args: never[]) => T): T[] {
     return this.objects.filter((object): object is T => object instanceof ctor);
   }
 
@@ -84,7 +84,7 @@ export class Scene {
 
   spawnFloatingText(opts: Omit<FloatingTextOptions, 'id'>): FloatingText {
     const id = `ft-${Math.random().toString(36).substring(2, 11)}`;
-    const text = new FloatingText({ id, ...opts });
+    const text = new FloatingText({id, ...opts});
     this.addObject(text);
     return text;
   }
@@ -96,13 +96,13 @@ export class Scene {
 
   get omniLights(): OmniLight[] {
     return this.lights.filter(
-      (light): light is OmniLight => light instanceof OmniLight && light.enabled,
+      (light): light is OmniLight => light instanceof OmniLight && light.enabled
     );
   }
 
   get dirLights(): DirectionalLight[] {
     return this.lights.filter(
-      (light): light is DirectionalLight => light instanceof DirectionalLight && light.enabled,
+      (light): light is DirectionalLight => light instanceof DirectionalLight && light.enabled
     );
   }
 
@@ -116,24 +116,24 @@ export class Scene {
   }
 
   getLightById(id: string): BaseLight | undefined {
-    return this.lights.find((light) => light.id === id);
+    return this.lights.find(light => light.id === id);
   }
 
   addSystem<T extends System>(system: T): T {
-    if (this._systems.includes(system)) return system;
+    if (this._systems.includes(system)) {return system;}
     system.attach(this);
     let index = this._systems.length;
-    while (index > 0 && this._systems[index - 1].priority > system.priority) index--;
+    while (index > 0 && this._systems[index - 1].priority > system.priority) {index--;}
     this._systems.splice(index, 0, system);
     this._systemMatches.splice(index, 0, []);
     return system;
   }
 
-  removeSystem(systemOrCtor: System | (abstract new (...args: any[]) => System)): boolean {
+  removeSystem(systemOrCtor: System | (abstract new (...args: never[]) => System)): boolean {
     const index = typeof systemOrCtor === 'function'
-      ? this._systems.findIndex((system) => system instanceof systemOrCtor)
+      ? this._systems.findIndex(system => system instanceof systemOrCtor)
       : this._systems.indexOf(systemOrCtor);
-    if (index < 0) return false;
+    if (index < 0) {return false;}
     const system = this._systems[index];
     this._systems.splice(index, 1);
     this._systemMatches.splice(index, 1);
@@ -141,7 +141,7 @@ export class Scene {
     return true;
   }
 
-  getSystem<T extends System>(ctor: abstract new (...args: any[]) => T): T | undefined {
+  getSystem<T extends System>(ctor: abstract new (...args: never[]) => T): T | undefined {
     return this._systems.find((system): system is T => system instanceof ctor);
   }
 
@@ -161,7 +161,7 @@ export class Scene {
       this._renderer.invalidateLightmap();
       return;
     }
-    this._viewFrom = { ...this.view };
+    this._viewFrom = {...this.view};
     this._viewTo = target;
     this._viewT = 0;
     this._viewDur = duration;
@@ -187,7 +187,7 @@ export class Scene {
         elevation: this._viewFrom.elevation + (this._viewTo.elevation - this._viewFrom.elevation) * t,
       };
       if (this._viewT >= 1) {
-        this.view = { ...this._viewTo };
+        this.view = {...this._viewTo};
         this._viewFrom = null;
         this._viewTo = null;
       }
@@ -202,7 +202,7 @@ export class Scene {
       }
     }
     for (const object of this.objects) {
-      if (!object.visible) continue;
+      if (!object.visible) {continue;}
       const updatable = object as unknown as {
         update?: (timestamp?: number, collider?: TileCollider | null) => void;
       };
@@ -219,7 +219,7 @@ export class Scene {
       }
     }
     for (const object of this.objects) {
-      if (object.visible && object instanceof Entity) object.fixedUpdate(dt);
+      if (object.visible && object instanceof Entity) {object.fixedUpdate(dt);}
     }
   }
 
@@ -228,7 +228,7 @@ export class Scene {
     canvasW: number,
     canvasH: number,
     originX: number,
-    originY: number,
+    originY: number
   ): void {
     this._renderer.draw(this, ctx, canvasW, canvasH, originX, originY);
   }
@@ -238,11 +238,11 @@ export class Scene {
   }
 
   private _refreshSystemMatches(): void {
-    for (const matches of this._systemMatches) matches.length = 0;
+    for (const matches of this._systemMatches) {matches.length = 0;}
     for (const object of this.objects) {
-      if (!(object instanceof Entity) || !object.visible) continue;
+      if (!(object instanceof Entity) || !object.visible) {continue;}
       for (let i = 0; i < this._systems.length; i++) {
-        if (this._systems[i].matches(object)) this._systemMatches[i].push(object);
+        if (this._systems[i].matches(object)) {this._systemMatches[i].push(object);}
       }
     }
   }

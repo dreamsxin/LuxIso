@@ -1,21 +1,21 @@
-import type { Scene } from './Scene';
-import { Floor } from '../elements/Floor';
-import { Wall } from '../elements/Wall';
-import { Character } from '../elements/Character';
-import { Cloud } from '../elements/props/Cloud';
-import { Crystal } from '../elements/props/Crystal';
-import { Boulder } from '../elements/props/Boulder';
-import { Chest } from '../elements/props/Chest';
-import { Tree } from '../elements/props/Tree';
-import { FlowerPatch } from '../elements/props/FlowerPatch';
-import { Lantern } from '../elements/props/Lantern';
-import { OmniLight } from '../lighting/OmniLight';
-import { DirectionalLight } from '../lighting/DirectionalLight';
-import type { BaseLight } from '../lighting/BaseLight';
-import { HealthComponent } from '../ecs/components/HealthComponent';
-import { FloatingText } from '../elements/props/FloatingText';
-import { ParticleSystem } from '../animation/ParticleSystem';
-import type { IsoObject } from '../elements/IsoObject';
+import type {Scene} from './Scene';
+import {Floor} from '../elements/Floor';
+import {Wall} from '../elements/Wall';
+import {Character} from '../elements/Character';
+import {Cloud} from '../elements/props/Cloud';
+import {Crystal} from '../elements/props/Crystal';
+import {Boulder} from '../elements/props/Boulder';
+import {Chest} from '../elements/props/Chest';
+import {Tree} from '../elements/props/Tree';
+import {FlowerPatch} from '../elements/props/FlowerPatch';
+import {Lantern} from '../elements/props/Lantern';
+import {OmniLight} from '../lighting/OmniLight';
+import {DirectionalLight} from '../lighting/DirectionalLight';
+import type {BaseLight} from '../lighting/BaseLight';
+import {HealthComponent} from '../ecs/components/HealthComponent';
+import {FloatingText} from '../elements/props/FloatingText';
+import {ParticleSystem} from '../animation/ParticleSystem';
+import type {IsoObject} from '../elements/IsoObject';
 
 /** Constructor of a scene object, abstract classes included. */
 export type IsoObjectCtor = abstract new (...args: never[]) => IsoObject;
@@ -98,7 +98,7 @@ export class SceneSerializer {
    */
   static register<T extends IsoObject>(
     ctor: abstract new (...args: never[]) => T,
-    serialize: PropSerializer<T>,
+    serialize: PropSerializer<T>
   ): void {
     SceneSerializer._serializers.push({
       ctor,
@@ -109,7 +109,7 @@ export class SceneSerializer {
   /** Remove every serializer registered for `ctor`. Returns true if any went. */
   static unregister(ctor: IsoObjectCtor): boolean {
     const before = SceneSerializer._serializers.length;
-    SceneSerializer._serializers = SceneSerializer._serializers.filter((e) => e.ctor !== ctor);
+    SceneSerializer._serializers = SceneSerializer._serializers.filter(e => e.ctor !== ctor);
     return SceneSerializer._serializers.length !== before;
   }
 
@@ -132,7 +132,7 @@ export class SceneSerializer {
    */
   static registerLight<T extends BaseLight>(
     ctor: abstract new (...args: never[]) => T,
-    serialize: LightSerializer<T>,
+    serialize: LightSerializer<T>
   ): void {
     SceneSerializer._lightSerializers.push({
       ctor,
@@ -144,7 +144,7 @@ export class SceneSerializer {
   static unregisterLight(ctor: BaseLightCtor): boolean {
     const before = SceneSerializer._lightSerializers.length;
     SceneSerializer._lightSerializers =
-      SceneSerializer._lightSerializers.filter((e) => e.ctor !== ctor);
+      SceneSerializer._lightSerializers.filter(e => e.ctor !== ctor);
     return SceneSerializer._lightSerializers.length !== before;
   }
 
@@ -152,7 +152,7 @@ export class SceneSerializer {
   static findLightSerializer(light: BaseLight): LightSerializer<never> | null {
     for (let i = SceneSerializer._lightSerializers.length - 1; i >= 0; i--) {
       const entry = SceneSerializer._lightSerializers[i];
-      if (light instanceof (entry.ctor as unknown as new () => BaseLight)) return entry.serialize;
+      if (light instanceof (entry.ctor as unknown as new () => BaseLight)) {return entry.serialize;}
     }
     return null;
   }
@@ -161,30 +161,30 @@ export class SceneSerializer {
   static findSerializer(object: IsoObject): PropSerializer<never> | null {
     for (let i = SceneSerializer._serializers.length - 1; i >= 0; i--) {
       const entry = SceneSerializer._serializers[i];
-      if (object instanceof (entry.ctor as unknown as new () => IsoObject)) return entry.serialize;
+      if (object instanceof (entry.ctor as unknown as new () => IsoObject)) {return entry.serialize;}
     }
     return null;
   }
 
   static toJSON(scene: Scene): Record<string, unknown> {
     const objects = scene.allObjects;
-    const floors     = objects.filter((o): o is Floor     => o instanceof Floor);
-    const walls      = objects.filter((o): o is Wall      => o instanceof Wall);
+    const floors = objects.filter((o): o is Floor => o instanceof Floor);
+    const walls = objects.filter((o): o is Wall => o instanceof Wall);
     const characters = objects.filter((o): o is Character => o instanceof Character);
-    const clouds     = objects.filter((o): o is Cloud     => o instanceof Cloud);
-    const crystals   = objects.filter((o): o is Crystal   => o instanceof Crystal);
-    const boulders   = objects.filter((o): o is Boulder   => o instanceof Boulder);
-    const chests     = objects.filter((o): o is Chest     => o instanceof Chest);
-    const trees      = objects.filter((o): o is Tree      => o instanceof Tree);
-    const flowers    = objects.filter((o): o is FlowerPatch => o instanceof FlowerPatch);
-    const lanterns   = objects.filter((o): o is Lantern   => o instanceof Lantern);
+    const clouds = objects.filter((o): o is Cloud => o instanceof Cloud);
+    const crystals = objects.filter((o): o is Crystal => o instanceof Crystal);
+    const boulders = objects.filter((o): o is Boulder => o instanceof Boulder);
+    const chests = objects.filter((o): o is Chest => o instanceof Chest);
+    const trees = objects.filter((o): o is Tree => o instanceof Tree);
+    const flowers = objects.filter((o): o is FlowerPatch => o instanceof FlowerPatch);
+    const lanterns = objects.filter((o): o is Lantern => o instanceof Lantern);
     const omniLights = scene.allLights.filter((l): l is OmniLight => l instanceof OmniLight);
     const dirLights = scene.allLights.filter((l): l is DirectionalLight => l instanceof DirectionalLight);
 
     const floor = floors[0];
     const walkable = scene.collider
-      ? Array.from({ length: scene.collider.rows }, (_, row) =>
-          Array.from({ length: scene.collider!.cols }, (__, col) => scene.collider!.isWalkable(col, row)),
+      ? Array.from({length: scene.collider.rows}, (_, row) =>
+          Array.from({length: scene.collider!.cols}, (__, col) => scene.collider!.isWalkable(col, row))
         )
       : undefined;
 
@@ -197,7 +197,7 @@ export class SceneSerializer {
       ambientColor: scene.ambientColor,
       ambientIntensity: scene.ambientIntensity,
       dynamicLighting: scene.dynamicLighting,
-      view: { ...scene.view },
+      view: {...scene.view},
       camera: {
         x: scene.camera.x,
         y: scene.camera.y,
@@ -211,14 +211,14 @@ export class SceneSerializer {
           cols: floor.cols,
           rows: floor.rows,
           color: floor.color,
-          ...(floor.altColor ? { altColor: floor.altColor } : {}),
-          ...(floor.tileImageUrl ? { tileImage: floor.tileImageUrl } : {}),
-          ...(floor.altTileImageUrl ? { altTileImage: floor.altTileImageUrl } : {}),
-          ...(walkable ? { walkable } : {}),
+          ...(floor.altColor ? {altColor: floor.altColor} : {}),
+          ...(floor.tileImageUrl ? {tileImage: floor.tileImageUrl} : {}),
+          ...(floor.altTileImageUrl ? {altTileImage: floor.altTileImageUrl} : {}),
+          ...(walkable ? {walkable} : {}),
         },
       } : {}),
 
-      walls: walls.map((wall) => ({
+      walls: walls.map(wall => ({
         id: wall.id,
         x: wall.position.x,
         y: wall.position.y,
@@ -230,9 +230,9 @@ export class SceneSerializer {
       })),
 
       lights: [
-        ...omniLights.map((light) => ({
+        ...omniLights.map(light => ({
           type: 'omni' as const,
-          ...(light.id ? { id: light.id } : {}),
+          ...(light.id ? {id: light.id} : {}),
           enabled: light.enabled,
           x: light.position.x,
           y: light.position.y,
@@ -243,9 +243,9 @@ export class SceneSerializer {
           isGlobal: light.isGlobal,
           falloff: light.falloff,
         })),
-        ...dirLights.map((light) => ({
+        ...dirLights.map(light => ({
           type: 'directional' as const,
-          ...(light.id ? { id: light.id } : {}),
+          ...(light.id ? {id: light.id} : {}),
           enabled: light.enabled,
           angle: SceneSerializer._degrees(light.angle),
           elevation: SceneSerializer._degrees(light.elevation),
@@ -255,7 +255,7 @@ export class SceneSerializer {
         ...SceneSerializer._customLights(scene.allLights),
       ],
 
-      characters: characters.map((character) => ({
+      characters: characters.map(character => ({
         id: character.id,
         x: character.position.x,
         y: character.position.y,
@@ -264,7 +264,7 @@ export class SceneSerializer {
         color: character.color,
       })),
 
-      clouds: clouds.map((cloud) => ({
+      clouds: clouds.map(cloud => ({
         id: cloud.id,
         x: cloud.position.x,
         y: cloud.position.y,
@@ -276,7 +276,7 @@ export class SceneSerializer {
       })),
 
       props: [
-        ...crystals.map((prop) => ({
+        ...crystals.map(prop => ({
           type: 'crystal' as const,
           id: prop.id,
           x: prop.position.x,
@@ -285,7 +285,7 @@ export class SceneSerializer {
           heightPx: prop.propHeightPx,
           ...SceneSerializer._health(prop),
         })),
-        ...boulders.map((prop) => ({
+        ...boulders.map(prop => ({
           type: 'boulder' as const,
           id: prop.id,
           x: prop.position.x,
@@ -294,7 +294,7 @@ export class SceneSerializer {
           radius: prop.propRadius,
           ...SceneSerializer._health(prop),
         })),
-        ...chests.map((prop) => ({
+        ...chests.map(prop => ({
           type: 'chest' as const,
           id: prop.id,
           x: prop.position.x,
@@ -302,7 +302,7 @@ export class SceneSerializer {
           color: prop.propColor,
           ...SceneSerializer._health(prop),
         })),
-        ...trees.map((prop) => ({
+        ...trees.map(prop => ({
           type: 'tree' as const,
           id: prop.id,
           x: prop.position.x,
@@ -312,7 +312,7 @@ export class SceneSerializer {
           heightPx: prop.propHeightPx,
           scale: prop.propScale,
         })),
-        ...flowers.map((prop) => ({
+        ...flowers.map(prop => ({
           type: 'flowers' as const,
           id: prop.id,
           x: prop.position.x,
@@ -322,7 +322,7 @@ export class SceneSerializer {
           count: prop.propCount,
           seed: prop.propSeed,
         })),
-        ...lanterns.map((prop) => ({
+        ...lanterns.map(prop => ({
           type: 'lantern' as const,
           id: prop.id,
           x: prop.position.x,
@@ -338,14 +338,14 @@ export class SceneSerializer {
 
   /** Entries for objects no built-in branch covers. */
   private static _customProps(
-    objects: readonly IsoObject[],
+    objects: readonly IsoObject[]
   ): Array<Record<string, unknown>> {
     const entries: Array<Record<string, unknown>> = [];
     for (const object of objects) {
-      if (BUILT_IN_TYPES.some((ctor) => SceneSerializer._isA(object, ctor))) continue;
-      if (TRANSIENT_TYPES.some((ctor) => SceneSerializer._isA(object, ctor))) continue;
+      if (BUILT_IN_TYPES.some(ctor => SceneSerializer._isA(object, ctor))) {continue;}
+      if (TRANSIENT_TYPES.some(ctor => SceneSerializer._isA(object, ctor))) {continue;}
       const entry = SceneSerializer._runSerializer(object);
-      if (entry) entries.push(entry);
+      if (entry) {entries.push(entry);}
     }
     return entries;
   }
@@ -356,18 +356,18 @@ export class SceneSerializer {
 
   /** Entries for lights neither built-in branch covers. */
   private static _customLights(
-    lights: readonly BaseLight[],
+    lights: readonly BaseLight[]
   ): Array<Record<string, unknown>> {
     const entries: Array<Record<string, unknown>> = [];
     for (const light of lights) {
-      if (light instanceof OmniLight || light instanceof DirectionalLight) continue;
+      if (light instanceof OmniLight || light instanceof DirectionalLight) {continue;}
       const name = light.constructor?.name ?? 'anonymous';
       const serialize = SceneSerializer.findLightSerializer(light);
       if (!serialize) {
         SceneSerializer._reportOnce(
           name,
           `SceneSerializer: no serializer for light "${name}"; it will not be saved. ` +
-          'Register one with SceneSerializer.registerLight().',
+          'Register one with SceneSerializer.registerLight().'
         );
         continue;
       }
@@ -378,11 +378,11 @@ export class SceneSerializer {
       } catch (error) {
         SceneSerializer._reportOnce(
           name,
-          `SceneSerializer: light serializer for "${name}" threw; skipping it. ${String(error)}`,
+          `SceneSerializer: light serializer for "${name}" threw; skipping it. ${String(error)}`
         );
         continue;
       }
-      if (!entry) continue;
+      if (!entry) {continue;}
 
       // `type` defaults to the light's own discriminator, which is the key
       // `Engine.registerLight()` uses, and `color` / `intensity` / `enabled`
@@ -392,7 +392,7 @@ export class SceneSerializer {
       // white with no hint why.
       const merged = {
         type: light.type,
-        ...(light.id ? { id: light.id } : {}),
+        ...(light.id ? {id: light.id} : {}),
         enabled: light.enabled,
         color: light.color,
         intensity: light.intensity,
@@ -402,7 +402,7 @@ export class SceneSerializer {
         SceneSerializer._reportOnce(
           name,
           `SceneSerializer: light "${name}" has no \`type\`; the entry could not be ` +
-          'loaded back and was dropped.',
+          'loaded back and was dropped.'
         );
         continue;
       }
@@ -425,7 +425,7 @@ export class SceneSerializer {
       SceneSerializer._reportOnce(
         name,
         `SceneSerializer: no serializer for "${name}"; it will not be saved. ` +
-        'Register one with SceneSerializer.register().',
+        'Register one with SceneSerializer.register().'
       );
       return null;
     }
@@ -436,17 +436,17 @@ export class SceneSerializer {
     } catch (error) {
       SceneSerializer._reportOnce(
         name,
-        `SceneSerializer: serializer for "${name}" threw; skipping the object. ${String(error)}`,
+        `SceneSerializer: serializer for "${name}" threw; skipping the object. ${String(error)}`
       );
       return null;
     }
-    if (!entry) return null;
+    if (!entry) {return null;}
 
     if (typeof entry.type !== 'string' || entry.type === '') {
       SceneSerializer._reportOnce(
         name,
         `SceneSerializer: serializer for "${name}" returned no \`type\`; the entry ` +
-        'could not be loaded back and was dropped.',
+        'could not be loaded back and was dropped.'
       );
       return null;
     }
@@ -461,7 +461,7 @@ export class SceneSerializer {
   }
 
   private static _reportOnce(key: string, message: string): void {
-    if (SceneSerializer._reported.has(key)) return;
+    if (SceneSerializer._reported.has(key)) {return;}
     SceneSerializer._reported.add(key);
     console.warn(message);
   }
@@ -473,12 +473,12 @@ export class SceneSerializer {
    * keeps its previous shape. Without it a checkpoint healed every prop on load:
    * only the maximum was saved, so a boulder left at 3 of 50 came back at 50.
    */
-  private static _health(entity: Crystal | Boulder | Chest): { health?: number; hp?: number } {
+  private static _health(entity: Crystal | Boulder | Chest): {health?: number; hp?: number} {
     const health = entity.getComponent(HealthComponent);
-    if (!health) return {};
+    if (!health) {return {};}
     return health.hp < health.maxHp
-      ? { health: health.maxHp, hp: health.hp }
-      : { health: health.maxHp };
+      ? {health: health.maxHp, hp: health.hp}
+      : {health: health.maxHp};
   }
 
   private static _degrees(radians: number): number {

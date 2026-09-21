@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { FrameClock } from '../time/FrameClock';
+import {describe, it, expect} from 'vitest';
+import {FrameClock} from '../time/FrameClock';
 
 /**
  * The clock that now owns the frame-delta contract for every consumer.

@@ -1,6 +1,6 @@
-import { Scene } from '../../../src/core/Scene';
-import { DirectionalLight } from '../../../src/lighting/DirectionalLight';
-import { OmniLight } from '../../../src/lighting/OmniLight';
+import {Scene} from '../../../src/core/Scene';
+import {DirectionalLight} from '../../../src/lighting/DirectionalLight';
+import {OmniLight} from '../../../src/lighting/OmniLight';
 
 export interface PreviewDirectionalLightFixture {
   readonly id: string;
@@ -56,45 +56,45 @@ const DEFAULT_PREVIEW_LIGHTING_FIXTURE_ID = 'day-ne';
 
 export const PREVIEW_LIGHTING_FIXTURES: readonly PreviewLightingFixture[] = [
   fixture('day-ne', '日景 · 东北 (0°)'),
-  fixture('day-nw', '日景 · 西北 (90°)', { rotation: 90 }),
-  fixture('day-sw', '日景 · 西南 (180°)', { rotation: 180 }),
-  fixture('day-se', '日景 · 东南 (270°)', { rotation: 270 }),
+  fixture('day-nw', '日景 · 西北 (90°)', {rotation: 90}),
+  fixture('day-sw', '日景 · 西南 (180°)', {rotation: 180}),
+  fixture('day-se', '日景 · 东南 (270°)', {rotation: 270}),
   fixture('low-angle', '低俯角 · 长阴影', {
     elevation: 0.32,
-    sun: { elevation: 18, intensity: 0.64 },
+    sun: {elevation: 18, intensity: 0.64},
   }),
   fixture('top-down', '高俯角 · 顶视', {
     elevation: 0.82,
-    sun: { elevation: 78, intensity: 0.48 },
+    sun: {elevation: 78, intensity: 0.48},
   }),
   fixture('night-lanterns', '夜景 · 灯笼', {
     ambientColor: '#718099',
     ambientIntensity: 0.11,
-    sun: { elevation: 20, color: '#6f85bd', intensity: 0.08 },
-    workLight: { color: '#809fff', intensity: 0.2 },
-    lanterns: { intensity: 1.08 },
-    skyFill: { color: '#4d6580', intensity: 0.06 },
+    sun: {elevation: 20, color: '#6f85bd', intensity: 0.08},
+    workLight: {color: '#809fff', intensity: 0.2},
+    lanterns: {intensity: 1.08},
+    skyFill: {color: '#4d6580', intensity: 0.06},
   }),
   fixture('global-only', '仅全局光', {
     ambientColor: '#d8e1e7',
     ambientIntensity: 0.15,
-    sun: { enabled: false },
-    workLight: { enabled: false },
-    lanterns: { enabled: false },
-    skyFill: { color: '#b7d9ff', intensity: 0.62 },
+    sun: {enabled: false},
+    workLight: {enabled: false},
+    lanterns: {enabled: false},
+    skyFill: {color: '#b7d9ff', intensity: 0.62},
   }),
   fixture('lights-off', '禁用全部灯光', {
     ambientIntensity: 0.35,
-    sun: { enabled: false },
-    workLight: { enabled: false },
-    lanterns: { enabled: false },
-    skyFill: { enabled: false },
+    sun: {enabled: false},
+    workLight: {enabled: false},
+    lanterns: {enabled: false},
+    skyFill: {enabled: false},
   }),
 ];
 
-const FIXTURES_BY_ID = new Map(PREVIEW_LIGHTING_FIXTURES.map((entry) => [entry.id, entry]));
+const FIXTURES_BY_ID = new Map(PREVIEW_LIGHTING_FIXTURES.map(entry => [entry.id, entry]));
 
-export { DEFAULT_PREVIEW_LIGHTING_FIXTURE_ID };
+export {DEFAULT_PREVIEW_LIGHTING_FIXTURE_ID};
 
 export function getPreviewLightingFixture(id: string | null | undefined): PreviewLightingFixture | undefined {
   return id ? FIXTURES_BY_ID.get(id) : undefined;
@@ -102,12 +102,12 @@ export function getPreviewLightingFixture(id: string | null | undefined): Previe
 
 export function applyPreviewLightingFixture(
   scene: Scene,
-  fixtureOrId: PreviewLightingFixture | string,
+  fixtureOrId: PreviewLightingFixture | string
 ): PreviewLightingFixture {
   const selected = typeof fixtureOrId === 'string'
     ? getPreviewLightingFixture(fixtureOrId)
     : fixtureOrId;
-  if (!selected) throw new Error(`Unknown WebGL preview fixture: ${fixtureOrId}.`);
+  if (!selected) {throw new Error(`Unknown WebGL preview fixture: ${fixtureOrId}.`);}
 
   scene.view = {
     rotation: selected.view.rotation,
@@ -226,7 +226,7 @@ function fixture(id: string, label: string, overrides: FixtureOverrides = {}): P
 function requireLight<T extends DirectionalLight | OmniLight>(
   scene: Scene,
   id: string,
-  ctor: new (...args: never[]) => T,
+  ctor: new (...args: never[]) => T
 ): T {
   const light = scene.getLightById(id);
   if (!(light instanceof ctor)) {

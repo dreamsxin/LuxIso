@@ -1,6 +1,6 @@
-import { readdir, readFile, stat, writeFile } from 'node:fs/promises';
-import { basename, dirname, extname, relative, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import {readdir, readFile, stat, writeFile} from 'node:fs/promises';
+import {basename, dirname, extname, relative, resolve} from 'node:path';
+import {fileURLToPath} from 'node:url';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 // Generated output only. Adding `coverage` matters: the v8 HTML reporter emits
@@ -37,7 +37,7 @@ const SUPPORTED_SOURCE_ENCODINGS = new Set([
   'utf-16le',
   'windows-1252',
 ]);
-const STRICT_UTF8 = new TextDecoder('utf-8', { fatal: true });
+const STRICT_UTF8 = new TextDecoder('utf-8', {fatal: true});
 
 function usage() {
   console.log(`Usage: node scripts/normalize-encoding.mjs [options] [paths...]
@@ -54,7 +54,7 @@ Options:
 }
 
 function parseArguments(argv) {
-  const options = { write: false, from: undefined, paths: [] };
+  const options = {write: false, from: undefined, paths: []};
 
   for (const argument of argv) {
     if (argument === '--help') {
@@ -92,13 +92,13 @@ function isTextFile(path) {
 async function collectFiles(path, files) {
   const info = await stat(path);
   if (!info.isDirectory()) {
-    if (isTextFile(path)) files.push(path);
+    if (isTextFile(path)) {files.push(path);}
     return;
   }
 
-  const entries = await readdir(path, { withFileTypes: true });
+  const entries = await readdir(path, {withFileTypes: true});
   for (const entry of entries) {
-    if (entry.isDirectory() && SKIP_DIRECTORIES.has(entry.name)) continue;
+    if (entry.isDirectory() && SKIP_DIRECTORIES.has(entry.name)) {continue;}
     await collectFiles(resolve(path, entry.name), files);
   }
 }
@@ -109,14 +109,14 @@ function hasPrefix(bytes, prefix) {
 
 function looksLikeUtf16(bytes, littleEndian) {
   const sampleLength = Math.min(bytes.length, 4096);
-  if (sampleLength < 4) return false;
+  if (sampleLength < 4) {return false;}
 
   let expectedZeros = 0;
   let unexpectedZeros = 0;
   for (let index = 0; index < sampleLength; index += 1) {
-    if (bytes[index] !== 0) continue;
-    if ((index % 2 === 1) === littleEndian) expectedZeros += 1;
-    else unexpectedZeros += 1;
+    if (bytes[index] !== 0) {continue;}
+    if ((index % 2 === 1) === littleEndian) {expectedZeros += 1;}
+    else {unexpectedZeros += 1;}
   }
 
   return expectedZeros >= sampleLength / 8 && unexpectedZeros <= sampleLength / 64;
@@ -124,33 +124,33 @@ function looksLikeUtf16(bytes, littleEndian) {
 
 function inspect(bytes) {
   if (hasPrefix(bytes, [0xef, 0xbb, 0xbf])) {
-    return { encoding: 'utf-8-bom', text: STRICT_UTF8.decode(bytes.subarray(3)) };
+    return {encoding: 'utf-8-bom', text: STRICT_UTF8.decode(bytes.subarray(3))};
   }
   if (hasPrefix(bytes, [0xff, 0xfe])) {
-    return { encoding: 'utf-16le', text: new TextDecoder('utf-16le', { fatal: true }).decode(bytes.subarray(2)) };
+    return {encoding: 'utf-16le', text: new TextDecoder('utf-16le', {fatal: true}).decode(bytes.subarray(2))};
   }
   if (hasPrefix(bytes, [0xfe, 0xff])) {
-    return { encoding: 'utf-16be', text: new TextDecoder('utf-16be', { fatal: true }).decode(bytes.subarray(2)) };
+    return {encoding: 'utf-16be', text: new TextDecoder('utf-16be', {fatal: true}).decode(bytes.subarray(2))};
   }
   if (looksLikeUtf16(bytes, true)) {
-    return { encoding: 'utf-16le', text: new TextDecoder('utf-16le', { fatal: true }).decode(bytes) };
+    return {encoding: 'utf-16le', text: new TextDecoder('utf-16le', {fatal: true}).decode(bytes)};
   }
   if (looksLikeUtf16(bytes, false)) {
-    return { encoding: 'utf-16be', text: new TextDecoder('utf-16be', { fatal: true }).decode(bytes) };
+    return {encoding: 'utf-16be', text: new TextDecoder('utf-16be', {fatal: true}).decode(bytes)};
   }
 
   try {
-    return { encoding: 'utf-8', text: STRICT_UTF8.decode(bytes) };
+    return {encoding: 'utf-8', text: STRICT_UTF8.decode(bytes)};
   } catch {
-    return { encoding: 'invalid-utf-8' };
+    return {encoding: 'invalid-utf-8'};
   }
 }
 
 async function main() {
   const options = parseArguments(process.argv.slice(2));
-  const roots = (options.paths.length ? options.paths : ['.']).map((path) => resolve(ROOT, path));
+  const roots = (options.paths.length ? options.paths : ['.']).map(path => resolve(ROOT, path));
   const files = [];
-  for (const root of roots) await collectFiles(root, files);
+  for (const root of roots) {await collectFiles(root, files);}
   files.sort();
 
   const failures = [];
@@ -163,11 +163,11 @@ async function main() {
     if (result.encoding === 'invalid-utf-8' && options.from) {
       result = {
         encoding: options.from,
-        text: new TextDecoder(options.from, { fatal: true }).decode(bytes),
+        text: new TextDecoder(options.from, {fatal: true}).decode(bytes),
       };
     }
 
-    if (result.encoding === 'utf-8') continue;
+    if (result.encoding === 'utf-8') {continue;}
 
     const displayPath = relative(ROOT, file).replaceAll('\\', '/');
     if (!options.write || result.encoding === 'invalid-utf-8') {
@@ -182,7 +182,7 @@ async function main() {
 
   if (failures.length) {
     console.error('Encoding check failed:');
-    for (const failure of failures) console.error(`  ${failure}`);
+    for (const failure of failures) {console.error(`  ${failure}`);}
     if (!options.write) {
       console.error('Run with --write to normalize BOM/UTF-16 files. Use --from explicitly for legacy encodings.');
     }
@@ -193,7 +193,7 @@ async function main() {
   console.log(`Encoding check passed: ${files.length} files, ${converted} converted.`);
 }
 
-main().catch((error) => {
+main().catch(error => {
   console.error(error instanceof Error ? error.message : error);
   process.exitCode = 1;
 });

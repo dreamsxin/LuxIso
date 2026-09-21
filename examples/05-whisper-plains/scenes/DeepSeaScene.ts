@@ -9,13 +9,13 @@
  * - 发光水母（半透明伞形）
  * - 深海传送门（返回湖水）
  */
-import { IsoObject, DrawContext } from '../../../src/elements/IsoObject';
-import { AABB } from '../../../src/math/depthSort';
-import { project } from '../../../src/math/IsoProjection';
-import { Scene } from '../../../src/core/Scene';
-import { TileCollider } from '../../../src/physics/TileCollider';
-import { OmniLight } from '../../../src/lighting/OmniLight';
-import { Floor } from '../../../src/elements/Floor';
+import {IsoObject, DrawContext} from '../../../src/elements/IsoObject';
+import {AABB} from '../../../src/math/depthSort';
+import {project} from '../../../src/math/IsoProjection';
+import {Scene} from '../../../src/core/Scene';
+import {TileCollider} from '../../../src/physics/TileCollider';
+import {OmniLight} from '../../../src/lighting/OmniLight';
+import {Floor} from '../../../src/elements/Floor';
 
 export const DEEP_COLS = 14;
 export const DEEP_ROWS = 14;
@@ -45,7 +45,7 @@ export class BubbleSystem extends IsoObject {
     this.rows = rows;
     this.castsShadow = false;
     // 初始气泡
-    for (let i = 0; i < 30; i++) this._spawnBubble(Math.random() * 80);
+    for (let i = 0; i < 30; i++) {this._spawnBubble(Math.random() * 80);}
   }
 
   private _spawnBubble(startZ = 0): void {
@@ -62,7 +62,7 @@ export class BubbleSystem extends IsoObject {
   }
 
   get aabb(): AABB {
-    return { minX: 0, minY: 0, maxX: this.cols, maxY: this.rows, baseZ: 0 };
+    return {minX: 0, minY: 0, maxX: this.cols, maxY: this.rows, baseZ: 0};
   }
 
   update(ts?: number): void {
@@ -82,13 +82,13 @@ export class BubbleSystem extends IsoObject {
   }
 
   draw(dc: DrawContext): void {
-    const { ctx, tileW, tileH, originX, originY } = dc;
+    const {ctx, tileW, tileH, originX, originY} = dc;
     for (const b of this._bubbles) {
-      const { sx, sy } = project(b.x, b.y, b.z, tileW, tileH);
+      const {sx, sy} = project(b.x, b.y, b.z, tileW, tileH);
       const bx = originX + sx;
       const by = originY + sy;
       const fade = Math.min(1, (100 - b.z) / 20) * b.alpha;
-      if (fade < 0.02) continue;
+      if (fade < 0.02) {continue;}
 
       ctx.save();
       // 气泡主体（半透明圆）
@@ -116,19 +116,23 @@ export class DeepSeaWeed extends IsoObject {
   private _color: string;
   private _height: number;
 
-  constructor(id: string, x: number, y: number, opts: { seed?: number; variant?: number } = {}) {
+  constructor(id: string, x: number, y: number, opts: {seed?: number; variant?: number} = {}) {
     super(id, x, y, 0);
     const seed = opts.seed ?? Math.random();
-    this._phase   = seed * Math.PI * 2;
+    this._phase = seed * Math.PI * 2;
     this._variant = opts.variant ?? Math.floor(seed * 3);
-    this._height  = 18 + seed * 22;
-    const colors  = ['#0d7a5a', '#0a6a8a', '#1a5a7a', '#0d8a6a', '#0a5a9a'];
-    this._color   = colors[Math.floor(seed * colors.length)];
+    this._height = 18 + seed * 22;
+    const colors = ['#0d7a5a', '#0a6a8a', '#1a5a7a', '#0d8a6a', '#0a5a9a'];
+    this._color = colors[Math.floor(seed * colors.length)];
     this.castsShadow = false;
   }
 
   get aabb(): AABB {
-    return { minX: this.position.x - 0.2, minY: this.position.y - 0.2, maxX: this.position.x + 0.2, maxY: this.position.y + 0.2, baseZ: 0 };
+    return {
+      minX: this.position.x - 0.2, minY: this.position.y - 0.2,
+      maxX: this.position.x + 0.2, maxY: this.position.y + 0.2,
+      baseZ: 0,
+    };
   }
 
   update(ts?: number): void {
@@ -139,16 +143,16 @@ export class DeepSeaWeed extends IsoObject {
   }
 
   draw(dc: DrawContext): void {
-    const { ctx, tileW, tileH, originX, originY } = dc;
-    const { x, y } = this.position;
-    const { sx, sy } = project(x, y, 0, tileW, tileH);
+    const {ctx, tileW, tileH, originX, originY} = dc;
+    const {x, y} = this.position;
+    const {sx, sy} = project(x, y, 0, tileW, tileH);
     const cx = originX + sx;
     const cy = originY + sy;
     ctx.save();
     ctx.translate(cx, cy);
-    if (this._variant === 0) this._drawFan(ctx);
-    else if (this._variant === 1) this._drawTube(ctx);
-    else this._drawRibbon(ctx);
+    if (this._variant === 0) {this._drawFan(ctx);}
+    else if (this._variant === 1) {this._drawTube(ctx);}
+    else {this._drawRibbon(ctx);}
     ctx.restore();
   }
 
@@ -241,28 +245,32 @@ export class Coral extends IsoObject {
   private _lastTs = 0;
   private _color: string;
   private _size: number;
-  private _branches: Array<{ angle: number; len: number; width: number }>;
+  private _branches: Array<{angle: number; len: number; width: number}>;
 
-  constructor(id: string, x: number, y: number, opts: { seed?: number; color?: string } = {}) {
+  constructor(id: string, x: number, y: number, opts: {seed?: number; color?: string} = {}) {
     super(id, x, y, 0);
     const seed = opts.seed ?? Math.random();
-    this._phase  = seed * Math.PI * 2;
-    this._size   = 0.7 + seed * 0.8;
+    this._phase = seed * Math.PI * 2;
+    this._size = 0.7 + seed * 0.8;
     const colors = ['#ff6b6b', '#ff8c42', '#ff4da6', '#c084fc', '#f97316'];
-    this._color  = opts.color ?? colors[Math.floor(seed * colors.length)];
+    this._color = opts.color ?? colors[Math.floor(seed * colors.length)];
     this.castsShadow = false;
     // 生成固定分支
     const n = 3 + Math.floor(seed * 4);
-    this._branches = Array.from({ length: n }, (_, i) => ({
-      angle:  (i / n) * Math.PI * 1.6 - Math.PI * 0.8 + (seed * 0.4 - 0.2),
-      len:    (14 + seed * 12) * this._size,
-      width:  (2.5 + seed * 1.5) * this._size,
+    this._branches = Array.from({length: n}, (_, i) => ({
+      angle: (i / n) * Math.PI * 1.6 - Math.PI * 0.8 + (seed * 0.4 - 0.2),
+      len: (14 + seed * 12) * this._size,
+      width: (2.5 + seed * 1.5) * this._size,
     }));
   }
 
   get aabb(): AABB {
     const r = 0.4 * this._size;
-    return { minX: this.position.x - r, minY: this.position.y - r, maxX: this.position.x + r, maxY: this.position.y + r, baseZ: 0 };
+    return {
+      minX: this.position.x - r, minY: this.position.y - r,
+      maxX: this.position.x + r, maxY: this.position.y + r,
+      baseZ: 0,
+    };
   }
 
   update(ts?: number): void {
@@ -273,9 +281,9 @@ export class Coral extends IsoObject {
   }
 
   draw(dc: DrawContext): void {
-    const { ctx, tileW, tileH, originX, originY } = dc;
-    const { x, y } = this.position;
-    const { sx, sy } = project(x, y, 0, tileW, tileH);
+    const {ctx, tileW, tileH, originX, originY} = dc;
+    const {x, y} = this.position;
+    const {sx, sy} = project(x, y, 0, tileW, tileH);
     const cx = originX + sx;
     const cy = originY + sy;
     ctx.save();
@@ -342,20 +350,24 @@ export class Jellyfish extends IsoObject {
   private _driftX: number;
   private _driftY: number;
 
-  constructor(id: string, x: number, y: number, opts: { seed?: number } = {}) {
+  constructor(id: string, x: number, y: number, opts: {seed?: number} = {}) {
     super(id, x, y, 20 + Math.random() * 30);
     const seed = opts.seed ?? Math.random();
-    this._phase  = seed * Math.PI * 2;
-    this._size   = 0.6 + seed * 0.7;
+    this._phase = seed * Math.PI * 2;
+    this._size = 0.6 + seed * 0.7;
     const colors = ['#c084fc', '#818cf8', '#38bdf8', '#34d399', '#f472b6'];
-    this._color  = colors[Math.floor(seed * colors.length)];
+    this._color = colors[Math.floor(seed * colors.length)];
     this._driftX = (Math.random() - 0.5) * 0.04;
     this._driftY = (Math.random() - 0.5) * 0.04;
     this.castsShadow = false;
   }
 
   get aabb(): AABB {
-    return { minX: this.position.x - 0.5, minY: this.position.y - 0.5, maxX: this.position.x + 0.5, maxY: this.position.y + 0.5, baseZ: this.position.z };
+    return {
+      minX: this.position.x - 0.5, minY: this.position.y - 0.5,
+      maxX: this.position.x + 0.5, maxY: this.position.y + 0.5,
+      baseZ: this.position.z,
+    };
   }
 
   update(ts?: number): void {
@@ -364,15 +376,17 @@ export class Jellyfish extends IsoObject {
     this._lastTs = now;
     this._phase += dt * 0.9;
     // 缓慢漂移 + 上下浮动
-    this.position.x = Math.max(1, Math.min(DEEP_COLS - 1, this.position.x + this._driftX * Math.sin(this._phase * 0.3)));
-    this.position.y = Math.max(1, Math.min(DEEP_ROWS - 1, this.position.y + this._driftY * Math.cos(this._phase * 0.25)));
+    const driftedX = this.position.x + this._driftX * Math.sin(this._phase * 0.3);
+    const driftedY = this.position.y + this._driftY * Math.cos(this._phase * 0.25);
+    this.position.x = Math.max(1, Math.min(DEEP_COLS - 1, driftedX));
+    this.position.y = Math.max(1, Math.min(DEEP_ROWS - 1, driftedY));
     this.position.z = (20 + Math.sin(this._phase * 0.7) * 12) * this._size;
   }
 
   draw(dc: DrawContext): void {
-    const { ctx, tileW, tileH, originX, originY } = dc;
-    const { x, y, z } = this.position;
-    const { sx, sy } = project(x, y, z, tileW, tileH);
+    const {ctx, tileW, tileH, originX, originY} = dc;
+    const {x, y, z} = this.position;
+    const {sx, sy} = project(x, y, z, tileW, tileH);
     const cx = originX + sx;
     const cy = originY + sy;
     const s = this._size;
@@ -393,9 +407,9 @@ export class Jellyfish extends IsoObject {
     ctx.closePath();
     // 半透明渐变填充
     const grad = ctx.createRadialGradient(0, -R * 0.2, 0, 0, -R * 0.2, R);
-    grad.addColorStop(0,   this._rgba(this._color, 0.55));
+    grad.addColorStop(0, this._rgba(this._color, 0.55));
     grad.addColorStop(0.6, this._rgba(this._color, 0.25));
-    grad.addColorStop(1,   this._rgba(this._color, 0.05));
+    grad.addColorStop(1, this._rgba(this._color, 0.05));
     ctx.fillStyle = grad;
     ctx.fill();
     ctx.strokeStyle = this._rgba(this._color, 0.7);
@@ -457,7 +471,11 @@ export class DeepPortal extends IsoObject {
   activate(): void { this._pulse = 1; }
 
   get aabb(): AABB {
-    return { minX: this.position.x - 1.5, minY: this.position.y - 1.5, maxX: this.position.x + 1.5, maxY: this.position.y + 1.5, baseZ: 0 };
+    return {
+      minX: this.position.x - 1.5, minY: this.position.y - 1.5,
+      maxX: this.position.x + 1.5, maxY: this.position.y + 1.5,
+      baseZ: 0,
+    };
   }
 
   update(ts?: number): void {
@@ -465,13 +483,13 @@ export class DeepPortal extends IsoObject {
     const dt = this._lastTs === 0 ? 0.016 : Math.min((now - this._lastTs) / 1000, 0.1);
     this._lastTs = now;
     this._phase += dt;
-    if (this._pulse > 0) this._pulse = Math.max(0, this._pulse - dt * 1.5);
+    if (this._pulse > 0) {this._pulse = Math.max(0, this._pulse - dt * 1.5);}
   }
 
   draw(dc: DrawContext): void {
-    const { ctx, tileW, tileH, originX, originY } = dc;
-    const { x, y } = this.position;
-    const { sx, sy } = project(x, y, 0, tileW, tileH);
+    const {ctx, tileW, tileH, originX, originY} = dc;
+    const {x, y} = this.position;
+    const {sx, sy} = project(x, y, 0, tileW, tileH);
     const cx = originX + sx;
     const cy = originY + sy;
     const scaleY = tileH / tileW;
@@ -485,9 +503,9 @@ export class DeepPortal extends IsoObject {
     ctx.scale(1, scaleY);
     const outerR = tileW * 1.4;
     const og = ctx.createRadialGradient(0, 0, 0, 0, 0, outerR);
-    og.addColorStop(0,   `rgba(0,200,180,${(alpha * 0.3).toFixed(2)})`);
+    og.addColorStop(0, `rgba(0,200,180,${(alpha * 0.3).toFixed(2)})`);
     og.addColorStop(0.5, `rgba(0,150,180,${(alpha * 0.12).toFixed(2)})`);
-    og.addColorStop(1,   'rgba(0,100,150,0)');
+    og.addColorStop(1, 'rgba(0,100,150,0)');
     ctx.beginPath();
     ctx.arc(0, 0, outerR, 0, Math.PI * 2);
     ctx.fillStyle = og;
@@ -503,8 +521,8 @@ export class DeepPortal extends IsoObject {
       ctx.beginPath();
       for (let i = 0; i <= 6; i++) {
         const a = (i / 6) * Math.PI * 2 + rot;
-        if (i === 0) ctx.moveTo(Math.cos(a) * r, Math.sin(a) * r);
-        else ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r);
+        if (i === 0) {ctx.moveTo(Math.cos(a) * r, Math.sin(a) * r);}
+        else {ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r);}
       }
       ctx.closePath();
       ctx.strokeStyle = `rgba(0,220,200,${(alpha * (0.8 - ring * 0.2)).toFixed(2)})`;
@@ -518,9 +536,9 @@ export class DeepPortal extends IsoObject {
     ctx.scale(1, scaleY);
     const coreR = tileW * 0.12;
     const cg = ctx.createRadialGradient(0, 0, 0, 0, 0, coreR);
-    cg.addColorStop(0,   `rgba(200,255,250,${alpha.toFixed(2)})`);
+    cg.addColorStop(0, `rgba(200,255,250,${alpha.toFixed(2)})`);
     cg.addColorStop(0.5, `rgba(0,220,200,${(alpha * 0.7).toFixed(2)})`);
-    cg.addColorStop(1,   'rgba(0,180,160,0)');
+    cg.addColorStop(1, 'rgba(0,180,160,0)');
     ctx.beginPath();
     ctx.arc(0, 0, coreR, 0, Math.PI * 2);
     ctx.fillStyle = cg;
@@ -530,9 +548,9 @@ export class DeepPortal extends IsoObject {
     // 上升光柱（细，青绿）
     const beamH = 60 + Math.sin(this._phase * 2) * 10;
     const beamGrad = ctx.createLinearGradient(0, 0, 0, -beamH);
-    beamGrad.addColorStop(0,   `rgba(0,220,200,${(alpha * 0.6).toFixed(2)})`);
+    beamGrad.addColorStop(0, `rgba(0,220,200,${(alpha * 0.6).toFixed(2)})`);
     beamGrad.addColorStop(0.5, `rgba(0,180,160,${(alpha * 0.25).toFixed(2)})`);
-    beamGrad.addColorStop(1,   'rgba(0,150,140,0)');
+    beamGrad.addColorStop(1, 'rgba(0,150,140,0)');
     ctx.beginPath();
     ctx.moveTo(-4, 0); ctx.lineTo(4, 0);
     ctx.lineTo(2, -beamH); ctx.lineTo(-2, -beamH);
@@ -561,9 +579,9 @@ export class DeepPortal extends IsoObject {
 
 // ── 构建深海场景 ───────────────────────────────────────────────────────────
 
-export function buildDeepSeaScene(): { scene: Scene; portal: DeepPortal; bubbles: BubbleSystem; collider: TileCollider } {
-  const scene = new Scene({ tileW: 64, tileH: 32, cols: DEEP_COLS, rows: DEEP_ROWS });
-  scene.ambientColor     = '#001830';
+export function buildDeepSeaScene(): {scene: Scene; portal: DeepPortal; bubbles: BubbleSystem; collider: TileCollider} {
+  const scene = new Scene({tileW: 64, tileH: 32, cols: DEEP_COLS, rows: DEEP_ROWS});
+  scene.ambientColor = '#001830';
   scene.ambientIntensity = 0.18;
 
   // ── 碰撞地图 ──────────────────────────────────────────────────────────────
@@ -573,14 +591,20 @@ export function buildDeepSeaScene(): { scene: Scene; portal: DeepPortal; bubbles
 
 
   // 深海地面（深蓝黑色）
-  scene.addObject(new Floor({ id: 'seafloor', cols: DEEP_COLS, rows: DEEP_ROWS, color: '#0a1a2e', altColor: '#0d2040' }));
+  scene.addObject(new Floor({id: 'seafloor', cols: DEEP_COLS, rows: DEEP_ROWS, color: '#0a1a2e', altColor: '#0d2040'}));
 
   // 光源：深海幽光（多个低强度点光源）
-  scene.addLight(new OmniLight({ id: 'sea-center', x: DEEP_COLS / 2, y: DEEP_ROWS / 2, z: 60, color: '#00c8b4', intensity: 0.45, radius: 500 }));
-  scene.addLight(new OmniLight({ id: 'sea-portal', x: DEEP_PORTAL_X, y: DEEP_PORTAL_Y, z: 40, color: '#00e0c8', intensity: 0.6, radius: 320 }));
-  scene.addLight(new OmniLight({ id: 'sea-glow1',  x: 3, y: 4,  z: 30, color: '#c084fc', intensity: 0.3, radius: 200 }));
-  scene.addLight(new OmniLight({ id: 'sea-glow2',  x: 11, y: 3, z: 30, color: '#f472b6', intensity: 0.25, radius: 180 }));
-  scene.addLight(new OmniLight({ id: 'sea-glow3',  x: 5, y: 11, z: 30, color: '#38bdf8', intensity: 0.28, radius: 200 }));
+  scene.addLight(new OmniLight({
+    id: 'sea-center', x: DEEP_COLS / 2, y: DEEP_ROWS / 2, z: 60,
+    color: '#00c8b4', intensity: 0.45, radius: 500,
+  }));
+  scene.addLight(new OmniLight({
+    id: 'sea-portal', x: DEEP_PORTAL_X, y: DEEP_PORTAL_Y, z: 40,
+    color: '#00e0c8', intensity: 0.6, radius: 320,
+  }));
+  scene.addLight(new OmniLight({id: 'sea-glow1', x: 3, y: 4, z: 30, color: '#c084fc', intensity: 0.3, radius: 200}));
+  scene.addLight(new OmniLight({id: 'sea-glow2', x: 11, y: 3, z: 30, color: '#f472b6', intensity: 0.25, radius: 180}));
+  scene.addLight(new OmniLight({id: 'sea-glow3', x: 5, y: 11, z: 30, color: '#38bdf8', intensity: 0.28, radius: 200}));
 
   // 气泡系统
   const bubbles = new BubbleSystem('bubbles', DEEP_COLS, DEEP_ROWS);
@@ -597,7 +621,7 @@ export function buildDeepSeaScene(): { scene: Scene; portal: DeepPortal; bubbles
     [8.0, 11.0, 0.1, 0], [3.0, 11.5, 0.5, 1],
   ];
   for (const [i, [wx, wy, seed, variant]] of weedPositions.entries()) {
-    scene.addObject(new DeepSeaWeed(`weed-${i}`, wx, wy, { seed, variant }));
+    scene.addObject(new DeepSeaWeed(`weed-${i}`, wx, wy, {seed, variant}));
   }
 
   // 珊瑚礁
@@ -608,7 +632,7 @@ export function buildDeepSeaScene(): { scene: Scene; portal: DeepPortal; bubbles
     [3.5, 12.5, 0.15, '#ff6b6b'], [6.5, 11.5, 0.55],
   ];
   for (const [i, [cx, cy, seed, color]] of coralPositions.entries()) {
-    scene.addObject(new Coral(`coral-${i}`, cx as number, cy as number, { seed: seed as number, color }));
+    scene.addObject(new Coral(`coral-${i}`, cx as number, cy as number, {seed: seed as number, color}));
     collider.setWalkable(Math.floor(cx as number), Math.floor(cy as number), false);
   }
 
@@ -620,7 +644,7 @@ export function buildDeepSeaScene(): { scene: Scene; portal: DeepPortal; bubbles
     [11.5, 10.5, 0.35], [4.5, 11.5, 0.75],
   ];
   for (const [i, [jx, jy, seed]] of jellyfishPositions.entries()) {
-    scene.addObject(new Jellyfish(`jelly-${i}`, jx, jy, { seed }));
+    scene.addObject(new Jellyfish(`jelly-${i}`, jx, jy, {seed}));
   }
 
   // 深海传送门
@@ -631,5 +655,5 @@ export function buildDeepSeaScene(): { scene: Scene; portal: DeepPortal; bubbles
   collider.setWalkable(Math.floor(DEEP_SPAWN_X), Math.floor(DEEP_SPAWN_Y), true);
   collider.setWalkable(DEEP_PORTAL_X, DEEP_PORTAL_Y, true);
 
-  return { scene, portal, bubbles, collider };
+  return {scene, portal, bubbles, collider};
 }

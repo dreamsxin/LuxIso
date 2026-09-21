@@ -5,9 +5,9 @@
  * Deer   — 低多边形鹿，缓慢游荡，受惊时快速跑开
  * Butterfly — 蝴蝶，在花朵间飞舞
  */
-import { IsoObject, DrawContext } from '../../../src/elements/IsoObject';
-import { AABB } from '../../../src/math/depthSort';
-import { project } from '../../../src/math/IsoProjection';
+import {IsoObject, DrawContext} from '../../../src/elements/IsoObject';
+import {AABB} from '../../../src/math/depthSort';
+import {project} from '../../../src/math/IsoProjection';
 
 // ── 工具 ──────────────────────────────────────────────────────────────────
 
@@ -28,7 +28,7 @@ export class Bunny extends IsoObject {
   private readonly _cols: number;
   private readonly _rows: number;
 
-  constructor(id: string, x: number, y: number, opts: { seed?: number; cols?: number; rows?: number } = {}) {
+  constructor(id: string, x: number, y: number, opts: {seed?: number; cols?: number; rows?: number} = {}) {
     super(id, x, y, 0);
     this._seed = opts.seed ?? Math.random();
     this._cols = opts.cols ?? 16;
@@ -38,7 +38,11 @@ export class Bunny extends IsoObject {
   }
 
   get aabb(): AABB {
-    return { minX: this.position.x - 0.3, minY: this.position.y - 0.3, maxX: this.position.x + 0.3, maxY: this.position.y + 0.3, baseZ: 0 };
+    return {
+      minX: this.position.x - 0.3, minY: this.position.y - 0.3,
+      maxX: this.position.x + 0.3, maxY: this.position.y + 0.3,
+      baseZ: 0,
+    };
   }
 
   update(ts?: number): void {
@@ -76,24 +80,24 @@ export class Bunny extends IsoObject {
       this.position.x = clamp(this.position.x + this._vx * dt, 1, this._cols - 1);
       this.position.y = clamp(this.position.y + this._vy * dt, 1, this._rows - 1);
       // 碰边界反弹
-      if (this.position.x <= 1 || this.position.x >= this._cols - 1) this._vx *= -1;
-      if (this.position.y <= 1 || this.position.y >= this._rows - 1) this._vy *= -1;
+      if (this.position.x <= 1 || this.position.x >= this._cols - 1) {this._vx *= -1;}
+      if (this.position.y <= 1 || this.position.y >= this._rows - 1) {this._vy *= -1;}
     } else {
       this.position.z = 0;
     }
   }
 
   draw(dc: DrawContext): void {
-    const { ctx, tileW, tileH, originX, originY } = dc;
-    const { x, y, z } = this.position;
-    const { sx, sy } = project(x, y, z, tileW, tileH);
+    const {ctx, tileW, tileH, originX, originY} = dc;
+    const {x, y, z} = this.position;
+    const {sx, sy} = project(x, y, z, tileW, tileH);
     const cx = originX + sx, cy = originY + sy;
     const lookSway = this._state === 'look' ? Math.sin(this._phase * 1.5) * 2 * this._lookDir : 0;
     const facingRight = this._vx >= 0;
 
     ctx.save();
     ctx.translate(cx, cy);
-    if (!facingRight) ctx.scale(-1, 1);
+    if (!facingRight) {ctx.scale(-1, 1);}
 
     // 身体（低多边形椭圆，5顶点）
     ctx.beginPath();
@@ -156,7 +160,7 @@ export class Deer extends IsoObject {
   private readonly _rows: number;
   private readonly _seed: number;
 
-  constructor(id: string, x: number, y: number, opts: { seed?: number; cols?: number; rows?: number } = {}) {
+  constructor(id: string, x: number, y: number, opts: {seed?: number; cols?: number; rows?: number} = {}) {
     super(id, x, y, 0);
     this._seed = opts.seed ?? Math.random();
     this._cols = opts.cols ?? 16;
@@ -166,7 +170,11 @@ export class Deer extends IsoObject {
   }
 
   get aabb(): AABB {
-    return { minX: this.position.x - 0.5, minY: this.position.y - 0.5, maxX: this.position.x + 0.5, maxY: this.position.y + 0.5, baseZ: 0 };
+    return {
+      minX: this.position.x - 0.5, minY: this.position.y - 0.5,
+      maxX: this.position.x + 0.5, maxY: this.position.y + 0.5,
+      baseZ: 0,
+    };
   }
 
   update(ts?: number): void {
@@ -195,15 +203,15 @@ export class Deer extends IsoObject {
       this._walkPhase += dt * 4;
       this.position.x = clamp(this.position.x + this._vx * dt, 1.5, this._cols - 1.5);
       this.position.y = clamp(this.position.y + this._vy * dt, 1.5, this._rows - 1.5);
-      if (this.position.x <= 1.5 || this.position.x >= this._cols - 1.5) this._vx *= -1;
-      if (this.position.y <= 1.5 || this.position.y >= this._rows - 1.5) this._vy *= -1;
+      if (this.position.x <= 1.5 || this.position.x >= this._cols - 1.5) {this._vx *= -1;}
+      if (this.position.y <= 1.5 || this.position.y >= this._rows - 1.5) {this._vy *= -1;}
     }
   }
 
   draw(dc: DrawContext): void {
-    const { ctx, tileW, tileH, originX, originY } = dc;
-    const { x, y } = this.position;
-    const { sx, sy } = project(x, y, 0, tileW, tileH);
+    const {ctx, tileW, tileH, originX, originY} = dc;
+    const {x, y} = this.position;
+    const {sx, sy} = project(x, y, 0, tileW, tileH);
     const cx = originX + sx, cy = originY + sy;
     const facingRight = this._vx >= 0 || this._state !== 'walk';
     const grazeNod = this._state === 'graze' ? Math.sin(this._phase * 0.8) * 3 : 0;
@@ -211,7 +219,7 @@ export class Deer extends IsoObject {
 
     ctx.save();
     ctx.translate(cx, cy);
-    if (!facingRight) ctx.scale(-1, 1);
+    if (!facingRight) {ctx.scale(-1, 1);}
 
     // 腿（4条，走路时交替摆动）
     ctx.strokeStyle = '#8a6a40'; ctx.lineWidth = 2;
@@ -286,12 +294,12 @@ export class Butterfly extends IsoObject {
   private readonly _cols: number;
   private readonly _rows: number;
 
-  constructor(id: string, x: number, y: number, opts: { seed?: number; cols?: number; rows?: number } = {}) {
+  constructor(id: string, x: number, y: number, opts: {seed?: number; cols?: number; rows?: number} = {}) {
     super(id, x, y, 8 + Math.random() * 6);
     const seed = opts.seed ?? Math.random();
     this._phase = seed * Math.PI * 2;
-    this._cols  = opts.cols ?? 16;
-    this._rows  = opts.rows ?? 16;
+    this._cols = opts.cols ?? 16;
+    this._rows = opts.rows ?? 16;
     this._targetX = x; this._targetY = y;
     this._speed = 1.5 + seed * 1.5;
     const palettes: Array<[string, string]> = [
@@ -304,7 +312,11 @@ export class Butterfly extends IsoObject {
   }
 
   get aabb(): AABB {
-    return { minX: this.position.x - 0.2, minY: this.position.y - 0.2, maxX: this.position.x + 0.2, maxY: this.position.y + 0.2, baseZ: this.position.z };
+    return {
+      minX: this.position.x - 0.2, minY: this.position.y - 0.2,
+      maxX: this.position.x + 0.2, maxY: this.position.y + 0.2,
+      baseZ: this.position.z,
+    };
   }
 
   update(ts?: number): void {
@@ -330,9 +342,9 @@ export class Butterfly extends IsoObject {
   }
 
   draw(dc: DrawContext): void {
-    const { ctx, tileW, tileH, originX, originY } = dc;
-    const { x, y, z } = this.position;
-    const { sx, sy } = project(x, y, z, tileW, tileH);
+    const {ctx, tileW, tileH, originX, originY} = dc;
+    const {x, y, z} = this.position;
+    const {sx, sy} = project(x, y, z, tileW, tileH);
     const cx = originX + sx, cy = originY + sy;
     const wingOpen = Math.abs(Math.sin(this._wingPhase));
 

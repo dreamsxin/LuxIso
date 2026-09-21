@@ -45,7 +45,7 @@ export interface LoopSpec {
   /** Steps in the loop. */
   bars: number;
   rate?: number;
-  notes: Array<CueSpec & { step: number }>;
+  notes: Array<CueSpec & {step: number}>;
 }
 
 /** Render one decaying voice as a `data:audio/wav` URL. */
@@ -122,7 +122,7 @@ function mixVoice(out: Float32Array, rate: number, offset: number, spec: CueSpec
 
   for (let i = 0; i < total; i++) {
     const index = offset + i;
-    if (index >= out.length) break;
+    if (index >= out.length) {break;}
     const t = i / rate;
     const freq = from + (to - from) * (i / total);
     phase += (Math.PI * 2 * freq) / rate;
@@ -141,13 +141,13 @@ function encodeWav(pcm: Float32Array, rate: number): string {
   view.setUint32(4, bytes - 8, true);
   ascii(view, 8, 'WAVE');
   ascii(view, 12, 'fmt ');
-  view.setUint32(16, 16, true);   // PCM chunk size
-  view.setUint16(20, 1, true);    // format: PCM
-  view.setUint16(22, 1, true);    // channels
+  view.setUint32(16, 16, true); // PCM chunk size
+  view.setUint16(20, 1, true); // format: PCM
+  view.setUint16(22, 1, true); // channels
   view.setUint32(24, rate, true);
   view.setUint32(28, rate * 2, true); // byte rate: rate * channels * 2
-  view.setUint16(32, 2, true);    // block align
-  view.setUint16(34, 16, true);   // bits per sample
+  view.setUint16(32, 2, true); // block align
+  view.setUint16(34, 16, true); // bits per sample
   ascii(view, 36, 'data');
   view.setUint32(40, pcm.length * 2, true);
 
@@ -162,7 +162,7 @@ function encodeWav(pcm: Float32Array, rate: number): string {
 }
 
 function ascii(view: DataView, offset: number, text: string): void {
-  for (let i = 0; i < text.length; i++) view.setUint8(offset + i, text.charCodeAt(i));
+  for (let i = 0; i < text.length; i++) {view.setUint8(offset + i, text.charCodeAt(i));}
 }
 
 /**

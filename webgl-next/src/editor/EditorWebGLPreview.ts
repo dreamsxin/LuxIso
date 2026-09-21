@@ -1,9 +1,9 @@
-import type { EditorRenderer } from '../../../src/editor/EditorRenderer';
-import type { EditorState } from '../../../src/editor/EditorState';
-import type { RenderStats } from '../contracts/RenderBackend';
-import type { DebugMarker } from '../extraction/SceneExtractor';
-import { SceneExtractor } from '../extraction/SceneExtractor';
-import { WebGLRenderer } from '../renderer/WebGLRenderer';
+import type {EditorRenderer} from '../../../src/editor/EditorRenderer';
+import type {EditorState} from '../../../src/editor/EditorState';
+import type {RenderStats} from '../contracts/RenderBackend';
+import type {DebugMarker} from '../extraction/SceneExtractor';
+import {SceneExtractor} from '../extraction/SceneExtractor';
+import {WebGLRenderer} from '../renderer/WebGLRenderer';
 
 /** Experimental adapter that renders the editor's rebuilt Scene with WebGL2. */
 export class EditorWebGLPreview {
@@ -15,7 +15,7 @@ export class EditorWebGLPreview {
   constructor(
     canvas: HTMLCanvasElement,
     private readonly _state: EditorState,
-    private readonly _source: EditorRenderer,
+    private readonly _source: EditorRenderer
   ) {
     this._renderer = new WebGLRenderer(canvas);
   }
@@ -29,9 +29,9 @@ export class EditorWebGLPreview {
   }
 
   start(): void {
-    if (this._raf !== null) return;
+    if (this._raf !== null) {return;}
     const frame = (): void => {
-      if (this._enabled) this._render();
+      if (this._enabled) {this._render();}
       this._raf = requestAnimationFrame(frame);
     };
     this._raf = requestAnimationFrame(frame);
@@ -42,14 +42,14 @@ export class EditorWebGLPreview {
   }
 
   dispose(): void {
-    if (this._raf !== null) cancelAnimationFrame(this._raf);
+    if (this._raf !== null) {cancelAnimationFrame(this._raf);}
     this._raf = null;
     this._renderer.dispose();
   }
 
   private _render(): void {
     const scene = this._source.engine.scene;
-    if (!scene) return;
+    if (!scene) {return;}
     const sourceCanvas = this._source.engine.canvas;
     const width = sourceCanvas.width;
     const height = sourceCanvas.height;
@@ -68,7 +68,7 @@ export class EditorWebGLPreview {
   }
 
   private _lightMarkers(): DebugMarker[] {
-    return this._state.scene.lights.map((light) => ({
+    return this._state.scene.lights.map(light => ({
       id: light.id,
       x: light.x,
       y: light.y,

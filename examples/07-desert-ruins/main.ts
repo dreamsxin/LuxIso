@@ -6,36 +6,39 @@ import {
   Engine, Scene, OmniLight, DirectionalLight,
   InputManager, ParticleSystem,
 } from '../../src/index';
-import { SandDune } from './DesertTerrain';
-import { Pyramid, Cactus, BrokenPillar, StoneTablet } from './DesertProps';
-import { SandDustSystem } from './SandDust';
-import { HiddenPortal } from './DesertPortal';
+import {SandDune} from './DesertTerrain';
+import {Pyramid, Cactus, BrokenPillar, StoneTablet} from './DesertProps';
+import {SandDustSystem} from './SandDust';
+import {HiddenPortal} from './DesertPortal';
 
 // ── Canvas & Engine ───────────────────────────────────────────────────────────
 
 const canvas = document.getElementById('canvas') as HTMLCanvasElement;
-canvas.width  = Math.min(window.innerWidth - 24, 900);
+canvas.width = Math.min(window.innerWidth - 24, 900);
 canvas.height = Math.min(window.innerHeight - 120, 580);
 
-const engine = new Engine({ canvas });
+const engine = new Engine({canvas});
 engine.originX = canvas.width / 2;
 engine.originY = canvas.height * 0.38;
 
 // ── Scene ─────────────────────────────────────────────────────────────────────
 
 const COLS = 16, ROWS = 16;
-const scene = new Scene({ tileW: 64, tileH: 32, cols: COLS, rows: ROWS });
+const scene = new Scene({tileW: 64, tileH: 32, cols: COLS, rows: ROWS});
 scene.dynamicLighting = true;
-scene.ambientColor     = '#f0c870';
+scene.ambientColor = '#f0c870';
 scene.ambientIntensity = 0.4;
 engine.setScene(scene);
 
 // ── 光源 ──────────────────────────────────────────────────────────────────────
 
 // 烈日方向光（高仰角 70°，暖白色）
-scene.addLight(new DirectionalLight({ angle: 225, elevation: 70, color: '#fff8e0', intensity: 0.85 }));
+scene.addLight(new DirectionalLight({angle: 225, elevation: 70, color: '#fff8e0', intensity: 0.85}));
 // 橙色 OmniLight 在场景中央
-scene.addLight(new OmniLight({ id: 'sun-omni', x: COLS / 2, y: ROWS / 2, z: 80, color: '#ff9040', intensity: 0.4, radius: 600 }));
+scene.addLight(new OmniLight({
+  id: 'sun-omni', x: COLS / 2, y: ROWS / 2, z: 80,
+  color: '#ff9040', intensity: 0.4, radius: 600,
+}));
 
 // ── 地形 ──────────────────────────────────────────────────────────────────────
 
@@ -46,21 +49,21 @@ scene.addObject(terrain);
 
 scene.addObject(new Pyramid('pyramid', 7, 7));
 
-scene.addObject(new Cactus('cactus-0', 3,  3,  0.2));
-scene.addObject(new Cactus('cactus-1', 12, 5,  0.6));
-scene.addObject(new Cactus('cactus-2', 5,  12, 0.9));
+scene.addObject(new Cactus('cactus-0', 3, 3, 0.2));
+scene.addObject(new Cactus('cactus-1', 12, 5, 0.6));
+scene.addObject(new Cactus('cactus-2', 5, 12, 0.9));
 
-scene.addObject(new BrokenPillar('pillar-0', 1,  1,  0.1));
-scene.addObject(new BrokenPillar('pillar-1', 14, 2,  0.4));
-scene.addObject(new BrokenPillar('pillar-2', 2,  13, 0.7));
+scene.addObject(new BrokenPillar('pillar-0', 1, 1, 0.1));
+scene.addObject(new BrokenPillar('pillar-1', 14, 2, 0.4));
+scene.addObject(new BrokenPillar('pillar-2', 2, 13, 0.7));
 scene.addObject(new BrokenPillar('pillar-3', 13, 13, 0.9));
 
 // ── 石碑 ──────────────────────────────────────────────────────────────────────
 
 const tabletDefs: Array<[string, number, number, number]> = [
-  ['tablet-0', 5,  5,  0.1],
-  ['tablet-1', 10, 6,  0.5],
-  ['tablet-2', 7,  11, 0.8],
+  ['tablet-0', 5, 5, 0.1],
+  ['tablet-1', 10, 6, 0.5],
+  ['tablet-2', 7, 11, 0.8],
 ];
 const tablets = tabletDefs.map(([id, x, y, seed]) => {
   const t = new StoneTablet(id, x, y, seed);
@@ -99,13 +102,13 @@ function bindSlider(id: string, valId: string, cb: (v: number) => void): void {
 }
 
 bindSlider('dust-speed', 'dust-speed-val', v => { dustSystem.speedMult = v; });
-bindSlider('heat-wave',  'heat-wave-val',  v => { terrain.heatWaveStrength = v; });
+bindSlider('heat-wave', 'heat-wave-val', v => { terrain.heatWaveStrength = v; });
 
 // ── 渲染循环 ──────────────────────────────────────────────────────────────────
 
 engine.start(
   // postFrame — HUD
-  (ts) => {
+  ts => {
     const ctx = engine.ctx;
     const w = canvas.width;
 
@@ -128,13 +131,13 @@ engine.start(
             input.pointer.x, input.pointer.y,
             canvas.width, canvas.height,
             scene.tileW, scene.tileH,
-            engine.originX, engine.originY,
+            engine.originX, engine.originY
           )
         : _screenToWorld(input.pointer.x, input.pointer.y);
 
       for (let i = 0; i < tablets.length; i++) {
         const t = tablets[i];
-        if (t.isActivated) continue;
+        if (t.isActivated) {continue;}
         const dist = Math.hypot(world.x - t.position.x, world.y - t.position.y);
         if (dist < t.triggerRadius) {
           t.isActivated = true;
@@ -175,27 +178,27 @@ engine.start(
     input.flush();
   },
   // preFrame — 背景
-  (ts) => {
+  ts => {
     const ctx = engine.ctx;
     const w = canvas.width, h = canvas.height;
     const t = ts * 0.0003;
 
     // 沙漠天空渐变（橙黄到深蓝）
     const sky = ctx.createLinearGradient(0, 0, 0, h * 0.65);
-    sky.addColorStop(0,   '#1a2a5a');
-    sky.addColorStop(0.35,'#4a3a10');
-    sky.addColorStop(0.65,'#c87820');
-    sky.addColorStop(1,   '#e8a030');
+    sky.addColorStop(0, '#1a2a5a');
+    sky.addColorStop(0.35, '#4a3a10');
+    sky.addColorStop(0.65, '#c87820');
+    sky.addColorStop(1, '#e8a030');
     ctx.fillStyle = sky;
     ctx.fillRect(0, 0, w, h);
 
     // 太阳光晕
     const sunX = w * 0.72, sunY = h * 0.18;
     const sunGlow = ctx.createRadialGradient(sunX, sunY, 0, sunX, sunY, w * 0.28);
-    sunGlow.addColorStop(0,   `rgba(255,240,180,${0.55 + Math.sin(t) * 0.05})`);
-    sunGlow.addColorStop(0.15,`rgba(255,200,80,${0.25 + Math.sin(t * 1.3) * 0.03})`);
-    sunGlow.addColorStop(0.5, `rgba(220,140,20,0.08)`);
-    sunGlow.addColorStop(1,   'rgba(180,100,0,0)');
+    sunGlow.addColorStop(0, `rgba(255,240,180,${0.55 + Math.sin(t) * 0.05})`);
+    sunGlow.addColorStop(0.15, `rgba(255,200,80,${0.25 + Math.sin(t * 1.3) * 0.03})`);
+    sunGlow.addColorStop(0.5, 'rgba(220,140,20,0.08)');
+    sunGlow.addColorStop(1, 'rgba(180,100,0,0)');
     ctx.fillStyle = sunGlow;
     ctx.fillRect(0, 0, w, h);
 
@@ -204,16 +207,16 @@ engine.start(
     ctx.arc(sunX, sunY, 18, 0, Math.PI * 2);
     ctx.fillStyle = '#fff8c0';
     ctx.fill();
-  },
+  }
 );
 
 // ── 简单 screenToWorld（无 camera 时） ────────────────────────────────────────
 
-function _screenToWorld(sx: number, sy: number): { x: number; y: number } {
+function _screenToWorld(sx: number, sy: number): {x: number; y: number} {
   const lsx = (sx - engine.originX);
   const lsy = (sy - engine.originY);
   const tileW = scene.tileW, tileH = scene.tileH;
   const a = lsx / (tileW / 2);
   const b = lsy / (tileH / 2);
-  return { x: (a + b) / 2, y: (b - a) / 2 };
+  return {x: (a + b) / 2, y: (b - a) / 2};
 }

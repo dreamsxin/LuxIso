@@ -35,7 +35,7 @@ export interface TransitionOptions {
   easing?: (t: number) => number;
 }
 
-const easeInOut = (t: number): number => t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+const easeInOut = (t: number): number => (t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t);
 
 type Phase = 'idle' | 'in' | 'hold' | 'out';
 
@@ -95,12 +95,12 @@ export class SceneTransition {
     this._resolve = null;
     pending?.();
 
-    this._effect   = effect;
-    this._color    = opts.color    ?? '#000000';
+    this._effect = effect;
+    this._color = opts.color ?? '#000000';
     this._duration = opts.duration ?? 400;
-    this._easing   = opts.easing   ?? easeInOut;
-    this._phase    = phase;
-    this._startTs  = performance.now();
+    this._easing = opts.easing ?? easeInOut;
+    this._phase = phase;
+    this._startTs = performance.now();
   }
 
   /**
@@ -114,7 +114,7 @@ export class SceneTransition {
   async between(
     effect: TransitionEffect,
     onCovered: () => void | Promise<void>,
-    opts: TransitionOptions = {},
+    opts: TransitionOptions = {}
   ): Promise<void> {
     await this.playIn(effect, opts);
     await onCovered();
@@ -126,7 +126,7 @@ export class SceneTransition {
    * Call in your postFrame callback every frame.
    */
   draw(canvasW: number, canvasH: number, ts = performance.now()): void {
-    if (this._phase === 'idle') return;
+    if (this._phase === 'idle') {return;}
 
     // Fully covered between the two phases: keep painting so an async scene
     // load cannot flash the outgoing scene through.
@@ -165,7 +165,7 @@ export class SceneTransition {
   // ── Effect renderers ───────────────────────────────────────────────────────
 
   private _drawEffect(w: number, h: number, p: number): void {
-    if (p <= 0) return;
+    if (p <= 0) {return;}
     const ctx = this._ctx;
     ctx.save();
     ctx.setTransform(1, 0, 0, 1, 0, 0);

@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { HeroProgress } from '../../examples/10-arpg/Progression';
+import {describe, it, expect} from 'vitest';
+import {HeroProgress} from '../../examples/10-arpg/Progression';
 import {
   ArenaRun, type ArenaEvent, type HeroIntent, type FloatingTextRequest,
 } from '../../examples/10-arpg/ArenaRun';
@@ -49,13 +49,13 @@ describe('HeroProgress — the curve', () => {
   it('reports how many levels an award bought', () => {
     const p = new HeroProgress();
     expect(p.gain(10)).toBe(0);
-    expect(p.gain(20)).toBe(1);   // 30 total
+    expect(p.gain(20)).toBe(1); // 30 total
     expect(p.level).toBe(2);
   });
 
   it('scales both bonuses with the level', () => {
     const p = new HeroProgress();
-    p.gain(90);   // 30 + 60 -> level 3
+    p.gain(90); // 30 + 60 -> level 3
     expect(p.level).toBe(3);
     expect(p.damageBonus).toBe(2 * HeroProgress.DAMAGE_PER_LEVEL);
     expect(p.maxHpBonus).toBe(2 * HeroProgress.MAX_HP_PER_LEVEL);
@@ -108,17 +108,17 @@ describe('HeroProgress — snapshot / restore', () => {
 
   it('clamps a nonsense level into range', () => {
     const low = new HeroProgress();
-    low.restore({ level: 0, xp: 0 });
+    low.restore({level: 0, xp: 0});
     expect(low.level).toBe(1);
 
     const high = new HeroProgress();
-    high.restore({ level: 999, xp: 0 });
+    high.restore({level: 999, xp: 0});
     expect(high.level).toBe(HeroProgress.MAX_LEVEL);
   });
 
   it('never restores enough xp to level up on load', () => {
     const p = new HeroProgress();
-    p.restore({ level: 2, xp: 99999 });
+    p.restore({level: 2, xp: 99999});
     expect(p.level).toBe(2);
     expect(p.xp).toBe(p.xpForNextLevel - 1);
   });
@@ -129,7 +129,17 @@ describe('HeroProgress — snapshot / restore', () => {
     expect(p.level).toBe(1);
     expect(p.xp).toBe(0);
 
-    p.restore({ level: NaN, xp: NaN });
+    p.restore({level: NaN, xp: NaN});
+    expect(p.level).toBe(1);
+    expect(p.xp).toBe(0);
+  });
+
+  it('treats a null progress field as a fresh start', () => {
+    const p = new HeroProgress();
+    p.gain(95);
+    // What `JSON.parse` hands over for `"progress": null` — reading through it
+    // would throw, and the checkpoint would be rejected whole.
+    p.restore(null);
     expect(p.level).toBe(1);
     expect(p.xp).toBe(0);
   });
@@ -140,18 +150,25 @@ describe('HeroProgress — snapshot / restore', () => {
 /** Chase the nearest enemy and swing. What an attentive player does. */
 function brawler(run: ArenaRun): HeroIntent {
   const target = run.nearestEnemy();
-  if (!target) return {};
+  if (!target) {
+    return {};
+  }
   const dx = target.position.x - run.hero.position.x;
   const dy = target.position.y - run.hero.position.y;
   const distance = Math.hypot(dx, dy);
-  if (distance <= run.hero.attackRange * 0.8) return { attack: true };
-  return { x: dx / distance, y: dy / distance, attack: true };
+  if (distance <= run.hero.attackRange * 0.8) {
+    return {attack: true};
+  }
+  return {x: dx / distance, y: dy / distance, attack: true};
 }
 
 function play(run: ArenaRun, policy: (run: ArenaRun) => HeroIntent, budget = 240): void {
   run.start();
   let t = 0;
-  while (!run.isOver && t < budget) { run.step(DT, policy(run)); t += DT; }
+  while (!run.isOver && t < budget) {
+    run.step(DT, policy(run));
+    t += DT;
+  }
 }
 
 describe('ArenaRun — experience', () => {
@@ -199,7 +216,7 @@ describe('ArenaRun — experience', () => {
     const run = new ArenaRun();
     run.start();
     const baseMax = run.hero.health.maxHp;
-    run.hero.health.takeDamage(60);           // 60 missing
+    run.hero.health.takeDamage(60); // 60 missing
     run.progress.gain(HeroProgress.XP_BASE - 1);
 
     run.enemies[0].health.takeDamage(9999);
@@ -217,8 +234,8 @@ describe('ArenaRun — experience', () => {
     const events: ArenaEvent[] = [];
     const texts: FloatingTextRequest[] = [];
     const run = new ArenaRun({
-      onEvent: (e) => events.push(e),
-      onFloatingText: (t) => texts.push(t),
+      onEvent: e => events.push(e),
+      onFloatingText: t => texts.push(t),
     });
     run.start();
     run.progress.gain(HeroProgress.XP_BASE - 1);
@@ -228,8 +245,8 @@ describe('ArenaRun — experience', () => {
     run.enemies[0].health.takeDamage(9999);
     run.step(DT, {});
 
-    expect(events.filter((e) => e.type === 'level-up').length).toBe(1);
-    expect(texts.some((t) => t.text === 'LEVEL 2')).toBe(true);
+    expect(events.filter(e => (e.type === 'level-up')).length).toBe(1);
+    expect(texts.some(t => (t.text === 'LEVEL 2'))).toBe(true);
   });
 
   it('awards nothing for a mob that outlives the hero', () => {
@@ -275,7 +292,7 @@ describe('ArenaRun — progression survives a checkpoint', () => {
     source.start();
     source.progress.gain(HeroProgress.XP_BASE + 5);
     const snap = source.snapshot();
-    expect(snap.progress).toEqual({ level: 2, xp: 5 });
+    expect(snap.progress).toEqual({level: 2, xp: 5});
 
     const target = new ArenaRun();
     target.adopt([source.hero, ...source.enemies], snap);
@@ -307,7 +324,7 @@ describe('ArenaRun — progression survives a checkpoint', () => {
     run.start();
     run.progress.gain(100);
     // No `progress` key, the shape an older checkpoint has.
-    run.adopt([run.hero, ...run.enemies], { director: run.director.snapshot() });
+    run.adopt([run.hero, ...run.enemies], {director: run.director.snapshot()});
     expect(run.progress.level).toBe(1);
     expect(run.progress.xp).toBe(0);
   });

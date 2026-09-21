@@ -3,7 +3,7 @@
 Each phase must leave `main` releasable. Canvas2D is the rollback path until the
 final cutover gate.
 
-## Implementation Status (2026-09-12)
+## Implementation Status (2026-09-21)
 
 | Phase | Status | Remaining gate work |
 |---|---|---|
@@ -13,9 +13,16 @@ final cutover gate.
 | 3 - Lighting/shadows | Implemented preview | Six of the nine fixtures still need baselines behind the 2,500-pixel gate |
 
 | 4 - Effects/editor | In progress | Editor move parity screenshots and sprite-editor integration; HUD path and the extractor registry are in |
-| 5 - Preview release | Not started | Browser matrix, package checks, and `0.2.0-webgl.0` publication |
+| 5 - Preview release | Not started | Atlas and batching (see Phase 5), browser matrix, package checks, and `0.2.0-webgl.0` publication |
 | 6 - Default cutover | Not started | Requires two accepted preview iterations |
 | 7 - Hardware ray tracing research | Conditional | Standard WebGPU acceleration structures and browser support |
+
+Source gates landed on 2026-09-21: `npm run lint` — ESLint 10 flat config, with
+`@stylistic` holding the formatting rules that ESLint core drops in v11 and
+`typescript-eslint` holding the correctness ones — runs on every push and PR
+ahead of the browser matrix, and the workflow's `paths` filter now includes
+`examples/**`, so the ten example-backed test files can no longer be skipped by
+a diff that never mentions `src/`.
 
 Phase 4's newest consumer is `examples/10-arpg`, a full run on the WebGL2 backend:
 a custom `Entity` through `SceneExtractor.register`, `HudLayer` stacked over the GL
@@ -103,6 +110,39 @@ delete/import/export flows pass.
 - Run browser matrix, long-session memory test, resize/DPR test, context-loss
   test, and package declaration checks.
 - Document custom object migration from `draw(ctx)` to render primitives.
+
+Prerequisite: atlas pages and batching. The extractor and the renderer are
+correct but issue one draw per record, so a 100x100 floor is 10,000 quads and
+WebGL2 has no measurable advantage over Canvas2D — which is the whole argument
+for the preview. Two steps, in order: give `TextureRegistry` atlas pages with UV
+remapping, then merge snapshot records by `(texturePage, blendMode, shader)`.
+The isometric constraint is that `topoSort` has already fixed the draw order, so
+merging is only legal inside a run that crosses no depth-conflict pair; the
+batchers in orthogonal engines assume no such ordering and cannot be copied
+wholesale. `Floor` is the cheapest start: it already renders through its own
+buffer and never enters `topoSort`, so an entire layer can collapse to one quad.
+
+Known parity gaps to close or accept before the preview, each verified in the
+source on 2026-09-21:
+
+- ~~Particles are ordered differently per backend.~~ Closed on 2026-09-21: the
+  extractor makes one pass over the sorted list, so particles and clouds are
+  submitted where they stand instead of being deferred past every object. Both
+  orderings are pinned from opposite sides in
+  `src/__tests__/ParticleDrawOrderParity.test.ts`. **This moves pixels in all
+  nine fixtures** — the preview scene has a cloud and two emitters — so the three
+  committed baselines must be re-minted through `webgl-baselines` before the
+  pixel gate can pass again.
+- `MAX_OMNI_LIGHTS` is 8 and the renderer clamps to it, while the performance
+  budget in `ACCEPTANCE.md` specifies a 16-omni reference workload. One of the
+  two numbers has to move.
+- `EditorWebGLPreview` sizes its canvas with `dpr = 1` from the 2D backing
+  store, so GPU picking is expected to be off by the device pixel ratio above
+  DPR 1. `ACCEPTANCE.md` claims no picking offset at mobile DPR; that claim is
+  currently unverified.
+- The GL debug range covers collision tiles, the selected object's bounds and
+  light markers. `DebugRenderer`'s `showAABB` over all objects, `showTriggers`,
+  `drawPath` and the FPS/object-count HUD remain Canvas2D-only.
 
 Exit: no severity-1 parity defects; fallback telemetry and diagnostics are
 actionable.

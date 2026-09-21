@@ -1,5 +1,5 @@
-import { describe, it, expect, vi } from 'vitest';
-import { WaveDirector } from '../../examples/10-arpg/WaveDirector';
+import {describe, it, expect, vi} from 'vitest';
+import {WaveDirector} from '../../examples/10-arpg/WaveDirector';
 
 /**
  * The ARPG demo's run structure. Every timing rule the engine's own modules
@@ -20,7 +20,7 @@ describe('WaveDirector', () => {
 
   it('spawns wave 1 on start and reports the count', () => {
     const onSpawnWave = vi.fn();
-    const d = new WaveDirector({ onSpawnWave });
+    const d = new WaveDirector({onSpawnWave});
     d.start();
     expect(d.phase).toBe('wave');
     expect(d.wave).toBe(1);
@@ -30,7 +30,7 @@ describe('WaveDirector', () => {
 
   it('ignores a second start', () => {
     const onSpawnWave = vi.fn();
-    const d = new WaveDirector({ onSpawnWave });
+    const d = new WaveDirector({onSpawnWave});
     d.start();
     d.reportMobDefeated();
     d.start();
@@ -58,9 +58,9 @@ describe('WaveDirector', () => {
   });
 
   it('enters the intermission when the last mob of a wave falls', () => {
-    const d = new WaveDirector({ intermission: 2 });
+    const d = new WaveDirector({intermission: 2});
     d.start();
-    for (let i = 0; i < 3; i++) d.reportMobDefeated();
+    for (let i = 0; i < 3; i++) {d.reportMobDefeated();}
     expect(d.phase).toBe('intermission');
     expect(d.kills).toBe(3);
     expect(d.countdown).toBeCloseTo(2);
@@ -74,9 +74,9 @@ describe('WaveDirector', () => {
 
   it('counts the intermission down and starts the next wave', () => {
     const onSpawnWave = vi.fn();
-    const d = new WaveDirector({ intermission: 2, onSpawnWave });
+    const d = new WaveDirector({intermission: 2, onSpawnWave});
     d.start();
-    for (let i = 0; i < 3; i++) d.reportMobDefeated();
+    for (let i = 0; i < 3; i++) {d.reportMobDefeated();}
     d.update(1.5);
     expect(d.phase).toBe('intermission');
     expect(d.countdown).toBeCloseTo(0.5);
@@ -88,9 +88,9 @@ describe('WaveDirector', () => {
   });
 
   it('carries the overshoot of a long frame into the new wave', () => {
-    const d = new WaveDirector({ intermission: 2 });
+    const d = new WaveDirector({intermission: 2});
     d.start();
-    for (let i = 0; i < 3; i++) d.reportMobDefeated();
+    for (let i = 0; i < 3; i++) {d.reportMobDefeated();}
     d.update(5); // 2 s of intermission + 3 s of play
     expect(d.phase).toBe('wave');
     expect(d.wave).toBe(2);
@@ -98,9 +98,9 @@ describe('WaveDirector', () => {
   });
 
   it('runs a zero-length intermission out on the next update', () => {
-    const d = new WaveDirector({ intermission: 0 });
+    const d = new WaveDirector({intermission: 0});
     d.start();
-    for (let i = 0; i < 3; i++) d.reportMobDefeated();
+    for (let i = 0; i < 3; i++) {d.reportMobDefeated();}
     expect(d.phase).toBe('intermission');
     d.update(0.016);
     expect(d.phase).toBe('wave');
@@ -109,7 +109,7 @@ describe('WaveDirector', () => {
 
   it('spawns the boss instead of a fourth wave', () => {
     const onSpawnBoss = vi.fn();
-    const d = new WaveDirector({ waves: 2, mobsPerWave: () => 1, intermission: 1, onSpawnBoss });
+    const d = new WaveDirector({waves: 2, mobsPerWave: () => 1, intermission: 1, onSpawnBoss});
     d.start();
     d.reportMobDefeated();
     d.update(1);
@@ -121,7 +121,7 @@ describe('WaveDirector', () => {
   });
 
   it('reaches victory when the boss falls', () => {
-    const d = new WaveDirector({ waves: 1, mobsPerWave: () => 1 });
+    const d = new WaveDirector({waves: 1, mobsPerWave: () => 1});
     d.start();
     d.reportMobDefeated();
     expect(d.phase).toBe('boss');
@@ -132,7 +132,7 @@ describe('WaveDirector', () => {
   });
 
   it('freezes the clock and further kills once over', () => {
-    const d = new WaveDirector({ waves: 1, mobsPerWave: () => 1 });
+    const d = new WaveDirector({waves: 1, mobsPerWave: () => 1});
     d.start();
     d.reportMobDefeated();
     d.reportMobDefeated();
@@ -157,9 +157,9 @@ describe('WaveDirector', () => {
   });
 
   it('ignores a kill report with nothing alive', () => {
-    const d = new WaveDirector({ intermission: 5 });
+    const d = new WaveDirector({intermission: 5});
     d.start();
-    for (let i = 0; i < 3; i++) d.reportMobDefeated();
+    for (let i = 0; i < 3; i++) {d.reportMobDefeated();}
     d.reportMobDefeated(); // stray report during the intermission
     expect(d.kills).toBe(3);
     expect(d.phase).toBe('intermission');
@@ -183,7 +183,7 @@ describe('WaveDirector', () => {
   });
 
   it('clamps hostile options instead of breaking the run', () => {
-    const d = new WaveDirector({ waves: 0, mobsPerWave: () => -3, intermission: -1 });
+    const d = new WaveDirector({waves: 0, mobsPerWave: () => -3, intermission: -1});
     expect(d.totalWaves).toBe(1);
     d.start();
     expect(d.mobsAlive).toBe(1);
@@ -192,7 +192,7 @@ describe('WaveDirector', () => {
   });
 
   it('floors a fractional mob count', () => {
-    const d = new WaveDirector({ mobsPerWave: () => 2.9 });
+    const d = new WaveDirector({mobsPerWave: () => 2.9});
     d.start();
     expect(d.mobsAlive).toBe(2);
   });
@@ -200,7 +200,7 @@ describe('WaveDirector', () => {
 
 describe('WaveDirector — checkpoint', () => {
   it('captures the whole bookkeeping, and nothing about the mobs', () => {
-    const d = new WaveDirector({ intermission: 2 });
+    const d = new WaveDirector({intermission: 2});
     d.start();
     d.update(1.5);
     d.reportMobDefeated();
@@ -212,8 +212,8 @@ describe('WaveDirector — checkpoint', () => {
 
   it('adopts a snapshot without re-spawning the wave', () => {
     const onSpawnWave = vi.fn();
-    const d = new WaveDirector({ onSpawnWave });
-    d.restore({ phase: 'wave', wave: 3, alive: 2, kills: 7, elapsed: 42.5, countdown: 0 });
+    const d = new WaveDirector({onSpawnWave});
+    d.restore({phase: 'wave', wave: 3, alive: 2, kills: 7, elapsed: 42.5, countdown: 0});
 
     expect(onSpawnWave).not.toHaveBeenCalled();
     expect(d.phase).toBe('wave');
@@ -225,19 +225,19 @@ describe('WaveDirector — checkpoint', () => {
 
   it('announces the phase it landed in, so a UI follows the load', () => {
     const onPhase = vi.fn();
-    const d = new WaveDirector({ onPhase });
-    d.restore({ phase: 'boss' });
+    const d = new WaveDirector({onPhase});
+    d.restore({phase: 'boss'});
     expect(onPhase).toHaveBeenCalledWith('boss', 'ready');
 
     onPhase.mockClear();
-    d.restore({ phase: 'boss' });
+    d.restore({phase: 'boss'});
     expect(onPhase).not.toHaveBeenCalled();
   });
 
   it('keeps running from where the save left off', () => {
     const onSpawnWave = vi.fn();
-    const d = new WaveDirector({ intermission: 2, onSpawnWave });
-    d.restore({ phase: 'intermission', wave: 1, alive: 0, kills: 2, elapsed: 8, countdown: 0.5 });
+    const d = new WaveDirector({intermission: 2, onSpawnWave});
+    d.restore({phase: 'intermission', wave: 1, alive: 0, kills: 2, elapsed: 8, countdown: 0.5});
 
     d.update(0.25);
     expect(d.phase).toBe('intermission');
@@ -250,7 +250,7 @@ describe('WaveDirector — checkpoint', () => {
   });
 
   it('survives a hand-edited or truncated save', () => {
-    const d = new WaveDirector({ intermission: 2 });
+    const d = new WaveDirector({intermission: 2});
     d.start();
     const before = d.snapshot();
 
@@ -261,17 +261,17 @@ describe('WaveDirector — checkpoint', () => {
       phase: 'nonsense' as never, wave: NaN, alive: 'lots' as never,
       kills: -5, elapsed: Infinity, countdown: 99,
     });
-    expect(d.phase).toBe('wave');       // unknown phase ignored
-    expect(d.wave).toBe(1);             // NaN ignored
-    expect(d.mobsAlive).toBe(3);        // non-numeric ignored
-    expect(d.kills).toBe(0);            // clamped up to 0
+    expect(d.phase).toBe('wave'); // unknown phase ignored
+    expect(d.wave).toBe(1); // NaN ignored
+    expect(d.mobsAlive).toBe(3); // non-numeric ignored
+    expect(d.kills).toBe(0); // clamped up to 0
     expect(d.elapsed).toBe(before.elapsed); // Infinity ignored
-    expect(d.countdown).toBe(0);        // countdown reads 0 outside an intermission
+    expect(d.countdown).toBe(0); // countdown reads 0 outside an intermission
   });
 
   it('clamps a wave number past the configured total', () => {
-    const d = new WaveDirector({ waves: 3 });
-    d.restore({ wave: 99 });
+    const d = new WaveDirector({waves: 3});
+    d.restore({wave: 99});
     expect(d.wave).toBe(3);
   });
 });

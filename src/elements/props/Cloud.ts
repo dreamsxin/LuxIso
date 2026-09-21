@@ -1,7 +1,7 @@
-import { project } from '../../math/IsoProjection';
-import { AABB } from '../../math/depthSort';
-import { IsoObject, DrawContext } from '../IsoObject';
-import { FrameClock } from '../../time/FrameClock';
+import {project} from '../../math/IsoProjection';
+import {AABB} from '../../math/depthSort';
+import {IsoObject, DrawContext} from '../IsoObject';
+import {FrameClock} from '../../time/FrameClock';
 
 export interface CloudOptions {
   id: string;
@@ -31,8 +31,8 @@ export interface CloudOptions {
  * The cloud wraps around the scene bounds so it never disappears.
  */
 export class Cloud extends IsoObject {
-  private _speed: number;      // world units / second
-  private _angle: number;      // drift direction (radians)
+  private _speed: number; // world units / second
+  private _angle: number; // drift direction (radians)
   private _scale: number;
   private _seed: number;
 
@@ -54,17 +54,17 @@ export class Cloud extends IsoObject {
     const alt = opts.altitude ?? 6;
     // z in screen pixels: altitude * tileH (approximately 32 px per unit)
     super(opts.id, opts.x, opts.y, alt * 32);
-    this._speed    = opts.speed ?? 0.4;
-    this._angle    = opts.angle ?? 0;
-    this._scale    = opts.scale ?? 1;
-    this._seed     = opts.seed  ?? 0.5;
+    this._speed = opts.speed ?? 0.4;
+    this._angle = opts.angle ?? 0;
+    this._scale = opts.scale ?? 1;
+    this._seed = opts.seed ?? 0.5;
   }
 
   // Serialization helpers
-  get speed(): number  { return this._speed; }
-  get angle(): number  { return this._angle; }
-  get scale(): number  { return this._scale; }
-  get seed():  number  { return this._seed;  }
+  get speed(): number { return this._speed; }
+  get angle(): number { return this._angle; }
+  get scale(): number { return this._scale; }
+  get seed(): number { return this._seed; }
   get altitude(): number { return this.position.z / 32; }
 
   get aabb(): AABB {
@@ -91,7 +91,7 @@ export class Cloud extends IsoObject {
     // must not drift it backwards. The rewound stamp still becomes the baseline.
     const first = !this._clock.started;
     const dt = this._clock.sample(now);
-    if (first) return;
+    if (first) {return;}
 
     const dist = this._speed * dt;
     this.position.x += Math.cos(this._angle) * dist;
@@ -99,18 +99,18 @@ export class Cloud extends IsoObject {
 
     // Wrap around scene bounds
     const pad = 2;
-    if (this.position.x > this.boundsX + pad) this.position.x = -pad;
-    if (this.position.x < -pad)               this.position.x = this.boundsX + pad;
-    if (this.position.y > this.boundsY + pad) this.position.y = -pad;
-    if (this.position.y < -pad)               this.position.y = this.boundsY + pad;
+    if (this.position.x > this.boundsX + pad) {this.position.x = -pad;}
+    if (this.position.x < -pad) {this.position.x = this.boundsX + pad;}
+    if (this.position.y > this.boundsY + pad) {this.position.y = -pad;}
+    if (this.position.y < -pad) {this.position.y = this.boundsY + pad;}
   }
 
   draw(dc: DrawContext): void {
-    const { ctx, tileW, tileH, originX, originY } = dc;
-    const { x, y, z } = this.position;
+    const {ctx, tileW, tileH, originX, originY} = dc;
+    const {x, y, z} = this.position;
 
     // Screen position of the cloud centre
-    const { sx, sy } = project(x, y, z, tileW, tileH);
+    const {sx, sy} = project(x, y, z, tileW, tileH);
     const cx = originX + sx;
     const cy = originY + sy;
 
@@ -118,7 +118,7 @@ export class Cloud extends IsoObject {
 
     // Ground shadow
     // Soft ellipse projected onto the ground plane
-    const { sx: gsx, sy: gsy } = project(x, y, 0, tileW, tileH);
+    const {sx: gsx, sy: gsy} = project(x, y, 0, tileW, tileH);
     const gx = originX + gsx;
     const gy = originY + gsy;
     const shadowAlpha = 0.10 + 0.05 * Math.sin(this._seed * Math.PI);
@@ -197,16 +197,16 @@ function buildPuffs(seed: number, s: number): Puff[] {
   for (let i = 0; i < count; i++) {
     const offX = (rng() - 0.5) * 38 * s;
     const offY = (rng() - 0.5) * 14 * s - 4 * s;
-    const rx   = (18 + rng() * 14) * s;
-    const ry   = (9  + rng() * 7)  * s;
+    const rx = (18 + rng() * 14) * s;
+    const ry = (9 + rng() * 7) * s;
     const vCount = 5 + Math.floor(rng() * 3);
     const verts: [number, number][] = [];
 
     for (let v = 0; v < vCount; v++) {
       const baseAngle = (v / vCount) * Math.PI * 2;
-      const jitter    = (rng() - 0.5) * 0.55;
-      const a         = baseAngle + jitter;
-      const rJitter   = 0.75 + rng() * 0.5;
+      const jitter = (rng() - 0.5) * 0.55;
+      const a = baseAngle + jitter;
+      const rJitter = 0.75 + rng() * 0.5;
       verts.push([
         offX + Math.cos(a) * rx * rJitter,
         offY + Math.sin(a) * ry * rJitter,

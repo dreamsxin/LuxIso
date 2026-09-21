@@ -1,8 +1,8 @@
-import { describe, it, expect, afterEach, vi } from 'vitest';
-import { SceneExtractor } from '../../webgl-next/src/extraction/SceneExtractor';
-import { Scene } from '../core/Scene';
-import { IsoObject, type DrawContext } from '../elements/IsoObject';
-import type { AABB } from '../math/depthSort';
+import {describe, it, expect, afterEach, vi} from 'vitest';
+import {SceneExtractor} from '../../webgl-next/src/extraction/SceneExtractor';
+import {Scene} from '../core/Scene';
+import {IsoObject, type DrawContext} from '../elements/IsoObject';
+import type {AABB} from '../math/depthSort';
 
 /**
  * Extractor registry tests.
@@ -28,21 +28,21 @@ class Prop extends IsoObject {
 
 class SpecialProp extends Prop {}
 
-const OPTS = { viewportWidth: 400, viewportHeight: 300 };
+const OPTS = {viewportWidth: 400, viewportHeight: 300};
 
 function sceneWith(...objects: IsoObject[]): Scene {
-  const scene = new Scene({ tileW: 64, tileH: 32, cols: 8, rows: 8 });
-  for (const o of objects) scene.addObject(o);
+  const scene = new Scene({tileW: 64, tileH: 32, cols: 8, rows: 8});
+  for (const o of objects) {scene.addObject(o);}
   return scene;
 }
 
 /** Emits a small quad so the extractor sees real geometry. */
 function quadExtractor(color: readonly [number, number, number, number] = [1, 1, 1, 1]) {
-  return (obj: IsoObject, ctx: { builder: any; pickId: number; project: (x: number, y: number, z?: number) => any }) => {
+  return (obj: IsoObject, ctx: {builder: any; pickId: number; project: (x: number, y: number, z?: number) => any}) => {
     const c = ctx.project(obj.position.x, obj.position.y);
     ctx.builder.quad(
       [c[0] - 4, c[1] - 4], [c[0] + 4, c[1] - 4], [c[0] + 4, c[1] + 4], [c[0] - 4, c[1] + 4],
-      { color, sample: c, lit: false, pickId: ctx.pickId },
+      {color, sample: c, lit: false, pickId: ctx.pickId}
     );
   };
 }
@@ -65,13 +65,13 @@ describe('SceneExtractor — custom extractor registry', () => {
   });
 
   it('passes the projection and pick id through the context', () => {
-    const seen: Array<{ x: number; y: number; pickId: number }> = [];
+    const seen: Array<{x: number; y: number; pickId: number}> = [];
     SceneExtractor.register(Prop, (obj, ctx) => {
       const p = ctx.project(obj.position.x, obj.position.y);
-      seen.push({ x: p[0], y: p[1], pickId: ctx.pickId });
+      seen.push({x: p[0], y: p[1], pickId: ctx.pickId});
       ctx.builder.quad(
         [p[0], p[1]], [p[0] + 1, p[1]], [p[0] + 1, p[1] + 1], [p[0], p[1] + 1],
-        { color: [1, 0, 0, 1], sample: p, lit: false, pickId: ctx.pickId },
+        {color: [1, 0, 0, 1], sample: p, lit: false, pickId: ctx.pickId}
       );
     });
 
@@ -84,13 +84,13 @@ describe('SceneExtractor — custom extractor registry', () => {
   });
 
   it('exposes tile dimensions', () => {
-    let tiles = { w: 0, h: 0 };
+    let tiles = {w: 0, h: 0};
     SceneExtractor.register(Prop, (obj, ctx) => {
-      tiles = { w: ctx.tileW, h: ctx.tileH };
+      tiles = {w: ctx.tileW, h: ctx.tileH};
       return quadExtractor()(obj, ctx as never);
     });
     new SceneExtractor().extract(sceneWith(new Prop('p')), OPTS);
-    expect(tiles).toEqual({ w: 64, h: 32 });
+    expect(tiles).toEqual({w: 64, h: 32});
   });
 
   it('honours a returned texture URL', () => {
@@ -170,7 +170,7 @@ describe('SceneExtractor — guards around application code', () => {
 
     const snapshot = new SceneExtractor().extract(
       sceneWith(new Prop('broken', 1, 1), new SpecialProp('fine', 4, 4)),
-      OPTS,
+      OPTS
     );
     expect(good).toHaveBeenCalledTimes(1);
     expect(snapshot.unsupported.map(u => u.id)).toEqual(['broken']);

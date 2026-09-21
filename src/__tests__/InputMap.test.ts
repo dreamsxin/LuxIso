@@ -1,6 +1,6 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { InputManager } from '../core/InputManager';
-import { InputMap } from '../core/InputMap';
+import {describe, it, expect, beforeEach, afterEach, vi} from 'vitest';
+import {InputManager} from '../core/InputManager';
+import {InputMap} from '../core/InputMap';
 
 /**
  * InputMap mirrors its bindings into InputManager, so these tests drive the real
@@ -11,7 +11,7 @@ import { InputMap } from '../core/InputMap';
 
 let input: InputManager;
 let map: InputMap;
-let keydown: (ev: { type: string; key: string; code: string; preventDefault?: () => void }) => void;
+let keydown: (ev: {type: string; key: string; code: string; preventDefault?: () => void}) => void;
 
 beforeEach(() => {
   const winListeners: Record<string, ((ev: unknown) => void)[]> = {};
@@ -19,12 +19,12 @@ beforeEach(() => {
   const canvas = {
     addEventListener: () => {},
     removeEventListener: () => {},
-    getBoundingClientRect: () => ({ left: 0, top: 0, width: 800, height: 600 }),
+    getBoundingClientRect: () => ({left: 0, top: 0, width: 800, height: 600}),
     width: 800,
     height: 600,
   } as unknown as HTMLCanvasElement;
 
-  (globalThis as unknown as { window: unknown }).window = {
+  (globalThis as unknown as {window: unknown}).window = {
     addEventListener: (type: string, cb: (ev: unknown) => void) => {
       (winListeners[type] ??= []).push(cb);
     },
@@ -33,13 +33,13 @@ beforeEach(() => {
 
   input = new InputManager(canvas);
   map = new InputMap(input);
-  keydown = (ev) => {
-    for (const cb of winListeners['keydown'] ?? []) cb({ preventDefault: () => {}, ...ev });
+  keydown = ev => {
+    for (const cb of winListeners.keydown ?? []) {cb({preventDefault: () => {}, ...ev});}
   };
 });
 
 afterEach(() => {
-  delete (globalThis as unknown as { window?: unknown }).window;
+  delete (globalThis as unknown as {window?: unknown}).window;
   vi.restoreAllMocks();
 });
 
@@ -66,10 +66,10 @@ describe('InputMap — binding lifecycle', () => {
     // The old key must no longer trigger the action. It used to stay bound
     // inside InputManager, so `Space` still fired an action the map no longer
     // listed.
-    keydown({ type: 'keydown', key: ' ', code: 'Space' });
+    keydown({type: 'keydown', key: ' ', code: 'Space'});
     expect(map.isDown('attack')).toBe(false);
 
-    keydown({ type: 'keydown', key: 'Enter', code: 'Enter' });
+    keydown({type: 'keydown', key: 'Enter', code: 'Enter'});
     expect(map.isDown('attack')).toBe(true);
   });
 
@@ -78,7 +78,7 @@ describe('InputMap — binding lifecycle', () => {
     map.addBinding('attack', ['Enter']);
     expect(map.getBindings('attack').sort()).toEqual(['Enter', 'Space']);
 
-    keydown({ type: 'keydown', key: ' ', code: 'Space' });
+    keydown({type: 'keydown', key: ' ', code: 'Space'});
     expect(map.isDown('attack')).toBe(true);
   });
 
@@ -92,7 +92,7 @@ describe('InputMap — binding lifecycle', () => {
     map.rebind('attack', ['KeyF', 'KeyG']);
     expect(map.getBindings('attack').sort()).toEqual(['KeyF', 'KeyG']);
 
-    keydown({ type: 'keydown', key: ' ', code: 'Space' });
+    keydown({type: 'keydown', key: ' ', code: 'Space'});
     expect(map.isDown('attack')).toBe(false);
   });
 
@@ -101,7 +101,7 @@ describe('InputMap — binding lifecycle', () => {
     map.remove('attack');
 
     expect(map.getBindings('attack')).toEqual([]);
-    keydown({ type: 'keydown', key: ' ', code: 'Space' });
+    keydown({type: 'keydown', key: ' ', code: 'Space'});
     expect(map.isDown('attack')).toBe(false);
   });
 });
@@ -112,12 +112,12 @@ describe('InputMap — polling', () => {
     expect(map.isDown('attack')).toBe(false);
     expect(map.wasPressed('attack')).toBe(false);
 
-    keydown({ type: 'keydown', key: ' ', code: 'Space' });
+    keydown({type: 'keydown', key: ' ', code: 'Space'});
     expect(map.isDown('attack')).toBe(true);
     expect(map.wasPressed('attack')).toBe(true);
 
     input.flush();
-    expect(map.isDown('attack')).toBe(true);      // still held
+    expect(map.isDown('attack')).toBe(true); // still held
     expect(map.wasPressed('attack')).toBe(false); // edge consumed
   });
 
@@ -130,53 +130,53 @@ describe('InputMap — polling', () => {
 describe('InputMap — axis', () => {
   beforeEach(() => {
     map.define('right', ['KeyD']);
-    map.define('left',  ['KeyA']);
-    map.define('down',  ['KeyS']);
-    map.define('up',    ['KeyW']);
+    map.define('left', ['KeyA']);
+    map.define('down', ['KeyS']);
+    map.define('up', ['KeyW']);
   });
 
-  const axis = (): { x: number; y: number } => map.axis('right', 'left', 'down', 'up');
+  const axis = (): {x: number; y: number} => map.axis('right', 'left', 'down', 'up');
 
   it('is zero with nothing held', () => {
-    expect(axis()).toEqual({ x: 0, y: 0 });
+    expect(axis()).toEqual({x: 0, y: 0});
   });
 
   it('is unit length on a cardinal direction', () => {
-    keydown({ type: 'keydown', key: 'd', code: 'KeyD' });
-    expect(axis()).toEqual({ x: 1, y: 0 });
+    keydown({type: 'keydown', key: 'd', code: 'KeyD'});
+    expect(axis()).toEqual({x: 1, y: 0});
   });
 
   it('normalises a diagonal to length 1', () => {
-    keydown({ type: 'keydown', key: 'd', code: 'KeyD' });
-    keydown({ type: 'keydown', key: 's', code: 'KeyS' });
-    const { x, y } = axis();
+    keydown({type: 'keydown', key: 'd', code: 'KeyD'});
+    keydown({type: 'keydown', key: 's', code: 'KeyS'});
+    const {x, y} = axis();
     expect(Math.hypot(x, y)).toBeCloseTo(1, 6);
     expect(x).toBeCloseTo(Math.SQRT1_2, 6);
     expect(y).toBeCloseTo(Math.SQRT1_2, 6);
   });
 
   it('cancels opposing directions out', () => {
-    keydown({ type: 'keydown', key: 'd', code: 'KeyD' });
-    keydown({ type: 'keydown', key: 'a', code: 'KeyA' });
-    expect(axis()).toEqual({ x: 0, y: 0 });
+    keydown({type: 'keydown', key: 'd', code: 'KeyD'});
+    keydown({type: 'keydown', key: 'a', code: 'KeyA'});
+    expect(axis()).toEqual({x: 0, y: 0});
   });
 
   // ── Analog sources ───────────────────────────────────────────────────────
   // Before these existed the action layer could only express ±1, so an
   // on-screen stick's partial deflection had nowhere to go.
 
-  const source = (x: number, y: number, active = true) => ({ value: { x, y }, active });
+  const source = (x: number, y: number, active = true) => ({value: {x, y}, active});
 
   it('passes an analog source through unchanged', () => {
     map.addAxisSource(source(0.37, -0.12));
-    const { x, y } = axis();
+    const {x, y} = axis();
     expect(x).toBeCloseTo(0.37, 6);
     expect(y).toBeCloseTo(-0.12, 6);
   });
 
   it('skips inactive sources', () => {
     map.addAxisSource(source(1, 1, false));
-    expect(axis()).toEqual({ x: 0, y: 0 });
+    expect(axis()).toEqual({x: 0, y: 0});
   });
 
   it('sums multiple sources', () => {
@@ -188,21 +188,21 @@ describe('InputMap — axis', () => {
   it('clamps the combined vector to length 1', () => {
     map.addAxisSource(source(0.9, 0.9));
     map.addAxisSource(source(0.9, 0.9));
-    const { x, y } = axis();
+    const {x, y} = axis();
     expect(Math.hypot(x, y)).toBeCloseTo(1, 6);
   });
 
   it('gives no extra speed for holding a key and pushing a stick', () => {
-    keydown({ type: 'keydown', key: 'd', code: 'KeyD' });
+    keydown({type: 'keydown', key: 'd', code: 'KeyD'});
     map.addAxisSource(source(1, 0));
     expect(axis().x).toBeCloseTo(1, 6);
   });
 
   it('leaves the keyboard-only result untouched', () => {
     map.addAxisSource(source(0, 0, false));
-    keydown({ type: 'keydown', key: 'd', code: 'KeyD' });
-    keydown({ type: 'keydown', key: 's', code: 'KeyS' });
-    const { x, y } = axis();
+    keydown({type: 'keydown', key: 'd', code: 'KeyD'});
+    keydown({type: 'keydown', key: 's', code: 'KeyS'});
+    const {x, y} = axis();
     expect(x).toBeCloseTo(Math.SQRT1_2, 6);
     expect(y).toBeCloseTo(Math.SQRT1_2, 6);
   });
@@ -211,7 +211,7 @@ describe('InputMap — axis', () => {
     const off = map.addAxisSource(source(0.5, 0));
     expect(axis().x).toBeCloseTo(0.5, 6);
     off();
-    expect(axis()).toEqual({ x: 0, y: 0 });
+    expect(axis()).toEqual({x: 0, y: 0});
     expect(map.axisSources.length).toBe(0);
   });
 
@@ -226,7 +226,7 @@ describe('InputMap — axis', () => {
   it('clearAxisSources drops everything', () => {
     map.addAxisSource(source(1, 0));
     map.clearAxisSources();
-    expect(axis()).toEqual({ x: 0, y: 0 });
+    expect(axis()).toEqual({x: 0, y: 0});
   });
 });
 
@@ -237,7 +237,7 @@ describe('InputMap — callbacks', () => {
     map.define('attack', ['Space']);
     map.on('attack', seen);
 
-    keydown({ type: 'keydown', key: ' ', code: 'Space' });
+    keydown({type: 'keydown', key: ' ', code: 'Space'});
     input.flush();
 
     expect(seen).toHaveBeenCalledTimes(1);
@@ -251,7 +251,7 @@ describe('InputMap — callbacks', () => {
     off();
     off(); // must not throw or double-detach anything
 
-    keydown({ type: 'keydown', key: ' ', code: 'Space' });
+    keydown({type: 'keydown', key: ' ', code: 'Space'});
     input.flush();
     expect(seen).not.toHaveBeenCalled();
   });
@@ -266,7 +266,7 @@ describe('InputMap — callbacks', () => {
     // gone. Previously remove() only cleared a bookkeeping map that nothing
     // read, leaving the listener live.
     input.bindKey('Space', 'attack');
-    keydown({ type: 'keydown', key: ' ', code: 'Space' });
+    keydown({type: 'keydown', key: ' ', code: 'Space'});
     input.flush();
 
     expect(seen).not.toHaveBeenCalled();
@@ -279,12 +279,12 @@ describe('InputMap — serialization', () => {
     map.define('jump', ['KeyJ']);
     const saved = map.toJSON();
 
-    expect(saved).toEqual({ attack: ['Space', 'Enter'], jump: ['KeyJ'] });
+    expect(saved).toEqual({attack: ['Space', 'Enter'], jump: ['KeyJ']});
 
     const restored = new InputMap(new InputManager({
       addEventListener: () => {},
       removeEventListener: () => {},
-      getBoundingClientRect: () => ({ left: 0, top: 0, width: 1, height: 1 }),
+      getBoundingClientRect: () => ({left: 0, top: 0, width: 1, height: 1}),
     } as unknown as HTMLCanvasElement));
     restored.fromJSON(saved);
 
@@ -293,10 +293,10 @@ describe('InputMap — serialization', () => {
 
   it('fromJSON replaces existing bindings for the same action', () => {
     map.define('attack', ['Space']);
-    map.fromJSON({ attack: ['KeyF'] });
+    map.fromJSON({attack: ['KeyF']});
     expect(map.getBindings('attack')).toEqual(['KeyF']);
 
-    keydown({ type: 'keydown', key: ' ', code: 'Space' });
+    keydown({type: 'keydown', key: ' ', code: 'Space'});
     expect(map.isDown('attack')).toBe(false);
   });
 });

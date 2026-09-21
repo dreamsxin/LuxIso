@@ -7,10 +7,10 @@
  * - 旋转菱形粒子 + 上升光尘
  * - 激活时：亮度爆发 + 粒子加速 + 光环扩散
  */
-import { Entity } from '../../../src/ecs/Entity';
-import { DrawContext } from '../../../src/elements/IsoObject';
-import { AABB } from '../../../src/math/depthSort';
-import { project } from '../../../src/math/IsoProjection';
+import {Entity} from '../../../src/ecs/Entity';
+import {DrawContext} from '../../../src/elements/IsoObject';
+import {AABB} from '../../../src/math/depthSort';
+import {project} from '../../../src/math/IsoProjection';
 
 interface PortalParticle {
   angle: number;
@@ -31,10 +31,10 @@ export class Portal extends Entity {
   private _activationPulse = 0;
   private _lastTs = 0;
   private _particles: PortalParticle[] = [];
-  private _shockwaves: Array<{ r: number; alpha: number }> = [];
+  private _shockwaves: Array<{r: number; alpha: number}> = [];
   // 大光柱
-  private _beamAlpha    = 0;
-  private _beamTimer    = 0;
+  private _beamAlpha = 0;
+  private _beamTimer = 0;
   private _beamDuration = 1.4;
 
   /** 光柱实际屏幕高度（px），供 CubeHero.triggerDescend() 同步使用 */
@@ -48,15 +48,15 @@ export class Portal extends Entity {
     for (let i = 0; i < 12; i++) {
       const inner = i < 6;
       this._particles.push({
-        angle:   (i / (inner ? 6 : 6)) * Math.PI * 2,
-        radius:  inner ? 0.45 : 0.85,
-        speed:   inner ? 1.4 : 0.7,
-        size:    inner ? 2.5 : 3.5,
-        color:   inner
+        angle: (i / (inner ? 6 : 6)) * Math.PI * 2,
+        radius: inner ? 0.45 : 0.85,
+        speed: inner ? 1.4 : 0.7,
+        size: inner ? 2.5 : 3.5,
+        color: inner
           ? ['#c0a0ff', '#80d0ff', '#e080ff'][i % 3]
           : ['#60b0ff', '#a060ff', '#40e0ff', '#ff80c0'][i % 4],
-        z:       Math.random() * 24,
-        zSpeed:  inner ? 12 : 7,
+        z: Math.random() * 24,
+        zSpeed: inner ? 12 : 7,
         opacity: 0.7 + Math.random() * 0.3,
       });
     }
@@ -65,14 +65,14 @@ export class Portal extends Entity {
   activate(): void {
     this._activated = true;
     this._activationPulse = 1;
-    this._shockwaves.push({ r: 0, alpha: 0.9 });
+    this._shockwaves.push({r: 0, alpha: 0.9});
   }
 
   /** 激活大光柱（传送时调用），持续 duration 秒后自动消退 */
   activateBeam(duration = 1.4): void {
-    this._beamAlpha    = 1;
+    this._beamAlpha = 1;
     this._beamDuration = duration;
-    this._beamTimer    = 0;
+    this._beamTimer = 0;
   }
 
   get isActivated(): boolean { return this._activated; }
@@ -127,9 +127,9 @@ export class Portal extends Entity {
   }
 
   draw(dc: DrawContext): void {
-    const { ctx, tileW, tileH, originX, originY } = dc;
-    const { x, y } = this.position;
-    const { sx, sy } = project(x, y, 0, tileW, tileH);
+    const {ctx, tileW, tileH, originX, originY} = dc;
+    const {x, y} = this.position;
+    const {sx, sy} = project(x, y, 0, tileW, tileH);
     const cx = originX + sx;
     const cy = originY + sy;
 
@@ -147,7 +147,7 @@ export class Portal extends Entity {
     this._drawPillars(ctx, tileW, tileH, alpha);
     this._drawParticles(ctx, tileW, tileH, alpha);
     this._drawShockwaves(ctx, tileW, tileH);
-    if (this._beamAlpha > 0) this._drawAscendBeam(ctx, tileW, tileH, this._beamAlpha);
+    if (this._beamAlpha > 0) {this._drawAscendBeam(ctx, tileW, tileH, this._beamAlpha);}
 
     ctx.restore();
   }
@@ -162,9 +162,9 @@ export class Portal extends Entity {
     // 外层大光晕
     const outerR = tileW * 1.6;
     const og = ctx.createRadialGradient(0, 0, 0, 0, 0, outerR);
-    og.addColorStop(0,   `rgba(140,80,255,${alpha * 0.28})`);
+    og.addColorStop(0, `rgba(140,80,255,${alpha * 0.28})`);
     og.addColorStop(0.4, `rgba(80,100,255,${alpha * 0.12})`);
-    og.addColorStop(1,   'rgba(60,80,200,0)');
+    og.addColorStop(1, 'rgba(60,80,200,0)');
     ctx.beginPath();
     ctx.arc(0, 0, outerR, 0, Math.PI * 2);
     ctx.fillStyle = og;
@@ -173,9 +173,9 @@ export class Portal extends Entity {
     // 内层亮核
     const innerR = tileW * 0.5;
     const ig = ctx.createRadialGradient(0, 0, 0, 0, 0, innerR);
-    ig.addColorStop(0,   `rgba(220,180,255,${alpha * 0.5})`);
+    ig.addColorStop(0, `rgba(220,180,255,${alpha * 0.5})`);
     ig.addColorStop(0.5, `rgba(160,100,255,${alpha * 0.2})`);
-    ig.addColorStop(1,   'rgba(100,60,255,0)');
+    ig.addColorStop(1, 'rgba(100,60,255,0)');
     ctx.beginPath();
     ctx.arc(0, 0, innerR, 0, Math.PI * 2);
     ctx.fillStyle = ig;
@@ -204,8 +204,8 @@ export class Portal extends Entity {
         const a = (i / 3) * Math.PI * 2 + rot;
         const px = Math.cos(a) * r;
         const py = Math.sin(a) * r;
-        if (i === 0) ctx.moveTo(px, py);
-        else ctx.lineTo(px, py);
+        if (i === 0) {ctx.moveTo(px, py);}
+        else {ctx.lineTo(px, py);}
       }
       ctx.closePath();
       ctx.stroke();
@@ -254,9 +254,9 @@ export class Portal extends Entity {
     ctx.scale(1, scaleY);
     const coreR = tileW * 0.14;
     const cg = ctx.createRadialGradient(0, 0, 0, 0, 0, coreR);
-    cg.addColorStop(0,   `rgba(255,255,255,${alpha * 0.95})`);
-    cg.addColorStop(0.35,`rgba(200,160,255,${alpha * 0.7})`);
-    cg.addColorStop(1,   'rgba(120,80,255,0)');
+    cg.addColorStop(0, `rgba(255,255,255,${alpha * 0.95})`);
+    cg.addColorStop(0.35, `rgba(200,160,255,${alpha * 0.7})`);
+    cg.addColorStop(1, 'rgba(120,80,255,0)');
     ctx.beginPath();
     ctx.arc(0, 0, coreR, 0, Math.PI * 2);
     ctx.fillStyle = cg;
@@ -267,7 +267,7 @@ export class Portal extends Entity {
   private _isoPolygon(
     ctx: CanvasRenderingContext2D,
     radius: number, scaleY: number, sides: number, rotation: number,
-    stroke: string, fill: string, lineWidth: number,
+    stroke: string, fill: string, lineWidth: number
   ): void {
     ctx.save();
     ctx.scale(1, scaleY);
@@ -276,7 +276,7 @@ export class Portal extends Entity {
       const a = (i / sides) * Math.PI * 2 + rotation;
       const px = Math.cos(a) * radius;
       const py = Math.sin(a) * radius;
-      if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+      if (i === 0) {ctx.moveTo(px, py);} else {ctx.lineTo(px, py);}
     }
     ctx.closePath();
     ctx.fillStyle = fill;
@@ -301,9 +301,9 @@ export class Portal extends Entity {
       const pillarAlpha = alpha * (0.5 + Math.sin(this._phase * 3 + i) * 0.2);
 
       const grad = ctx.createLinearGradient(px, py, px, py - pillarH);
-      grad.addColorStop(0,   `rgba(160,100,255,${pillarAlpha})`);
+      grad.addColorStop(0, `rgba(160,100,255,${pillarAlpha})`);
       grad.addColorStop(0.6, `rgba(120,80,255,${pillarAlpha * 0.4})`);
-      grad.addColorStop(1,   'rgba(100,60,255,0)');
+      grad.addColorStop(1, 'rgba(100,60,255,0)');
 
       ctx.beginPath();
       ctx.moveTo(px - 1.8, py);
@@ -324,7 +324,7 @@ export class Portal extends Entity {
       const px = Math.cos(p.angle) * p.radius * tileW;
       const py = Math.sin(p.angle) * p.radius * tileW * scaleY - p.z;
       const fadeAlpha = alpha * p.opacity * (1 - p.z / 28);
-      if (fadeAlpha <= 0.02) continue;
+      if (fadeAlpha <= 0.02) {continue;}
 
       ctx.save();
       ctx.translate(px, py);
@@ -341,7 +341,7 @@ export class Portal extends Entity {
       // 粒子发光
       const pg = ctx.createRadialGradient(0, 0, 0, 0, 0, p.size);
       pg.addColorStop(0, p.color.replace(')', `,${fadeAlpha})`).replace('#', 'rgba(').replace(/^rgba\(([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})/, (_, r, g, b) =>
-        `rgba(${parseInt(r,16)},${parseInt(g,16)},${parseInt(b,16)}`));
+        `rgba(${parseInt(r, 16)},${parseInt(g, 16)},${parseInt(b, 16)}`));
       // 简化：直接用 fillStyle
       ctx.fillStyle = this._hexToRgba(p.color, fadeAlpha);
       ctx.fill();
@@ -377,16 +377,16 @@ export class Portal extends Entity {
   // ── 飞升大光柱 ────────────────────────────────────────────────────────────
 
   private _drawAscendBeam(ctx: CanvasRenderingContext2D, tileW: number, tileH: number, alpha: number): void {
-    const beamW  = tileW * 0.55;
-    const beamH  = 420;          // 光柱高度（屏幕像素）
+    const beamW = tileW * 0.55;
+    const beamH = 420; // 光柱高度（屏幕像素）
     const scaleY = tileH / tileW;
 
     // 主光柱：半透明渐变矩形
     const grad = ctx.createLinearGradient(0, 0, 0, -beamH);
-    grad.addColorStop(0,   `rgba(200,160,255,${(alpha * 0.85).toFixed(2)})`);
+    grad.addColorStop(0, `rgba(200,160,255,${(alpha * 0.85).toFixed(2)})`);
     grad.addColorStop(0.2, `rgba(180,120,255,${(alpha * 0.65).toFixed(2)})`);
     grad.addColorStop(0.6, `rgba(140,100,255,${(alpha * 0.35).toFixed(2)})`);
-    grad.addColorStop(1,   'rgba(120,80,255,0)');
+    grad.addColorStop(1, 'rgba(120,80,255,0)');
 
     ctx.save();
     ctx.scale(1, scaleY);
@@ -402,10 +402,10 @@ export class Portal extends Entity {
 
     // 光柱内芯（更亮的细线）
     const coreGrad = ctx.createLinearGradient(0, 0, 0, -beamH);
-    coreGrad.addColorStop(0,   `rgba(255,240,255,${(alpha * 0.9).toFixed(2)})`);
+    coreGrad.addColorStop(0, `rgba(255,240,255,${(alpha * 0.9).toFixed(2)})`);
     coreGrad.addColorStop(0.3, `rgba(220,180,255,${(alpha * 0.6).toFixed(2)})`);
     coreGrad.addColorStop(0.7, `rgba(180,140,255,${(alpha * 0.25).toFixed(2)})`);
-    coreGrad.addColorStop(1,   'rgba(160,120,255,0)');
+    coreGrad.addColorStop(1, 'rgba(160,120,255,0)');
     ctx.beginPath();
     ctx.moveTo(-beamW * 0.12, 0);
     ctx.lineTo( beamW * 0.12, 0);
@@ -418,8 +418,8 @@ export class Portal extends Entity {
     // 光柱边缘光晕（screen 混合）
     ctx.globalCompositeOperation = 'screen';
     const edgeGrad = ctx.createLinearGradient(0, 0, 0, -beamH * 0.7);
-    edgeGrad.addColorStop(0,   `rgba(180,100,255,${(alpha * 0.5).toFixed(2)})`);
-    edgeGrad.addColorStop(1,   'rgba(140,80,255,0)');
+    edgeGrad.addColorStop(0, `rgba(180,100,255,${(alpha * 0.5).toFixed(2)})`);
+    edgeGrad.addColorStop(1, 'rgba(140,80,255,0)');
     ctx.beginPath();
     ctx.moveTo(-beamW * 0.9, 0);
     ctx.lineTo( beamW * 0.9, 0);
@@ -433,9 +433,9 @@ export class Portal extends Entity {
     // 底部爆发光环
     const burstR = beamW * 1.8;
     const burstGrad = ctx.createRadialGradient(0, 0, 0, 0, 0, burstR);
-    burstGrad.addColorStop(0,   `rgba(220,180,255,${(alpha * 0.6).toFixed(2)})`);
+    burstGrad.addColorStop(0, `rgba(220,180,255,${(alpha * 0.6).toFixed(2)})`);
     burstGrad.addColorStop(0.4, `rgba(160,100,255,${(alpha * 0.25).toFixed(2)})`);
-    burstGrad.addColorStop(1,   'rgba(120,80,255,0)');
+    burstGrad.addColorStop(1, 'rgba(120,80,255,0)');
     ctx.beginPath();
     ctx.arc(0, 0, burstR, 0, Math.PI * 2);
     ctx.fillStyle = burstGrad;

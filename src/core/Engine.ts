@@ -1,22 +1,22 @@
-import { Scene } from './Scene';
-import { FrameClock } from '../time/FrameClock';
-import { Floor } from '../elements/Floor';
-import { Wall, WallOptions } from '../elements/Wall';
-import { OmniLight } from '../lighting/OmniLight';
-import { DirectionalLight } from '../lighting/DirectionalLight';
-import { BaseLight } from '../lighting/BaseLight';
-import { Character } from '../elements/Character';
-import { Cloud } from '../elements/props/Cloud';
-import { Crystal } from '../elements/props/Crystal';
-import { Boulder } from '../elements/props/Boulder';
-import { Chest } from '../elements/props/Chest';
-import { Tree } from '../elements/props/Tree';
-import { FlowerPatch } from '../elements/props/FlowerPatch';
-import { Lantern } from '../elements/props/Lantern';
-import { HealthComponent } from '../ecs/components/HealthComponent';
-import type { Entity } from '../ecs/Entity';
-import { TileCollider } from '../physics/TileCollider';
-import { IsoObject } from '../elements/IsoObject';
+import {Scene} from './Scene';
+import {FrameClock} from '../time/FrameClock';
+import {Floor} from '../elements/Floor';
+import {Wall, WallOptions} from '../elements/Wall';
+import {OmniLight} from '../lighting/OmniLight';
+import {DirectionalLight} from '../lighting/DirectionalLight';
+import {BaseLight} from '../lighting/BaseLight';
+import {Character} from '../elements/Character';
+import {Cloud} from '../elements/props/Cloud';
+import {Crystal} from '../elements/props/Crystal';
+import {Boulder} from '../elements/props/Boulder';
+import {Chest} from '../elements/props/Chest';
+import {Tree} from '../elements/props/Tree';
+import {FlowerPatch} from '../elements/props/FlowerPatch';
+import {Lantern} from '../elements/props/Lantern';
+import {HealthComponent} from '../ecs/components/HealthComponent';
+import type {Entity} from '../ecs/Entity';
+import {TileCollider} from '../physics/TileCollider';
+import {IsoObject} from '../elements/IsoObject';
 
 export interface EngineOptions {
   canvas: HTMLCanvasElement;
@@ -79,8 +79,8 @@ interface SceneJson {
   ambientColor?: string;
   ambientIntensity?: number;
   dynamicLighting?: boolean;
-  view?: { rotation?: number; elevation?: number };
-  camera?: { x?: number; y?: number; zoom?: number; lerpFactor?: number };
+  view?: {rotation?: number; elevation?: number};
+  camera?: {x?: number; y?: number; zoom?: number; lerpFactor?: number};
   tileW?: number;
   tileH?: number;
   cols?: number;
@@ -134,8 +134,8 @@ export class Engine {
   //   Engine.registerProp('dragon', (json) => new Dragon(json.id, json.x, json.y));
   //   Engine.registerLight('spot', (json) => new SpotLight({ ... }));
   //
-  static _propRegistry   = new Map<string, PropFactory>();
-  static _lightRegistry  = new Map<string, LightFactory>();
+  static _propRegistry = new Map<string, PropFactory>();
+  static _lightRegistry = new Map<string, LightFactory>();
 
   /**
    * Register a factory for a custom prop type.
@@ -218,7 +218,7 @@ export class Engine {
    * Assign a number to pin it, or `null` to return to auto.
    */
   get pixelRatio(): number {
-    if (this._pixelRatioOverride !== null) return this._pixelRatioOverride;
+    if (this._pixelRatioOverride !== null) {return this._pixelRatioOverride;}
     const dpr = typeof window !== 'undefined' ? (window.devicePixelRatio || 1) : 1;
     return Math.max(1, Math.min(dpr, this.maxPixelRatio));
   }
@@ -248,7 +248,7 @@ export class Engine {
     if (!ctx) {
       throw new Error(
         'Engine: canvas.getContext("2d") returned null. The element is either ' +
-        'not a <canvas> or already holds a context of a different type.',
+        'not a <canvas> or already holds a context of a different type.'
       );
     }
     this.ctx = ctx;
@@ -276,15 +276,15 @@ export class Engine {
     try {
       res = await fetch(url);
     } catch (err) {
-      throw new Error(`Engine.loadScene: network request for "${url}" failed — ${String(err)}`);
+      throw new Error(`Engine.loadScene: network request for "${url}" failed — ${String(err)}`, {cause: err});
     }
-    if (!res.ok) throw new Error(`Engine.loadScene: "${url}" returned HTTP ${res.status}`);
+    if (!res.ok) {throw new Error(`Engine.loadScene: "${url}" returned HTTP ${res.status}`);}
 
     let json: unknown;
     try {
       json = await res.json();
     } catch (err) {
-      throw new Error(`Engine.loadScene: "${url}" is not valid JSON — ${String(err)}`);
+      throw new Error(`Engine.loadScene: "${url}" is not valid JSON — ${String(err)}`, {cause: err});
     }
     if (typeof json !== 'object' || json === null) {
       throw new Error(`Engine.loadScene: "${url}" must contain a JSON object`);
@@ -350,9 +350,9 @@ export class Engine {
     prop: IsoObject,
     health: unknown,
     currentHp: unknown,
-    type: string,
+    type: string
   ): void {
-    if (health === undefined || health === null) return;
+    if (health === undefined || health === null) {return;}
     const max = Number(health);
     if (!Number.isFinite(max) || max <= 0) {
       console.warn(`[Engine] Prop '${type}' has a non-positive health ${JSON.stringify(health)}; ignoring it.`);
@@ -361,15 +361,17 @@ export class Engine {
 
     const entity = prop as IsoObject & Partial<Entity>;
     if (typeof entity.addComponent !== 'function' || typeof entity.getComponent !== 'function') {
-      console.warn(`[Engine] Prop type '${type}' declares health but is not an Entity, so it cannot carry a HealthComponent.`);
+      console.warn(
+        `[Engine] Prop type '${type}' declares health but is not an Entity, so it cannot carry a HealthComponent.`
+      );
       return;
     }
 
     const existing = entity.getComponent(HealthComponent);
-    const component = existing ?? entity.addComponent(new HealthComponent({ max }));
-    if (existing) existing.setMax(max);
+    const component = existing ?? entity.addComponent(new HealthComponent({max}));
+    if (existing) {existing.setMax(max);}
 
-    if (currentHp === undefined || currentHp === null) return;
+    if (currentHp === undefined || currentHp === null) {return;}
     const hp = Number(currentHp);
     if (!Number.isFinite(hp) || hp < 0) {
       console.warn(`[Engine] Prop '${type}' has an invalid hp ${JSON.stringify(currentHp)}; keeping ${component.hp}.`);
@@ -384,7 +386,7 @@ export class Engine {
    * which produces an empty grid — making every tile blocked with no error.
    */
   private static _dimension(value: unknown, fallback: number, field: string): number {
-    if (value === undefined || value === null) return fallback;
+    if (value === undefined || value === null) {return fallback;}
     const n = Number(value);
     if (!Number.isFinite(n) || n <= 0) {
       throw new Error(`Engine: scene "${field}" must be a positive number, got ${JSON.stringify(value)}`);
@@ -396,8 +398,8 @@ export class Engine {
   private _buildScene(json: SceneJson): Scene {
     // Validate the dimensions up front so a bad value fails loudly here rather
     // than degrading into an all-blocked collider further down.
-    const cols  = Engine._dimension(json.cols  ?? json.floor?.cols, 10, 'cols');
-    const rows  = Engine._dimension(json.rows  ?? json.floor?.rows, 10, 'rows');
+    const cols = Engine._dimension(json.cols ?? json.floor?.cols, 10, 'cols');
+    const rows = Engine._dimension(json.rows ?? json.floor?.rows, 10, 'rows');
     const tileW = json.tileW === undefined ? undefined : Engine._dimension(json.tileW, 64, 'tileW');
     const tileH = json.tileH === undefined ? undefined : Engine._dimension(json.tileH, 32, 'tileH');
 
@@ -408,9 +410,9 @@ export class Engine {
       cols,
       rows,
     });
-    if (json.ambientColor !== undefined) scene.ambientColor = json.ambientColor;
-    if (json.ambientIntensity !== undefined) scene.ambientIntensity = json.ambientIntensity;
-    if (json.dynamicLighting !== undefined) scene.dynamicLighting = json.dynamicLighting;
+    if (json.ambientColor !== undefined) {scene.ambientColor = json.ambientColor;}
+    if (json.ambientIntensity !== undefined) {scene.ambientIntensity = json.ambientIntensity;}
+    if (json.dynamicLighting !== undefined) {scene.dynamicLighting = json.dynamicLighting;}
     if (json.view) {
       scene.view = {
         rotation: json.view.rotation ?? scene.view.rotation,
@@ -434,7 +436,7 @@ export class Engine {
           altColor: json.floor.altColor,
           tileImage: json.floor.tileImage,
           altTileImage: json.floor.altTileImage,
-        }),
+        })
       );
     }
 
@@ -456,7 +458,7 @@ export class Engine {
 
     for (const c of json.characters ?? []) {
       scene.addObject(
-        new Character({ id: c.id, x: c.x, y: c.y, z: c.z, radius: c.radius, color: c.color }),
+        new Character({id: c.id, x: c.x, y: c.y, z: c.z, radius: c.radius, color: c.color})
       );
     }
 
@@ -464,18 +466,18 @@ export class Engine {
       const cloud = new Cloud({
         id: c.id, x: c.x, y: c.y,
         altitude: c.altitude,
-        speed:    c.speed,
-        angle:    c.angle,
-        scale:    c.scale,
-        color:    c.color,
-        seed:     c.seed,
+        speed: c.speed,
+        angle: c.angle,
+        scale: c.scale,
+        color: c.color,
+        seed: c.seed,
       });
       cloud.boundsX = json.cols ?? json.floor?.cols ?? 10;
       cloud.boundsY = json.rows ?? json.floor?.rows ?? 10;
       scene.addObject(cloud);
     }
 
-    for (const prop of Engine.buildProps(json.props)) scene.addObject(prop);
+    for (const prop of Engine.buildProps(json.props)) {scene.addObject(prop);}
 
     // Build collision layer (cols/rows validated at the top of this method)
     if (json.floor?.walkable) {
@@ -509,7 +511,7 @@ export class Engine {
    * rendering at a third of the resolution and letting the compositor upscale.
    */
   resize(width?: number, height?: number): void {
-    const { canvas } = this;
+    const {canvas} = this;
     let cssW = this._cssW;
     let cssH = this._cssH;
 
@@ -529,12 +531,12 @@ export class Engine {
     this._cssH = cssH;
     this._appliedRatio = ratio;
 
-    canvas.width  = Math.max(1, Math.round(cssW * ratio));
+    canvas.width = Math.max(1, Math.round(cssW * ratio));
     canvas.height = Math.max(1, Math.round(cssH * ratio));
     // Pin the CSS box, otherwise the browser lays the element out at the
     // backing-store size and the page grows by the ratio.
     if (canvas.style) {
-      canvas.style.width  = `${cssW}px`;
+      canvas.style.width = `${cssW}px`;
       canvas.style.height = `${cssH}px`;
     }
     // A base transform rather than a per-draw scale: nothing downstream needs
@@ -562,7 +564,7 @@ export class Engine {
    * with `stop()` able to cancel only the one it had an id for.
    */
   start(onFrame?: (ts: number) => void, preFrame?: (ts: number) => void): void {
-    if (this._running) return;
+    if (this._running) {return;}
 
 
     this._onFrame = onFrame ?? null;
@@ -600,7 +602,7 @@ export class Engine {
   }
 
   private _scheduleLoop(): void {
-    if (this._rafId !== null) return;
+    if (this._rafId !== null) {return;}
     // Only the newest chain may reschedule itself. A frame callback can legally
     // `stop()` and `start()` again — a restart button does exactly that — which
     // starts a fresh chain while the old one is still mid-tick. Without this the
@@ -609,12 +611,12 @@ export class Engine {
     const loop = (ts: number): void => {
       this._rafId = null;
       this._tick(ts);
-      if (generation !== this._loopGeneration) return;
+      if (generation !== this._loopGeneration) {return;}
 
 
       // A frame callback may have called stop(); without this guard the loop
       // would immediately reschedule itself and become unstoppable.
-      if (!this._running || this._autoPaused) return;
+      if (!this._running || this._autoPaused) {return;}
       this._rafId = requestAnimationFrame(loop);
     };
     this._rafId = requestAnimationFrame(loop);
@@ -624,7 +626,7 @@ export class Engine {
     // Bumped even when there is no id to cancel: during a tick `_rafId` is null,
     // and this is the only thing that tells that in-flight chain to stop.
     this._loopGeneration++;
-    if (this._rafId === null) return;
+    if (this._rafId === null) {return;}
     cancelAnimationFrame(this._rafId);
     this._rafId = null;
   }
@@ -640,7 +642,7 @@ export class Engine {
    * `_lastTs` on return makes the gap explicit rather than a slow drift.
    */
   private _attachVisibility(): void {
-    if (this._visibilityListener || typeof document === 'undefined') return;
+    if (this._visibilityListener || typeof document === 'undefined') {return;}
     const onChange = (): void => {
       if (document.hidden) {
         // Only the *hide* branch is optional. Guarding both with `pauseOnHide`
@@ -649,13 +651,13 @@ export class Engine {
         // amount of `start()` helped because every scheduled frame died on that
         // flag. Only `stop()` recovered, and `paused` reported true on a visible
         // tab — contradicting its own docstring.
-        if (!this.pauseOnHide) return;
-        if (!this._running || this._autoPaused) return;
+        if (!this.pauseOnHide) {return;}
+        if (!this._running || this._autoPaused) {return;}
         this._autoPaused = true;
         this._cancelLoop();
         return;
       }
-      if (!this._autoPaused) return;
+      if (!this._autoPaused) {return;}
       this._autoPaused = false;
 
       // Discard the hidden interval instead of integrating it in one lump.
@@ -663,21 +665,21 @@ export class Engine {
       // using it as the "unset" marker dropped the frame right after it.
       this._clock.reset();
       this._accumulator = 0;
-      if (this._running) this._scheduleLoop();
+      if (this._running) {this._scheduleLoop();}
     };
     document.addEventListener('visibilitychange', onChange);
     this._visibilityListener = onChange;
   }
 
   private _detachVisibility(): void {
-    if (!this._visibilityListener || typeof document === 'undefined') return;
+    if (!this._visibilityListener || typeof document === 'undefined') {return;}
     document.removeEventListener('visibilitychange', this._visibilityListener);
     this._visibilityListener = null;
   }
 
 
   private _tick(ts: number): void {
-    if (!this._scene) return;
+    if (!this._scene) {return;}
 
     const rawDt = this._clock.sample(ts);
 
@@ -689,7 +691,7 @@ export class Engine {
 
     this._scene.update(ts);
 
-    const { ctx, originX, originY } = this;
+    const {ctx, originX, originY} = this;
     ctx.clearRect(0, 0, this._cssW, this._cssH);
 
     this._preFrame?.(ts);
@@ -703,13 +705,13 @@ export class Engine {
 // It seeds the registries with the default types so existing scene JSON
 // continues to work without any changes.
 Engine._propRegistry.set('crystal',
-  (p) => new Crystal(p.id, p.x, p.y, p.color, p.heightPx as number | undefined));
+  p => new Crystal(p.id, p.x, p.y, p.color, p.heightPx as number | undefined));
 Engine._propRegistry.set('boulder',
-  (p) => new Boulder(p.id, p.x, p.y, p.color, p.radius as number | undefined));
+  p => new Boulder(p.id, p.x, p.y, p.color, p.radius as number | undefined));
 Engine._propRegistry.set('chest',
-  (p) => new Chest(p.id, p.x, p.y, p.color));
+  p => new Chest(p.id, p.x, p.y, p.color));
 Engine._propRegistry.set('tree',
-  (p) => new Tree({
+  p => new Tree({
     id: p.id, x: p.x, y: p.y,
     canopyColor: p.color,
     trunkColor: p.trunkColor,
@@ -717,7 +719,7 @@ Engine._propRegistry.set('tree',
     scale: p.scale,
   }));
 Engine._propRegistry.set('flowers',
-  (p) => new FlowerPatch({
+  p => new FlowerPatch({
     id: p.id, x: p.x, y: p.y,
     color: p.color,
     accentColor: p.accentColor,
@@ -725,7 +727,7 @@ Engine._propRegistry.set('flowers',
     seed: p.seed,
   }));
 Engine._propRegistry.set('lantern',
-  (p) => new Lantern({
+  p => new Lantern({
     id: p.id, x: p.x, y: p.y,
     glowColor: p.color,
     postColor: p.postColor,
@@ -733,7 +735,7 @@ Engine._propRegistry.set('lantern',
   }));
 
 Engine._lightRegistry.set('omni',
-  (l) => new OmniLight({
+  l => new OmniLight({
     id: l.id,
     x: l.x ?? 0, y: l.y ?? 0, z: l.z ?? 120,
     color: l.color, intensity: l.intensity, radius: l.radius,
@@ -741,7 +743,7 @@ Engine._lightRegistry.set('omni',
     falloff: l.falloff as 'linear' | 'quadratic' | undefined,
   }));
 Engine._lightRegistry.set('directional',
-  (l) => new DirectionalLight({
+  l => new DirectionalLight({
     id: l.id,
     angle: l.angle, elevation: l.elevation,
     color: l.color, intensity: l.intensity,

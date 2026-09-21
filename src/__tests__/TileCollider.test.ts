@@ -1,12 +1,12 @@
-import { describe, it, expect } from 'vitest';
-import { TileCollider } from '../physics/TileCollider';
+import {describe, it, expect} from 'vitest';
+import {TileCollider} from '../physics/TileCollider';
 
 describe('TileCollider — construction', () => {
   it('all tiles walkable by default', () => {
     const c = new TileCollider(4, 4);
     for (let r = 0; r < 4; r++)
-      for (let col = 0; col < 4; col++)
-        expect(c.isWalkable(col, r)).toBe(true);
+      {for (let col = 0; col < 4; col++)
+        {expect(c.isWalkable(col, r)).toBe(true);}}
   });
 
   it('out-of-bounds tiles are not walkable', () => {
@@ -62,7 +62,7 @@ describe('TileCollider — resolveMove', () => {
   it('blocks move into wall', () => {
     const c = new TileCollider(10, 10);
     // Block the entire right column
-    for (let r = 0; r < 10; r++) c.setWalkable(7, r, false);
+    for (let r = 0; r < 10; r++) {c.setWalkable(7, r, false);}
     // Standing at x=6.5, trying to move right into col 7
     const result = c.resolveMove(6.5, 5, 0.5, 0, 0.4);
     expect(result.dx).toBe(0);
@@ -70,7 +70,7 @@ describe('TileCollider — resolveMove', () => {
 
   it('slides along wall (X blocked, Y free)', () => {
     const c = new TileCollider(10, 10);
-    for (let r = 0; r < 10; r++) c.setWalkable(7, r, false);
+    for (let r = 0; r < 10; r++) {c.setWalkable(7, r, false);}
     const result = c.resolveMove(6.5, 5, 0.5, 0.3, 0.4);
     expect(result.dx).toBe(0);
     expect(result.dy).toBe(0.3);
@@ -80,7 +80,7 @@ describe('TileCollider — resolveMove', () => {
 describe('TileCollider — fromArray', () => {
   it('builds from 2D boolean array', () => {
     const grid = [
-      [true,  false],
+      [true, false],
       [false, true ],
     ];
     const c = TileCollider.fromArray(2, 2, grid);

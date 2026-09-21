@@ -1,13 +1,13 @@
-import { TileCollider } from './TileCollider';
+import {TileCollider} from './TileCollider';
 
-export interface IsoVec2 { x: number; y: number; }
+export interface IsoVec2 {x: number; y: number;}
 
 interface Node {
   col: number;
   row: number;
-  g: number;   // cost from start
-  h: number;   // heuristic to goal
-  f: number;   // g + h
+  g: number; // cost from start
+  h: number; // heuristic to goal
+  f: number; // g + h
   parent: Node | null;
   /** Heap index — kept in sync by BinaryHeap for O(1) decrease-key. */
   _heapIdx: number;
@@ -27,7 +27,7 @@ class BinaryHeap {
   }
 
   pop(): Node {
-    const top  = this._data[0];
+    const top = this._data[0];
     const last = this._data.pop()!;
     if (this._data.length > 0) {
       last._heapIdx = 0;
@@ -45,7 +45,7 @@ class BinaryHeap {
   private _bubbleUp(i: number): void {
     while (i > 0) {
       const parent = (i - 1) >> 1;
-      if (this._data[parent].f <= this._data[i].f) break;
+      if (this._data[parent].f <= this._data[i].f) {break;}
       this._swap(parent, i);
       i = parent;
     }
@@ -57,9 +57,9 @@ class BinaryHeap {
       let smallest = i;
       const l = (i << 1) + 1;
       const r = l + 1;
-      if (l < n && this._data[l].f < this._data[smallest].f) smallest = l;
-      if (r < n && this._data[r].f < this._data[smallest].f) smallest = r;
-      if (smallest === i) break;
+      if (l < n && this._data[l].f < this._data[smallest].f) {smallest = l;}
+      if (r < n && this._data[r].f < this._data[smallest].f) {smallest = r;}
+      if (smallest === i) {break;}
       this._swap(i, smallest);
       i = smallest;
     }
@@ -106,10 +106,10 @@ interface CacheEntry {
  */
 export class PathCache {
   private _collider: TileCollider | null = null;
-  private _version  = 0;
+  private _version = 0;
   private _gridVersion = -1;
   private _lruClock = 0;
-  private _map      = new Map<string, CacheEntry>();
+  private _map = new Map<string, CacheEntry>();
   readonly capacity: number;
 
   constructor(capacity = 64) {
@@ -123,7 +123,7 @@ export class PathCache {
    * serving pre-change paths indefinitely.
    */
   private _syncTo(collider: TileCollider): void {
-    if (collider === this._collider && collider.version === this._gridVersion) return;
+    if (collider === this._collider && collider.version === this._gridVersion) {return;}
     this._map.clear();
     this._collider = collider;
     this._gridVersion = collider.version;
@@ -133,7 +133,7 @@ export class PathCache {
   get(collider: TileCollider, key: string): IsoVec2[] | null | undefined {
     this._syncTo(collider);
     const entry = this._map.get(key);
-    if (!entry || entry.version !== this._version) return undefined;
+    if (!entry || entry.version !== this._version) {return undefined;}
     entry.lruOrder = ++this._lruClock;
     return entry.result;
   }
@@ -146,9 +146,9 @@ export class PathCache {
       for (const [k, v] of this._map) {
         if (v.lruOrder < oldest) { oldest = v.lruOrder; oldestKey = k; }
       }
-      if (oldestKey) this._map.delete(oldestKey);
+      if (oldestKey) {this._map.delete(oldestKey);}
     }
-    this._map.set(key, { result, lruOrder: ++this._lruClock, version: this._version });
+    this._map.set(key, {result, lruOrder: ++this._lruClock, version: this._version});
   }
 
   /**
@@ -210,7 +210,7 @@ export class Pathfinder {
     collider: TileCollider,
     start: IsoVec2,
     goal: IsoVec2,
-    cache: PathCache = _defaultCache,
+    cache: PathCache = _defaultCache
   ): IsoVec2[] | null {
     const sc = Math.floor(start.x);
     const sr = Math.floor(start.y);
@@ -219,7 +219,7 @@ export class Pathfinder {
 
     const cacheKey = `${sc},${sr}→${gc},${gr}`;
     const cached = cache.get(collider, cacheKey);
-    if (cached !== undefined) return cached;
+    if (cached !== undefined) {return cached;}
 
     const result = Pathfinder._search(collider, sc, sr, gc, gr);
     cache.set(collider, cacheKey, result);
@@ -257,15 +257,15 @@ export class Pathfinder {
   private static _search(
     collider: TileCollider,
     sc: number, sr: number,
-    gc: number, gr: number,
+    gc: number, gr: number
   ): IsoVec2[] | null {
-    if (!collider.isWalkable(gc, gr)) return null;
-    if (sc === gc && sr === gr) return [{ x: gc + 0.5, y: gr + 0.5 }];
+    if (!collider.isWalkable(gc, gr)) {return null;}
+    if (sc === gc && sr === gr) {return [{x: gc + 0.5, y: gr + 0.5}];}
 
-    const open   = new BinaryHeap();
+    const open = new BinaryHeap();
     const closed = new Set<string>();
-    const best   = new Map<string, number>(); // key → best g seen
-    const nodeMap = new Map<string, Node>();  // key → open-list node (for decrease-key)
+    const best = new Map<string, number>(); // key → best g seen
+    const nodeMap = new Map<string, Node>(); // key → open-list node (for decrease-key)
 
     const startNode: Node = {
       col: sc, row: sr,
@@ -279,9 +279,9 @@ export class Pathfinder {
 
     while (open.size > 0) {
       const cur = open.pop();
-      const ck  = nodeKey(cur.col, cur.row);
+      const ck = nodeKey(cur.col, cur.row);
 
-      if (closed.has(ck)) continue;
+      if (closed.has(ck)) {continue;}
       closed.add(ck);
       nodeMap.delete(ck);
 
@@ -293,23 +293,23 @@ export class Pathfinder {
         const nc = cur.col + dc;
         const nr = cur.row + dr;
         const nk = nodeKey(nc, nr);
-        if (closed.has(nk)) continue;
+        if (closed.has(nk)) {continue;}
 
         const g = cur.g + cost;
-        if ((best.get(nk) ?? Infinity) <= g) continue;
+        if ((best.get(nk) ?? Infinity) <= g) {continue;}
         best.set(nk, g);
 
         const h = Pathfinder._h(nc, nr, gc, gr);
         const existing = nodeMap.get(nk);
         if (existing) {
           // Decrease-key: update in place and restore heap invariant
-          existing.g      = g;
-          existing.h      = h;
-          existing.f      = g + h;
+          existing.g = g;
+          existing.h = h;
+          existing.f = g + h;
           existing.parent = cur;
           open.decreased(existing);
         } else {
-          const node: Node = { col: nc, row: nr, g, h, f: g + h, parent: cur, _heapIdx: 0 };
+          const node: Node = {col: nc, row: nr, g, h, f: g + h, parent: cur, _heapIdx: 0};
           open.push(node);
           nodeMap.set(nk, node);
         }
@@ -335,25 +335,25 @@ export class Pathfinder {
   private static _neighbors(
     collider: TileCollider,
     col: number,
-    row: number,
+    row: number
   ): [number, number, number][] {
     const dirs: [number, number, number][] = [
-      [ 0, -1, 1],           // N
-      [ 1,  0, 1],           // E
-      [ 0,  1, 1],           // S
-      [-1,  0, 1],           // W
-      [ 1, -1, Math.SQRT2],  // NE
-      [ 1,  1, Math.SQRT2],  // SE
-      [-1,  1, Math.SQRT2],  // SW
-      [-1, -1, Math.SQRT2],  // NW
+      [ 0, -1, 1], // N
+      [ 1, 0, 1], // E
+      [ 0, 1, 1], // S
+      [-1, 0, 1], // W
+      [ 1, -1, Math.SQRT2], // NE
+      [ 1, 1, Math.SQRT2], // SE
+      [-1, 1, Math.SQRT2], // SW
+      [-1, -1, Math.SQRT2], // NW
     ];
     const result: [number, number, number][] = [];
     for (const [dc, dr, cost] of dirs) {
       const nc = col + dc;
       const nr = row + dr;
-      if (!collider.isWalkable(nc, nr)) continue;
+      if (!collider.isWalkable(nc, nr)) {continue;}
       if (dc !== 0 && dr !== 0) {
-        if (!collider.isWalkable(col + dc, row) || !collider.isWalkable(col, row + dr)) continue;
+        if (!collider.isWalkable(col + dc, row) || !collider.isWalkable(col, row + dr)) {continue;}
       }
       result.push([dc, dr, cost]);
     }
@@ -365,7 +365,7 @@ export class Pathfinder {
     const raw: IsoVec2[] = [];
     let n: Node | null = goal;
     while (n) {
-      raw.push({ x: n.col + 0.5, y: n.row + 0.5 });
+      raw.push({x: n.col + 0.5, y: n.row + 0.5});
       n = n.parent;
     }
     raw.reverse();
@@ -381,7 +381,7 @@ export class Pathfinder {
    * wherever the terrain is open.
    */
   private static _stringPull(path: IsoVec2[], collider: TileCollider): IsoVec2[] {
-    if (path.length <= 2) return path;
+    if (path.length <= 2) {return path;}
 
     const out: IsoVec2[] = [path[0]];
     let anchor = 0;
@@ -422,14 +422,14 @@ export class Pathfinder {
     let err = dc - dr;
 
     for (;;) {
-      if (!collider.isWalkable(c0, r0)) return false;
-      if (c0 === c1 && r0 === r1) break;
+      if (!collider.isWalkable(c0, r0)) {return false;}
+      if (c0 === c1 && r0 === r1) {break;}
       const e2 = err << 1;
       const stepC = e2 > -dr;
-      const stepR = e2 <  dc;
+      const stepR = e2 < dc;
       if (stepC && stepR) {
         // Diagonal step — reject if either shared cardinal is blocked.
-        if (!collider.isWalkable(c0 + sc, r0) || !collider.isWalkable(c0, r0 + sr)) return false;
+        if (!collider.isWalkable(c0 + sc, r0) || !collider.isWalkable(c0, r0 + sr)) {return false;}
       }
       if (stepC) { err -= dr; c0 += sc; }
       if (stepR) { err += dc; r0 += sr; }

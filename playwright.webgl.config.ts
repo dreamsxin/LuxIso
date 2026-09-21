@@ -1,4 +1,4 @@
-import { defineConfig, devices } from '@playwright/test';
+import {defineConfig, devices} from '@playwright/test';
 
 export default defineConfig({
   testDir: './webgl-next/e2e',
@@ -38,7 +38,7 @@ export default defineConfig({
      * regressions need a clipped baseline or a computed invariant, not a
      * stricter global budget; see the P2 row in README.
      */
-    toHaveScreenshot: { maxDiffPixels: 2500 },
+    toHaveScreenshot: {maxDiffPixels: 2500},
 
 
   },
@@ -51,7 +51,7 @@ export default defineConfig({
   reporter: 'list',
   use: {
     baseURL: 'http://127.0.0.1:4173',
-    viewport: { width: 1280, height: 720 },
+    viewport: {width: 1280, height: 720},
     deviceScaleFactor: 1,
     colorScheme: 'dark',
     locale: 'zh-CN',

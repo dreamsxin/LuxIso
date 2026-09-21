@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, afterEach } from 'vitest';
-import { SceneTransition } from '../core/SceneTransition';
+import {describe, it, expect, vi, afterEach} from 'vitest';
+import {SceneTransition} from '../core/SceneTransition';
 
 /**
  * SceneTransition was at 0% coverage with a fully written docblock — the
@@ -20,12 +20,12 @@ function recorder(): Recorder {
   const props: Record<string, unknown> = {};
   const ctx = new Proxy({}, {
     get: (_t, prop) => {
-      if (prop in props) return props[prop as string];
+      if (prop in props) {return props[prop as string];}
       return (...args: unknown[]) => { calls.push([prop, ...args]); };
     },
     set: (_t, prop, value) => { props[prop as string] = value; calls.push(['set', prop, value]); return true; },
   }) as unknown as CanvasRenderingContext2D;
-  return { ctx, calls, props };
+  return {ctx, calls, props};
 }
 
 /** Freezes performance.now() so `_startTs` is predictable. */
@@ -36,7 +36,7 @@ function freezeClock(at = 1000): void {
 afterEach(() => { vi.restoreAllMocks(); });
 
 function fills(calls: unknown[][]): unknown[][] {
-  return calls.filter((c) => c[0] === 'fillRect');
+  return calls.filter(c => c[0] === 'fillRect');
 }
 
 describe('SceneTransition — in phase', () => {
@@ -45,7 +45,7 @@ describe('SceneTransition — in phase', () => {
     const r = recorder();
     const t = new SceneTransition(r.ctx);
 
-    const covered = t.playIn('fade', { duration: 400 });
+    const covered = t.playIn('fade', {duration: 400});
     expect(t.isPlaying).toBe(true);
     expect(t.progress).toBe(0);
 
@@ -64,7 +64,7 @@ describe('SceneTransition — in phase', () => {
     const t = new SceneTransition(r.ctx);
 
     await Promise.all([
-      t.playIn('fade', { duration: 100 }),
+      t.playIn('fade', {duration: 100}),
       Promise.resolve().then(() => t.draw(800, 600, 1200)),
     ]);
 
@@ -83,7 +83,7 @@ describe('SceneTransition — in phase', () => {
     freezeClock(1000);
     const r = recorder();
     const t = new SceneTransition(r.ctx);
-    let coveredDuringLoad: number[] = [];
+    const coveredDuringLoad: number[] = [];
 
     const run = t.between('fade', async () => {
       // Simulate an async scene load: several frames pass while awaiting.
@@ -92,7 +92,7 @@ describe('SceneTransition — in phase', () => {
         t.draw(800, 600, ts);
         coveredDuringLoad.push(fills(r.calls).length);
       }
-    }, { duration: 100 });
+    }, {duration: 100});
 
     // Drive the in phase, then the out phase, until the whole thing settles.
     for (const ts of [1050, 1200, 1600, 1700, 1800, 2000]) {
@@ -112,7 +112,7 @@ describe('SceneTransition — out phase', () => {
     const r = recorder();
     const t = new SceneTransition(r.ctx);
 
-    const clear = t.playOut('fade', { duration: 200 });
+    const clear = t.playOut('fade', {duration: 200});
     expect(t.progress).toBe(1);
 
     t.draw(800, 600, 1100);
@@ -141,8 +141,8 @@ describe('SceneTransition — promise hygiene', () => {
 
     // Before the fix `_resolve` was simply overwritten, so this promise never
     // settled and any `await` on it hung for the rest of the session.
-    const abandoned = t.playIn('fade', { duration: 400 });
-    t.playIn('slide-left', { duration: 100 });
+    const abandoned = t.playIn('fade', {duration: 400});
+    t.playIn('slide-left', {duration: 100});
 
     let settled = false;
     void abandoned.then(() => { settled = true; });
@@ -156,7 +156,7 @@ describe('SceneTransition — promise hygiene', () => {
     const r = recorder();
     const t = new SceneTransition(r.ctx);
 
-    const covered = t.playIn('fade', { duration: 0 });
+    const covered = t.playIn('fade', {duration: 0});
     t.draw(800, 600, 1000);
     await covered;
     expect(t.progress).toBe(1);
@@ -167,7 +167,7 @@ describe('SceneTransition — promise hygiene', () => {
     const r = recorder();
     const t = new SceneTransition(r.ctx);
 
-    const covered = t.playIn('fade', { duration: -100 });
+    const covered = t.playIn('fade', {duration: -100});
     t.draw(800, 600, 1000);
     await covered;
     expect(t.isPlaying).toBe(true); // holding, fully covered
@@ -178,7 +178,7 @@ describe('SceneTransition — promise hygiene', () => {
     freezeClock(1000);
     const r = recorder();
     const t = new SceneTransition(r.ctx);
-    void t.playIn('fade', { duration: 200 });
+    void t.playIn('fade', {duration: 200});
 
     // A timestamp before the start (clock skew) must not drive progress negative.
     t.draw(800, 600, 900);
@@ -193,7 +193,7 @@ describe('SceneTransition — effects', () => {
     freezeClock(1000);
     const r = recorder();
     const t = new SceneTransition(r.ctx);
-    void t.playIn(effect, { duration: 100, color: '#123456' });
+    void t.playIn(effect, {duration: 100, color: '#123456'});
     t.draw(800, 600, ts);
     return r;
   }
@@ -234,9 +234,9 @@ describe('SceneTransition — effects', () => {
 
   it('circle-wipe closes the hole as coverage grows', () => {
     const early = progressAt('circle-wipe', 1010);
-    const late  = progressAt('circle-wipe', 1099);
+    const late = progressAt('circle-wipe', 1099);
     const radius = (r: Recorder): number =>
-      (r.calls.find((c) => c[0] === 'arc')![3] as number);
+      (r.calls.find(c => c[0] === 'arc')![3] as number);
 
     // The hole used to *grow* with progress, so at full coverage the whole
     // canvas was erased — the effect ended fully transparent instead of opaque.
@@ -246,11 +246,11 @@ describe('SceneTransition — effects', () => {
 
   it('circle-wipe restores the composite operation it borrowed', () => {
     const r = progressAt('circle-wipe', 1050);
-    const ops = r.calls.filter((c) => c[0] === 'set' && c[1] === 'globalCompositeOperation');
+    const ops = r.calls.filter(c => c[0] === 'set' && c[1] === 'globalCompositeOperation');
     expect(ops.length).toBe(2);
     expect(ops[1][2]).toBe('source-over');
-    expect(r.calls.filter((c) => c[0] === 'save').length).toBe(1);
-    expect(r.calls.filter((c) => c[0] === 'restore').length).toBe(1);
+    expect(r.calls.filter(c => c[0] === 'save').length).toBe(1);
+    expect(r.calls.filter(c => c[0] === 'restore').length).toBe(1);
   });
 
   it('resets the base transform before painting', () => {

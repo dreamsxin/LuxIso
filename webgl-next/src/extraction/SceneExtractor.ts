@@ -1,19 +1,19 @@
-import type { Scene } from '../../../src/core/Scene';
-import { ParticleBlend, ParticleSystem, type ParticleRenderState } from '../../../src/animation/ParticleSystem';
-import { Character } from '../../../src/elements/Character';
-import { Floor } from '../../../src/elements/Floor';
-import type { IsoObject } from '../../../src/elements/IsoObject';
-import { Wall } from '../../../src/elements/Wall';
-import { Boulder } from '../../../src/elements/props/Boulder';
-import { Chest } from '../../../src/elements/props/Chest';
-import { Cloud } from '../../../src/elements/props/Cloud';
-import { Crystal } from '../../../src/elements/props/Crystal';
-import { FloatingText } from '../../../src/elements/props/FloatingText';
-import { Tree } from '../../../src/elements/props/Tree';
-import { FlowerPatch } from '../../../src/elements/props/FlowerPatch';
-import { Lantern } from '../../../src/elements/props/Lantern';
-import { hexToRgb, shiftColor } from '../../../src/math/color';
-import { topoSort } from '../../../src/math/depthSort';
+import type {Scene} from '../../../src/core/Scene';
+import {ParticleBlend, ParticleSystem, type ParticleRenderState} from '../../../src/animation/ParticleSystem';
+import {Character} from '../../../src/elements/Character';
+import {Floor} from '../../../src/elements/Floor';
+import type {IsoObject} from '../../../src/elements/IsoObject';
+import {Wall} from '../../../src/elements/Wall';
+import {Boulder} from '../../../src/elements/props/Boulder';
+import {Chest} from '../../../src/elements/props/Chest';
+import {Cloud} from '../../../src/elements/props/Cloud';
+import {Crystal} from '../../../src/elements/props/Crystal';
+import {FloatingText} from '../../../src/elements/props/FloatingText';
+import {Tree} from '../../../src/elements/props/Tree';
+import {FlowerPatch} from '../../../src/elements/props/FlowerPatch';
+import {Lantern} from '../../../src/elements/props/Lantern';
+import {hexToRgb, shiftColor} from '../../../src/math/color';
+import {topoSort} from '../../../src/math/depthSort';
 import type {
   RenderDirectionalLight,
   RenderBlendMode,
@@ -24,13 +24,13 @@ import type {
   RenderTextOverlay,
   UnsupportedRenderObject,
 } from '../contracts/RenderSnapshot';
-import { GeometryBuilder, type RenderColor, type RenderPoint } from './GeometryBuilder';
-import { projectIso } from './projection';
+import {GeometryBuilder, type RenderColor, type RenderPoint} from './GeometryBuilder';
+import {projectIso} from './projection';
 import {
   clipShadowHullToScene,
   type ProjectedShadow,
 } from './ShadowProjector';
-import { ShadowProjectionCache, type ShadowCacheStats } from './ShadowProjectionCache';
+import {ShadowProjectionCache, type ShadowCacheStats} from './ShadowProjectionCache';
 
 export interface ExtractOptions {
   viewportWidth: number;
@@ -95,7 +95,7 @@ export class SceneExtractor {
    * made every custom `IsoObject` subclass unrenderable on the WebGL path. This
    * registry is that opt-in.
    */
-  private static _extractors: Array<{ ctor: IsoObjectCtor; extract: ObjectExtractor }> = [];
+  private static _extractors: Array<{ctor: IsoObjectCtor; extract: ObjectExtractor}> = [];
 
   /**
    * Teach the extractor how to draw an object type.
@@ -133,7 +133,7 @@ export class SceneExtractor {
   /** The extractor that would handle this object, or null. */
   static findExtractor(object: IsoObject): ObjectExtractor | null {
     for (const entry of SceneExtractor._extractors) {
-      if (object instanceof entry.ctor) return entry.extract;
+      if (object instanceof entry.ctor) {return entry.extract;}
     }
     return null;
   }
@@ -172,49 +172,59 @@ export class SceneExtractor {
     const visibleBounds = this._visibleBounds(scene, options);
 
     const floorObjects = scene.allObjects.filter(
-      (object): object is Floor => object.visible && object instanceof Floor,
+      (object): object is Floor => object.visible && object instanceof Floor
     );
     const renderables = scene.allObjects.filter(
-      (object) => object.visible &&
+      object => object.visible &&
         !(object instanceof Floor) &&
         !object.isGroundLayer &&
-        intersects(object, visibleBounds),
+        intersects(object, visibleBounds)
     );
     const sorted = topoSort([...renderables]);
 
     const floorStart = this._builder.mark();
-    for (const floor of floorObjects) this._extractFloor(floor, scene.tileW, scene.tileH, visibleBounds);
+    for (const floor of floorObjects) {this._extractFloor(floor, scene.tileW, scene.tileH, visibleBounds);}
     const floorRange = this._builder.range(floorStart);
 
     const shadowStart = this._builder.mark();
-    for (const object of sorted) this._extractShadow(object, scene, scene.tileW, scene.tileH);
+    for (const object of sorted) {this._extractShadow(object, scene, scene.tileW, scene.tileH);}
     const shadowRange = this._builder.range(shadowStart);
     this._recordSegment(shadowStart, 'multiply');
 
+    // One pass over the sorted list, so a particle emitter standing behind a
+    // wall is submitted before it — the renderer has no depth test, and order is
+    // the only thing that decides occlusion. Splitting particles and clouds into
+    // a second pass used to paint them over every object regardless of where
+    // they stood, and let a particle behind a character steal its clicks in the
+    // picking buffer.
     const opaqueStart = this._builder.mark();
     for (const object of sorted) {
-      if (object instanceof Cloud || object instanceof ParticleSystem || object instanceof FloatingText) continue;
+      if (object instanceof FloatingText) {
+        // Never geometry: it leaves as a DOM overlay record.
+        this._extractFloatingText(object, scene.tileW, scene.tileH);
+        continue;
+      }
+      if (object instanceof ParticleSystem) {
+        // Records one segment per particle, each with the particle's own blend.
+        this._extractParticles(object, scene.tileW, scene.tileH);
+        continue;
+      }
       const first = this._builder.mark();
+      if (object instanceof Cloud) {
+        this._extractCloud(object, scene.tileW, scene.tileH);
+        this._recordSegment(first, 'alpha');
+        continue;
+      }
       const textureUrl = this._extractObject(object, scene.tileW, scene.tileH);
       this._recordSegment(first, 'alpha', textureUrl);
     }
     const opaqueRange = this._builder.range(opaqueStart);
 
+    // What is left is genuinely order-independent: additive halos that belong on
+    // top of the finished scene.
     const transparentStart = this._builder.mark();
-    for (const object of sorted) {
-      if (object instanceof Cloud) {
-        const first = this._builder.mark();
-        this._extractCloud(object, scene.tileW, scene.tileH);
-        this._recordSegment(first, 'alpha');
-      } else if (object instanceof ParticleSystem) {
-        this._extractParticles(object, scene.tileW, scene.tileH);
-      } else if (object instanceof FloatingText) {
-        this._extractFloatingText(object, scene.tileW, scene.tileH);
-      }
-    }
-    const haloStart = this._builder.mark();
     this._extractLightHalos(scene, scene.tileW, scene.tileH);
-    this._recordSegment(haloStart, 'add');
+    this._recordSegment(transparentStart, 'add');
     const transparentRange = this._builder.range(transparentStart);
 
     const debugStart = this._builder.mark();
@@ -253,7 +263,7 @@ export class SceneExtractor {
         opaqueRange,
         transparentRange,
         debugRange,
-        this._segments,
+        this._segments
       ),
       omniLights: this._omniLights,
       directionalLights: this._directionalLights,
@@ -273,7 +283,7 @@ export class SceneExtractor {
     floor: Floor,
     tileW: number,
     tileH: number,
-    visible: VisibleBounds,
+    visible: VisibleBounds
   ): void {
     const pickId = this._pickId(floor);
     const startRow = Math.max(0, Math.floor(visible.minY));
@@ -314,7 +324,7 @@ export class SceneExtractor {
   }
 
   private _extractShadow(object: IsoObject, scene: Scene, tileW: number, tileH: number): void {
-    if (!(object.castsShadow || object instanceof Character || object instanceof Cloud)) return;
+    if (!(object.castsShadow || object instanceof Character || object instanceof Cloud)) {return;}
 
     const ground = point(projectIso(object.position.x, object.position.y, 0, tileW, tileH));
     const radius = object instanceof Character
@@ -329,18 +339,20 @@ export class SceneExtractor {
       lit: false,
     }, 18);
 
-    if (object instanceof Cloud) return;
+    if (object instanceof Cloud) {return;}
     let strongestOmni: ProjectedShadow | null = null;
     for (const light of scene.omniLights) {
       const shadow = this._shadowCache.projectOmni(object, light, tileW, tileH);
-      if (shadow && (!strongestOmni || shadow.alpha > strongestOmni.alpha)) strongestOmni = shadow;
+      if (shadow && (!strongestOmni || shadow.alpha > strongestOmni.alpha)) {strongestOmni = shadow;}
     }
     this._appendProjectedShadow(strongestOmni, scene, tileW, tileH, ground, 0.46);
 
     let strongestDirectional: ProjectedShadow | null = null;
     for (const light of scene.dirLights) {
       const shadow = this._shadowCache.projectDirectional(object, light, tileW, tileH);
-      if (shadow && (!strongestDirectional || shadow.alpha > strongestDirectional.alpha)) strongestDirectional = shadow;
+      if (shadow && (!strongestDirectional || shadow.alpha > strongestDirectional.alpha)) {
+        strongestDirectional = shadow;
+      }
     }
     this._appendProjectedShadow(strongestDirectional, scene, tileW, tileH, ground, 0.34);
   }
@@ -351,11 +363,11 @@ export class SceneExtractor {
     tileW: number,
     tileH: number,
     sample: RenderPoint,
-    alphaScale: number,
+    alphaScale: number
   ): void {
-    if (!shadow) return;
+    if (!shadow) {return;}
     const clipped = clipShadowHullToScene(shadow.hull, scene.cols, scene.rows, tileW, tileH);
-    if (clipped.length < 3) return;
+    if (clipped.length < 3) {return;}
     this._builder.polygon(clipped, {
       color: [0.015, 0.02, 0.025, shadow.alpha * alphaScale],
       sample,
@@ -382,7 +394,7 @@ export class SceneExtractor {
       this._extractLantern(object, tileW, tileH);
     } else {
       const custom = SceneExtractor.findExtractor(object);
-      if (custom) return this._runCustomExtractor(object, custom, tileW, tileH) ?? undefined;
+      if (custom) {return this._runCustomExtractor(object, custom, tileW, tileH) ?? undefined;}
       this._unsupported.push({
         id: object.id,
         type: object.constructor.name,
@@ -406,7 +418,7 @@ export class SceneExtractor {
     object: IsoObject,
     extract: ObjectExtractor,
     tileW: number,
-    tileH: number,
+    tileH: number
   ): string | undefined {
     const before = this._builder.mark();
     const context: ExtractorContext = {
@@ -483,7 +495,7 @@ export class SceneExtractor {
       character.position.y,
       character.position.z,
       tileW,
-      tileH,
+      tileH
     ));
     const pickId = this._pickId(character);
     const animation = character.anim;
@@ -510,7 +522,7 @@ export class SceneExtractor {
           sample: center,
           lit: false,
           pickId,
-        },
+        }
       );
       return spriteSheet.url;
     }
@@ -563,13 +575,13 @@ export class SceneExtractor {
       [ridge[0] - 0.85, ridge[1] + 0.6],
       tip,
       [ridge[0] + 0.85, ridge[1] + 0.6],
-      { color: rgba(shiftColor(crystal.propColor, 68)), sample: center, normal: [0, -1], pickId },
+      {color: rgba(shiftColor(crystal.propColor, 68)), sample: center, normal: [0, -1], pickId}
     );
     this._builder.triangle(
       [ridge[0] - 0.8, ridge[1] - 0.5],
       [ridge[0] + 0.8, ridge[1] - 0.5],
       center,
-      { color: rgba(shiftColor(crystal.propColor, -18)), sample: center, normal: [0, -1], pickId },
+      {color: rgba(shiftColor(crystal.propColor, -18)), sample: center, normal: [0, -1], pickId}
     );
 
     const secondaryBase: RenderPoint = [center[0] + width * 0.72, center[1] - height * 0.04];
@@ -582,13 +594,13 @@ export class SceneExtractor {
       [secondaryBase[0] - secondaryWidth, secondaryBase[1] - secondaryHeight * 0.34],
       [secondaryBase[0] - secondaryWidth * 0.32, secondaryBase[1] - secondaryHeight * 0.72],
       secondaryRidge,
-      { color: rgba(shiftColor(crystal.propColor, -30)), sample: center, normal: [-0.8, -0.4], pickId },
+      {color: rgba(shiftColor(crystal.propColor, -30)), sample: center, normal: [-0.8, -0.4], pickId}
     );
     this._builder.triangle(
       secondaryRidge,
       secondaryTip,
       [secondaryBase[0] + secondaryWidth * 0.7, secondaryBase[1] - secondaryHeight * 0.3],
-      { color: rgba(shiftColor(crystal.propColor, 28)), sample: center, normal: [0.65, -0.76], pickId },
+      {color: rgba(shiftColor(crystal.propColor, 28)), sample: center, normal: [0.65, -0.76], pickId}
     );
   }
 
@@ -605,7 +617,7 @@ export class SceneExtractor {
       [center[0] + trunkWidth * 0.82, center[1]],
       [center[0] + trunkWidth * 0.42, trunkTop],
       [center[0] - trunkWidth * 0.45, trunkTop],
-      { color: rgba(shiftColor(tree.propTrunkColor, -16)), sample: center, normal: [-0.25, -0.97], pickId },
+      {color: rgba(shiftColor(tree.propTrunkColor, -16)), sample: center, normal: [-0.25, -0.97], pickId}
     );
 
     const canopyY = center[1] - height * 0.78;
@@ -621,16 +633,16 @@ export class SceneExtractor {
         [center[0] + canopyRadius * dx, canopyY + canopyRadius * dy],
         canopyRadius * puffScale,
         canopyRadius * puffScale * 0.8,
-        { color: rgba(color), sample: center, normal, pickId },
-        14,
+        {color: rgba(color), sample: center, normal, pickId},
+        14
       );
     }
     this._builder.ellipse(
       [center[0] - canopyRadius * 0.2, canopyY - canopyRadius * 0.42],
       canopyRadius * 0.24,
       canopyRadius * 0.13,
-      { color: rgba(shiftColor(tree.propCanopyColor, 56)), sample: center, normal: [0, -1], pickId },
-      10,
+      {color: rgba(shiftColor(tree.propCanopyColor, 56)), sample: center, normal: [0, -1], pickId},
+      10
     );
   }
 
@@ -644,14 +656,14 @@ export class SceneExtractor {
       const headY = baseY - stemHeight;
       const radius = 2.2 * flower.scale;
       const petalColor = flower.accent ? flowers.propAccentColor : flowers.propColor;
-      const style = { color: rgba('#659c55'), sample: center, normal: [0, -1] as RenderPoint, pickId };
+      const style = {color: rgba('#659c55'), sample: center, normal: [0, -1] as RenderPoint, pickId};
       this._builder.line([x, baseY], [x, headY], Math.max(1, flower.scale), style);
       this._builder.ellipse(
         [x - 2.2 * flower.scale, baseY - stemHeight * 0.38],
         2.5 * flower.scale,
         1.1 * flower.scale,
-        { ...style, color: rgba('#70a95a') },
-        8,
+        {...style, color: rgba('#70a95a')},
+        8
       );
       for (let petal = 0; petal < 5; petal++) {
         const angle = petal * Math.PI * 2 / 5 - Math.PI / 2;
@@ -659,16 +671,16 @@ export class SceneExtractor {
           [x + Math.cos(angle) * radius, headY + Math.sin(angle) * radius],
           radius * 0.75,
           radius * 0.75,
-          { ...style, color: rgba(petalColor) },
-          8,
+          {...style, color: rgba(petalColor)},
+          8
         );
       }
       this._builder.ellipse(
         [x, headY],
         radius * 0.72,
         radius * 0.72,
-        { ...style, color: rgba(flower.accent ? '#ef8f59' : '#ffe18a') },
-        8,
+        {...style, color: rgba(flower.accent ? '#ef8f59' : '#ffe18a')},
+        8
       );
     }
   }
@@ -689,13 +701,13 @@ export class SceneExtractor {
       [center[0] + tileW * 0.12, center[1]],
       [center[0], center[1] - tileH * 0.1],
       [center[0] - tileW * 0.12, center[1]],
-      { color: rgba(shiftColor(lantern.propPostColor, -22)), sample, normal: [0, -1], pickId },
+      {color: rgba(shiftColor(lantern.propPostColor, -22)), sample, normal: [0, -1], pickId}
     );
     this._builder.line(
       [center[0], center[1]],
       [center[0], lampY + bodyHeight * 0.5],
       Math.max(3, tileW * 0.05),
-      { color: rgba(lantern.propPostColor), sample, normal: [-0.25, -0.97], pickId },
+      {color: rgba(lantern.propPostColor), sample, normal: [-0.25, -0.97], pickId}
     );
     this._builder.polygon([
       [center[0], lampY - bodyHeight * 0.72],
@@ -704,19 +716,19 @@ export class SceneExtractor {
       [center[0], lampY + bodyHeight * 0.7],
       [center[0] - bodyWidth * 0.62, lampY + bodyHeight * 0.48],
       [center[0] - bodyWidth * 0.75, lampY - bodyHeight * 0.35],
-    ], { color: rgba(lantern.propGlowColor), sample, lit: false, pickId });
+    ], {color: rgba(lantern.propGlowColor), sample, lit: false, pickId});
     this._builder.triangle(
       [center[0] - bodyWidth * 0.92, lampY - bodyHeight * 0.5],
       [center[0], lampY - bodyHeight * 0.95],
       [center[0] + bodyWidth * 0.92, lampY - bodyHeight * 0.5],
-      { color: rgba(shiftColor(lantern.propPostColor, -8)), sample, normal: [0, -1], pickId },
+      {color: rgba(shiftColor(lantern.propPostColor, -8)), sample, normal: [0, -1], pickId}
     );
     this._builder.ellipse(
       [center[0] - bodyWidth * 0.2, lampY - bodyHeight * 0.15],
       bodyWidth * 0.13,
       bodyWidth * 0.13,
-      { color: rgba('#fff7cf'), sample, lit: false, pickId },
-      8,
+      {color: rgba('#fff7cf'), sample, lit: false, pickId},
+      8
     );
   }
 
@@ -744,12 +756,12 @@ export class SceneExtractor {
       [center[0] - radius * 0.05, center[1] - squash * 0.92],
       [center[0] + radius * 0.32, center[1] - squash * 0.60],
       [center[0] + radius * 0.10, center[1] - squash * 0.22],
-    ], { color: rgba(shiftColor(boulder.propColor, 30)), sample: center, normal: [-0.4, -0.9], pickId });
+    ], {color: rgba(shiftColor(boulder.propColor, 30)), sample: center, normal: [-0.4, -0.9], pickId});
   }
 
 
   private _extractChest(chest: Chest, tileW: number, tileH: number): void {
-    const { x, y } = chest.position;
+    const {x, y} = chest.position;
     const half = 0.38;
     const north = point(projectIso(x - half, y - half, 0, tileW, tileH));
     const east = point(projectIso(x + half, y - half, 0, tileW, tileH));
@@ -778,14 +790,14 @@ export class SceneExtractor {
         lerpPoint(west, south, end, 0),
         lerpPoint(west, south, end, height),
         lerpPoint(west, south, fraction, height),
-        { color: rgba(metal), sample, normal: [-0.8944, -0.4472], pickId },
+        {color: rgba(metal), sample, normal: [-0.8944, -0.4472], pickId}
       );
       this._builder.quad(
         lerpPoint(south, east, fraction, 0),
         lerpPoint(south, east, end, 0),
         lerpPoint(south, east, end, height),
         lerpPoint(south, east, fraction, height),
-        { color: rgba(metalDark), sample, normal: [0.8944, -0.4472], pickId },
+        {color: rgba(metalDark), sample, normal: [0.8944, -0.4472], pickId}
       );
     }
     for (const fraction of [0.34, 0.67]) {
@@ -793,13 +805,13 @@ export class SceneExtractor {
         lerpPoint(west, west, 0, height * fraction),
         lerpPoint(south, south, 0, height * fraction),
         0.8,
-        { color: rgba(shiftColor(chest.propColor, -48)), sample, normal: [-0.8944, -0.4472], pickId },
+        {color: rgba(shiftColor(chest.propColor, -48)), sample, normal: [-0.8944, -0.4472], pickId}
       );
       this._builder.line(
         lerpPoint(south, south, 0, height * fraction),
         lerpPoint(east, east, 0, height * fraction),
         0.8,
-        { color: rgba(shiftColor(chest.propColor, -58)), sample, normal: [0.8944, -0.4472], pickId },
+        {color: rgba(shiftColor(chest.propColor, -58)), sample, normal: [0.8944, -0.4472], pickId}
       );
     }
 
@@ -823,22 +835,22 @@ export class SceneExtractor {
       this._builder.ellipse([sample[0], sample[1] - height * 0.92], tileW * 0.42, tileH * 0.7, {
         color: rgba('#ffd86b', 0.22), sample, lit: false, pickId,
       }, 18);
-      this._builder.line(topWest, topSouth, 2, { color: rgba('#ffe88c'), sample, lit: false, pickId });
-      this._builder.line(topSouth, topEast, 2, { color: rgba('#ffd45c'), sample, lit: false, pickId });
+      this._builder.line(topWest, topSouth, 2, {color: rgba('#ffe88c'), sample, lit: false, pickId});
+      this._builder.line(topSouth, topEast, 2, {color: rgba('#ffd45c'), sample, lit: false, pickId});
     }
     this._builder.quad(
       lidNorth,
       lidEast,
       topSouth,
       topWest,
-      { color: rgba(shiftColor(chest.propColor, 24)), sample, normal: [0, -1], pickId },
+      {color: rgba(shiftColor(chest.propColor, 24)), sample, normal: [0, -1], pickId}
     );
     this._builder.quad(
       lerpPoint(lidNorth, lidEast, 0.43, 0),
       lerpPoint(lidNorth, lidEast, 0.57, 0),
       lerpPoint(topWest, topSouth, 0.57, 0),
       lerpPoint(topWest, topSouth, 0.43, 0),
-      { color: rgba(shiftColor(metal, 14)), sample, normal: [0, -1], pickId },
+      {color: rgba(shiftColor(metal, 14)), sample, normal: [0, -1], pickId}
     );
     this._builder.line(lidEast, topSouth, 1.4, {
       color: rgba('#d4d9d5'), sample, normal: [0, -1], pickId,
@@ -863,15 +875,15 @@ export class SceneExtractor {
         [center[0] + x * scale, center[1] + y * scale],
         rx * scale,
         ry * scale,
-        { color: rgba(color, 0.82), sample: center, normal: [0, -1], pickId },
-        14,
+        {color: rgba(color, 0.82), sample: center, normal: [0, -1], pickId},
+        14
       );
     }
   }
 
   private _extractParticles(system: ParticleSystem, tileW: number, tileH: number): void {
     const pickId = this._pickId(system);
-    system.forEachParticle((particle) => {
+    system.forEachParticle(particle => {
       const first = this._builder.mark();
       const center = point(projectIso(particle.x, particle.y, particle.z, tileW, tileH));
       const radius = Math.max(0.5, particle.size * (tileW / 32));
@@ -883,7 +895,7 @@ export class SceneExtractor {
         : undefined;
       const frame = clip?.frames[Math.min(
         clip.frames.length - 1,
-        Math.floor(particle.progress * clip.frames.length),
+        Math.floor(particle.progress * clip.frames.length)
       )];
       let textureUrl: string | undefined;
 
@@ -899,7 +911,7 @@ export class SceneExtractor {
             (frame.x + frame.w) / image.naturalWidth,
             (frame.y + frame.h) / image.naturalHeight,
           ],
-          { color, sample: center, lit: false, pickId },
+          {color, sample: center, lit: false, pickId}
         );
         textureUrl = spriteSheet.url;
       } else if (particle.shape === 'square') {
@@ -923,7 +935,7 @@ export class SceneExtractor {
   }
 
   private _extractFloatingText(text: FloatingText, tileW: number, tileH: number): void {
-    if (text.alpha <= 0 || !text.text) return;
+    if (text.alpha <= 0 || !text.text) {return;}
     const position = projectIso(text.position.x, text.position.y, text.position.z, tileW, tileH);
     this._textOverlays.push({
       id: text.id,
@@ -937,11 +949,11 @@ export class SceneExtractor {
   }
 
   private _extractDebug(scene: Scene, options: ExtractOptions): void {
-    const { tileW, tileH } = scene;
+    const {tileW, tileH} = scene;
     if (options.showCollision && scene.collider) {
       for (let row = 0; row < scene.rows; row++) {
         for (let col = 0; col < scene.cols; col++) {
-          if (scene.collider.isWalkable(col, row)) continue;
+          if (scene.collider.isWalkable(col, row)) {continue;}
           const top = point(projectIso(col, row, 0, tileW, tileH));
           const right = point(projectIso(col + 1, row, 0, tileW, tileH));
           const bottom = point(projectIso(col + 1, row + 1, 0, tileW, tileH));
@@ -957,7 +969,7 @@ export class SceneExtractor {
 
     if (options.selectedId) {
       const selected = scene.getById(options.selectedId);
-      if (selected) this._extractSelectionBounds(selected, tileW, tileH);
+      if (selected) {this._extractSelectionBounds(selected, tileW, tileH);}
     }
 
     for (const marker of options.debugMarkers ?? []) {
@@ -974,7 +986,7 @@ export class SceneExtractor {
           [center[0] + 9, center[1]],
           [center[0], center[1] + 5],
           [center[0] - 9, center[1]],
-          { color, sample: center, lit: false },
+          {color, sample: center, lit: false}
         );
       } else if (marker.kind === 'directional') {
         this._builder.quad(
@@ -982,7 +994,7 @@ export class SceneExtractor {
           [center[0] + radius, center[1]],
           [center[0], center[1] + radius],
           [center[0] - radius, center[1]],
-          { color, sample: center, lit: false, pickId },
+          {color, sample: center, lit: false, pickId}
         );
       } else {
         this._builder.ellipse(center, radius, radius, {
@@ -1034,7 +1046,8 @@ export class SceneExtractor {
       }
     }
     for (const object of scene.allObjects) {
-      if (!object.visible || object instanceof Floor || object instanceof ParticleSystem || object instanceof FloatingText) continue;
+      const overlayOnly = object instanceof ParticleSystem || object instanceof FloatingText;
+      if (!object.visible || object instanceof Floor || overlayOnly) {continue;}
       this._minimapItems.push({
         id: object.id,
         x: object.position.x,
@@ -1057,10 +1070,10 @@ export class SceneExtractor {
     ];
     const margin = 3;
     return {
-      minX: Math.min(...corners.map((corner) => corner.x)) - margin,
-      minY: Math.min(...corners.map((corner) => corner.y)) - margin,
-      maxX: Math.max(...corners.map((corner) => corner.x)) + margin,
-      maxY: Math.max(...corners.map((corner) => corner.y)) + margin,
+      minX: Math.min(...corners.map(corner => corner.x)) - margin,
+      minY: Math.min(...corners.map(corner => corner.y)) - margin,
+      maxX: Math.max(...corners.map(corner => corner.x)) + margin,
+      maxY: Math.max(...corners.map(corner => corner.y)) + margin,
     };
   }
 
@@ -1070,7 +1083,7 @@ export class SceneExtractor {
       object.position.y,
       object.position.z,
       tileW,
-      tileH,
+      tileH
     ));
     const pickId = this._pickId(object);
     this._builder.quad(
@@ -1078,19 +1091,19 @@ export class SceneExtractor {
       [center[0] + 13, center[1]],
       [center[0], center[1] + 13],
       [center[0] - 13, center[1]],
-      { color: [1, 0.15, 0.45, 0.9], sample: center, lit: false, pickId },
+      {color: [1, 0.15, 0.45, 0.9], sample: center, lit: false, pickId}
     );
   }
 
   private _extractLightHalos(scene: Scene, tileW: number, tileH: number): void {
     for (const light of scene.omniLights) {
-      if (light.isGlobal) continue;
+      if (light.isGlobal) {continue;}
       const center = point(projectIso(
         light.position.x,
         light.position.y,
         light.position.z,
         tileW,
-        tileH,
+        tileH
       ));
       this._builder.ellipse(center, 12, 12, {
         color: rgba(light.color, Math.min(0.7, light.intensity * 0.5)),
@@ -1108,7 +1121,7 @@ export class SceneExtractor {
         light.position.y,
         light.position.z,
         tileW,
-        tileH,
+        tileH
       );
       this._omniLights.push({
         x: projected.x,
@@ -1135,7 +1148,7 @@ export class SceneExtractor {
     let id = this._pickIds.get(object);
     if (id === undefined) {
       id = this._nextPickId++;
-      if (id > 0xffffff) throw new Error('WebGL picking ID space exhausted.');
+      if (id > 0xffffff) {throw new Error('WebGL picking ID space exhausted.');}
       this._pickIds.set(object, id);
     }
     this._pickLookup.set(id, object.id);
@@ -1146,9 +1159,9 @@ export class SceneExtractor {
     let pickId = owner ? this._pickIds.get(owner) : this._externalPickIds.get(id);
     if (pickId === undefined) {
       pickId = this._nextPickId++;
-      if (pickId > 0xffffff) throw new Error('WebGL picking ID space exhausted.');
-      if (owner) this._pickIds.set(owner, pickId);
-      else this._externalPickIds.set(id, pickId);
+      if (pickId > 0xffffff) {throw new Error('WebGL picking ID space exhausted.');}
+      if (owner) {this._pickIds.set(owner, pickId);}
+      else {this._externalPickIds.set(id, pickId);}
     }
     this._pickLookup.set(pickId, id);
     return pickId;
@@ -1156,7 +1169,7 @@ export class SceneExtractor {
 
   private _recordSegment(first: number, blend: RenderBlendMode, textureUrl?: string): void {
     const count = this._builder.vertexCount - first;
-    if (count <= 0) return;
+    if (count <= 0) {return;}
     const previous = this._segments[this._segments.length - 1];
     if (
       previous &&
@@ -1167,11 +1180,11 @@ export class SceneExtractor {
       previous.count += count;
       return;
     }
-    this._segments.push({ first, count, blend, ...(textureUrl ? { textureUrl } : {}) });
+    this._segments.push({first, count, blend, ...(textureUrl ? {textureUrl} : {})});
   }
 }
 
-function point(value: { x: number; y: number }): RenderPoint {
+function point(value: {x: number; y: number}): RenderPoint {
   return [value.x, value.y];
 }
 
@@ -1190,8 +1203,8 @@ function lerpPoint(a: RenderPoint, b: RenderPoint, t: number, lift: number): Ren
 }
 
 function particleBlend(blend: ParticleBlend): RenderBlendMode {
-  if (blend === ParticleBlend.ADD) return 'add';
-  if (blend === ParticleBlend.MULTIPLY) return 'multiply';
+  if (blend === ParticleBlend.ADD) {return 'add';}
+  if (blend === ParticleBlend.MULTIPLY) {return 'multiply';}
   return 'alpha';
 }
 
@@ -1211,7 +1224,7 @@ function rotatedQuad(
   center: RenderPoint,
   width: number,
   height: number,
-  rotation: number,
+  rotation: number
 ): readonly [RenderPoint, RenderPoint, RenderPoint, RenderPoint] {
   const halfW = width / 2;
   const halfH = height / 2;

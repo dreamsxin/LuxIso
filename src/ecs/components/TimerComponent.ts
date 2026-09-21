@@ -1,5 +1,5 @@
-import { Component } from '../Component';
-import { FrameClock } from '../../time/FrameClock';
+import {Component} from '../Component';
+import {FrameClock} from '../../time/FrameClock';
 
 /**
  * TimerComponent — fires a callback after a delay, optionally repeating.
@@ -28,43 +28,43 @@ export class TimerComponent implements Component {
   readonly componentType = 'timer' as const;
 
   duration: number;
-  repeat:   boolean;
+  repeat: boolean;
 
-  private _elapsed  = 0;
+  private _elapsed = 0;
   private _running: boolean;
-  private _done     = false;
+  private _done = false;
   private _clock = new FrameClock(FrameClock.TIMELINE_MAX_DT);
-  private _onTick:  (() => void) | undefined;
+  private _onTick: (() => void) | undefined;
   private _onComplete: (() => void) | undefined;
 
   constructor(opts: TimerOptions) {
-    this.duration    = opts.duration;
-    this.repeat      = opts.repeat    ?? false;
-    this._onTick     = opts.onTick;
+    this.duration = opts.duration;
+    this.repeat = opts.repeat ?? false;
+    this._onTick = opts.onTick;
     this._onComplete = opts.onComplete;
-    this._running    = opts.autoStart ?? true;
+    this._running = opts.autoStart ?? true;
   }
 
-  get elapsed():  number  { return this._elapsed; }
-  get fraction(): number  { return Math.min(1, this._elapsed / this.duration); }
-  get isDone():   boolean { return this._done; }
+  get elapsed(): number { return this._elapsed; }
+  get fraction(): number { return Math.min(1, this._elapsed / this.duration); }
+  get isDone(): boolean { return this._done; }
   get isRunning():boolean { return this._running; }
 
-  start():  void { this._running = true; this._done = false; }
+  start(): void { this._running = true; this._done = false; }
   /**
    * Stop advancing. The clock is re-baselined on resume, so time spent paused
    * is not credited to the timer — without that, a stale `_lastTs` turned the
    * pause into a jump of up to the dt clamp (0.5 s) on the first frame back.
    */
-  pause():  void { this._running = false; this._clock.reset(); }
-  reset():  void { this._elapsed = 0; this._done = false; }
+  pause(): void { this._running = false; this._clock.reset(); }
+  reset(): void { this._elapsed = 0; this._done = false; }
   restart():void { this._elapsed = 0; this._done = false; this._running = true; this._clock.reset(); }
 
   update(ts?: number): void {
-    if (!this._running || this._done) return;
+    if (!this._running || this._done) {return;}
     const now = ts ?? performance.now();
     const dt = this._clock.sample(now);
-    if (dt === 0) return;
+    if (dt === 0) {return;}
 
     this._elapsed += dt;
 
@@ -91,8 +91,8 @@ export class TimerComponent implements Component {
 
   private _complete(): void {
     this._onTick?.();
-    if (this.repeat) return;
-    this._done    = true;
+    if (this.repeat) {return;}
+    this._done = true;
     this._running = false;
     this._onComplete?.();
   }

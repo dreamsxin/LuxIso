@@ -1,8 +1,8 @@
-import { describe, expect, it } from 'vitest';
-import { Scene } from '../core/Scene';
-import { Boulder } from '../elements/props/Boulder';
-import { SceneExtractor } from '../../webgl-next/src/extraction/SceneExtractor';
-import { RENDER_VERTEX_FLOATS } from '../../webgl-next/src/contracts/RenderSnapshot';
+import {describe, expect, it} from 'vitest';
+import {Scene} from '../core/Scene';
+import {Boulder} from '../elements/props/Boulder';
+import {SceneExtractor} from '../../webgl-next/src/extraction/SceneExtractor';
+import {RENDER_VERTEX_FLOATS} from '../../webgl-next/src/contracts/RenderSnapshot';
 
 
 /**
@@ -33,8 +33,8 @@ function viewport() {
 }
 
 /** Screen-space bounds of the boulder's own vertices, relative to its anchor. */
-function silhouette(radius: number): { above: number; below: number; width: number } {
-  const scene = new Scene({ name: 'rock', tileW: TILE_W, tileH: TILE_H, cols: 8, rows: 8 });
+function silhouette(radius: number): {above: number; below: number; width: number} {
+  const scene = new Scene({name: 'rock', tileW: TILE_W, tileH: TILE_H, cols: 8, rows: 8});
   scene.addObject(new Boulder('rock', 4, 4, '#687b70', radius));
   const snapshot = new SceneExtractor().extract(scene, viewport());
 
@@ -48,7 +48,7 @@ function silhouette(radius: number): { above: number; below: number; width: numb
   // — which is a constant, and a constant is exactly what breaks a "scales with
   // radius" assertion. `sample` is the projected object centre in the same space
   // as the positions.
-  const { first, count } = snapshot.geometry.opaque;
+  const {first, count} = snapshot.geometry.opaque;
   const cy = data[first * RENDER_VERTEX_FLOATS + 3];
 
   let minY = Infinity, maxY = -Infinity, minX = Infinity, maxX = -Infinity;
@@ -58,7 +58,7 @@ function silhouette(radius: number): { above: number; below: number; width: numb
     minY = Math.min(minY, y); maxY = Math.max(maxY, y);
     minX = Math.min(minX, x); maxX = Math.max(maxX, x);
   }
-  return { above: cy - minY, below: maxY - cy, width: maxX - minX };
+  return {above: cy - minY, below: maxY - cy, width: maxX - minX};
 }
 
 
@@ -82,7 +82,7 @@ describe('Boulder — extracted silhouette', () => {
 
   it('reaches Boulder.SQUASH above and below its anchor, as the 2D path draws it', () => {
     const R = 20;
-    const { above, below } = silhouette(R);
+    const {above, below} = silhouette(R);
 
     // Same numbers `Boulder.draw` produces and `aabb.maxZ` declares. Before the
     // parity pass the GL extractor had its own set — an ellipse centred

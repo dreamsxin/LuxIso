@@ -1,4 +1,4 @@
-import type { RenderSnapshot } from './RenderSnapshot';
+import type {RenderSnapshot} from './RenderSnapshot';
 
 export interface RenderStats {
   frame: number;

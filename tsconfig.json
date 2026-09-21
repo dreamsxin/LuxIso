@@ -1,6 +1,9 @@
 {
   "compilerOptions": {
     "target": "ES2020",
+    // Default libs for ES2020 plus `ES2022.Error`, which is only there to type
+    // `new Error(msg, {cause})` — the form `preserve-caught-error` requires.
+    "lib": ["ES2020", "ES2022.Error", "DOM", "DOM.Iterable"],
     "module": "ESNext",
     "moduleResolution": "bundler",
     "strict": true,

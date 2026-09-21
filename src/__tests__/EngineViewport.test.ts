@@ -1,6 +1,6 @@
-import { describe, it, expect, afterEach, vi } from 'vitest';
-import { Engine } from '../core/Engine';
-import { Scene } from '../core/Scene';
+import {describe, it, expect, afterEach, vi} from 'vitest';
+import {Engine} from '../core/Engine';
+import {Scene} from '../core/Scene';
 
 /**
  * Engine viewport / high-DPI tests.
@@ -11,7 +11,7 @@ import { Scene } from '../core/Scene';
  * transform.
  */
 
-function makeCanvas(w = 800, h = 600, parent?: { clientWidth: number; clientHeight: number }) {
+function makeCanvas(w = 800, h = 600, parent?: {clientWidth: number; clientHeight: number}) {
   const calls: unknown[][] = [];
   const ctx = new Proxy({}, {
     get: (_t, prop) => (...args: unknown[]) => { calls.push([prop, ...args]); },
@@ -24,16 +24,16 @@ function makeCanvas(w = 800, h = 600, parent?: { clientWidth: number; clientHeig
     style: {} as Record<string, string>,
     parentElement: parent ?? null,
     getContext: () => ctx,
-    getBoundingClientRect: () => ({ left: 0, top: 0, width: w, height: h }),
+    getBoundingClientRect: () => ({left: 0, top: 0, width: w, height: h}),
     addEventListener: vi.fn(),
     removeEventListener: vi.fn(),
   } as unknown as HTMLCanvasElement;
 
-  return { canvas, ctxCalls: calls };
+  return {canvas, ctxCalls: calls};
 }
 
 function setDpr(value: number | undefined): void {
-  (globalThis as any).window = { devicePixelRatio: value, addEventListener: vi.fn(), removeEventListener: vi.fn() };
+  (globalThis as any).window = {devicePixelRatio: value, addEventListener: vi.fn(), removeEventListener: vi.fn()};
 }
 
 describe('Engine — logical size and pixel ratio', () => {
@@ -41,8 +41,8 @@ describe('Engine — logical size and pixel ratio', () => {
 
   it('adopts the pre-set canvas size at ratio 1', () => {
     setDpr(3);
-    const { canvas } = makeCanvas(640, 480);
-    const engine = new Engine({ canvas });
+    const {canvas} = makeCanvas(640, 480);
+    const engine = new Engine({canvas});
 
     // Constructing must not rescale a canvas the page already sized itself.
     expect(engine.canvasW).toBe(640);
@@ -55,8 +55,8 @@ describe('Engine — logical size and pixel ratio', () => {
 
   it('sizes the backing store by the ratio and pins the CSS box', () => {
     setDpr(2);
-    const { canvas, ctxCalls } = makeCanvas();
-    const engine = new Engine({ canvas });
+    const {canvas, ctxCalls} = makeCanvas();
+    const engine = new Engine({canvas});
     engine.resize(400, 300);
 
     expect(canvas.width).toBe(800);
@@ -75,8 +75,8 @@ describe('Engine — logical size and pixel ratio', () => {
 
   it('caps the auto-detected ratio at maxPixelRatio', () => {
     setDpr(3);
-    const { canvas } = makeCanvas();
-    const engine = new Engine({ canvas });
+    const {canvas} = makeCanvas();
+    const engine = new Engine({canvas});
     expect(engine.pixelRatio).toBe(2);
 
     engine.maxPixelRatio = 3;
@@ -87,18 +87,18 @@ describe('Engine — logical size and pixel ratio', () => {
 
   it('never goes below 1 even on a fractional or missing DPR', () => {
     setDpr(0.5);
-    const a = new Engine({ canvas: makeCanvas().canvas });
+    const a = new Engine({canvas: makeCanvas().canvas});
     expect(a.pixelRatio).toBe(1);
 
     setDpr(undefined);
-    const b = new Engine({ canvas: makeCanvas().canvas });
+    const b = new Engine({canvas: makeCanvas().canvas});
     expect(b.pixelRatio).toBe(1);
   });
 
   it('honours an explicit override and returns to auto on null', () => {
     setDpr(2);
-    const { canvas } = makeCanvas();
-    const engine = new Engine({ canvas });
+    const {canvas} = makeCanvas();
+    const engine = new Engine({canvas});
 
     engine.pixelRatio = 1;
     expect(engine.pixelRatio).toBe(1);
@@ -111,8 +111,8 @@ describe('Engine — logical size and pixel ratio', () => {
 
   it('fills the parent when called with no arguments', () => {
     setDpr(2);
-    const { canvas } = makeCanvas(800, 600, { clientWidth: 500, clientHeight: 250 });
-    const engine = new Engine({ canvas });
+    const {canvas} = makeCanvas(800, 600, {clientWidth: 500, clientHeight: 250});
+    const engine = new Engine({canvas});
     engine.resize();
 
     expect(engine.canvasW).toBe(500);
@@ -122,8 +122,8 @@ describe('Engine — logical size and pixel ratio', () => {
 
   it('keeps the current logical size when there is no parent to measure', () => {
     setDpr(1);
-    const { canvas } = makeCanvas(320, 200);
-    const engine = new Engine({ canvas });
+    const {canvas} = makeCanvas(320, 200);
+    const engine = new Engine({canvas});
     engine.resize();
     expect(engine.canvasW).toBe(320);
     expect(engine.canvasH).toBe(200);
@@ -131,8 +131,8 @@ describe('Engine — logical size and pixel ratio', () => {
 
   it('clears and draws in logical units, not backing pixels', () => {
     setDpr(2);
-    const { canvas, ctxCalls } = makeCanvas();
-    const engine = new Engine({ canvas });
+    const {canvas, ctxCalls} = makeCanvas();
+    const engine = new Engine({canvas});
     engine.resize(400, 300);
     engine.setScene(new Scene());
 
@@ -172,12 +172,12 @@ describe('Engine — pause while the tab is hidden', () => {
 
   function harness(): Harness {
     setDpr(1);
-    const { canvas } = makeCanvas();
+    const {canvas} = makeCanvas();
     const listeners = new Set<EventListener>();
-    const state = { hidden: false };
+    const state = {hidden: false};
     (globalThis as any).document = {
-      addEventListener: (t: string, cb: EventListener) => { if (t === 'visibilitychange') listeners.add(cb); },
-      removeEventListener: (t: string, cb: EventListener) => { if (t === 'visibilitychange') listeners.delete(cb); },
+      addEventListener: (t: string, cb: EventListener) => { if (t === 'visibilitychange') {listeners.add(cb);} },
+      removeEventListener: (t: string, cb: EventListener) => { if (t === 'visibilitychange') {listeners.delete(cb);} },
       get hidden() { return state.hidden; },
     };
 
@@ -189,9 +189,9 @@ describe('Engine — pause while the tab is hidden', () => {
     };
     (globalThis as any).cancelAnimationFrame = (id: number) => { cancelled.push(id); };
 
-    const engine = new Engine({ canvas });
+    const engine = new Engine({canvas});
     engine.setScene(new Scene());
-    const fire = (): void => { for (const cb of [...listeners]) cb({ type: 'visibilitychange' } as Event); };
+    const fire = (): void => { for (const cb of [...listeners]) {cb({type: 'visibilitychange'} as Event);} };
     return {
       engine, frames, cancelled,
       hide: () => { state.hidden = true; fire(); },
@@ -273,10 +273,10 @@ describe('Engine — frame delta', () => {
     override draw(): void {}
   }
 
-  function driver(): { engine: Engine; scene: Probe; frame(ts: number): void } {
+  function driver(): {engine: Engine; scene: Probe; frame(ts: number): void} {
     setDpr(1);
-    const { canvas } = makeCanvas();
-    const engine = new Engine({ canvas });
+    const {canvas} = makeCanvas();
+    const engine = new Engine({canvas});
     const scene = new Probe();
     engine.setScene(scene);
 

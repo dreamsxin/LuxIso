@@ -1,5 +1,5 @@
-import type { InputManager } from './InputManager';
-import type { AxisSource } from './InputMap';
+import type {InputManager} from './InputManager';
+import type {AxisSource} from './InputMap';
 
 export interface TouchStickOptions {
   /** Centre of the stick in logical (CSS) pixels. */
@@ -46,7 +46,7 @@ export interface TouchStickOptions {
  *   stick.draw(ctx);
  */
 export class TouchStick implements AxisSource {
-  readonly value: { x: number; y: number } = { x: 0, y: 0 };
+  readonly value: {x: number; y: number} = {x: 0, y: 0};
 
   radius: number;
   deadzone: number;
@@ -93,7 +93,7 @@ export class TouchStick implements AxisSource {
   setCentre(x: number, y: number): void {
     this._homeX = x;
     this._homeY = y;
-    if (!this.active) this.reset();
+    if (!this.active) {this.reset();}
   }
 
   /** Drop the contact and return to rest. */
@@ -121,10 +121,10 @@ export class TouchStick implements AxisSource {
     }
 
     for (const touch of input.touches) {
-      if (isTaken?.(touch.id)) continue;
+      if (isTaken?.(touch.id)) {continue;}
       const dx = touch.x - this._homeX;
       const dy = touch.y - this._homeY;
-      if (Math.hypot(dx, dy) > this.captureRadius) continue;
+      if (Math.hypot(dx, dy) > this.captureRadius) {continue;}
       this._touchId = touch.id;
       if (this.dynamicOrigin) {
         this._originX = touch.x;

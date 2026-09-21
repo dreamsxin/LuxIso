@@ -1,4 +1,4 @@
-import { IsoObject } from '../elements/IsoObject';
+import {IsoObject} from '../elements/IsoObject';
 
 /**
  * Base interface for all ECS components.

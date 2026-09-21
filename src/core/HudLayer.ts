@@ -99,8 +99,8 @@ export type HudElement = HudLabel | HudBar | HudButton | HudPanel;
  * structurally so the HUD does not depend on the input module.
  */
 export interface HudInputSource {
-  readonly pointer: { x: number; y: number; down: boolean };
-  readonly touches: readonly { id: number; x: number; y: number }[];
+  readonly pointer: {x: number; y: number; down: boolean};
+  readonly touches: readonly {id: number; x: number; y: number}[];
 }
 
 /** Reserved contact id for the mouse, which has no `Touch.identifier`. */
@@ -201,15 +201,15 @@ export class HudLayer {
   addLabel(opts: LabelOptions): HudLabel {
     const el: HudLabel = {
       type: 'label',
-      id:       opts.id,
-      x:        opts.x,
-      y:        opts.y,
-      text:     opts.text     ?? '',
-      color:    opts.color    ?? '#ffffff',
+      id: opts.id,
+      x: opts.x,
+      y: opts.y,
+      text: opts.text ?? '',
+      color: opts.color ?? '#ffffff',
       fontSize: opts.fontSize ?? 14,
-      font:     opts.font     ?? 'sans-serif',
-      visible:  opts.visible  ?? true,
-      shadow:   opts.shadow   ?? true,
+      font: opts.font ?? 'sans-serif',
+      visible: opts.visible ?? true,
+      shadow: opts.shadow ?? true,
     };
     this._add(el);
     return el;
@@ -218,19 +218,19 @@ export class HudLayer {
   addBar(opts: BarOptions): HudBar {
     const el: HudBar = {
       type: 'bar',
-      id:          opts.id,
-      x:           opts.x,
-      y:           opts.y,
-      w:           opts.w,
-      h:           opts.h,
-      value:       opts.value       ?? 1,
-      color:       opts.color       ?? '#44cc44',
-      bgColor:     opts.bgColor     ?? 'rgba(0,0,0,0.5)',
+      id: opts.id,
+      x: opts.x,
+      y: opts.y,
+      w: opts.w,
+      h: opts.h,
+      value: opts.value ?? 1,
+      color: opts.color ?? '#44cc44',
+      bgColor: opts.bgColor ?? 'rgba(0,0,0,0.5)',
       borderColor: opts.borderColor ?? 'rgba(255,255,255,0.2)',
-      label:       opts.label       ?? '',
-      labelColor:  opts.labelColor  ?? '#ffffff',
-      fontSize:    opts.fontSize    ?? 10,
-      visible:     opts.visible     ?? true,
+      label: opts.label ?? '',
+      labelColor: opts.labelColor ?? '#ffffff',
+      fontSize: opts.fontSize ?? 10,
+      visible: opts.visible ?? true,
     };
     this._add(el);
     return el;
@@ -239,19 +239,19 @@ export class HudLayer {
   addButton(opts: ButtonOptions): HudButton {
     const el: HudButton = {
       type: 'button',
-      id:         opts.id,
-      x:          opts.x,
-      y:          opts.y,
-      w:          opts.w,
-      h:          opts.h,
-      label:      opts.label      ?? '',
-      color:      opts.color      ?? '#ffffff',
-      bgColor:    opts.bgColor    ?? 'rgba(40,40,60,0.85)',
+      id: opts.id,
+      x: opts.x,
+      y: opts.y,
+      w: opts.w,
+      h: opts.h,
+      label: opts.label ?? '',
+      color: opts.color ?? '#ffffff',
+      bgColor: opts.bgColor ?? 'rgba(40,40,60,0.85)',
       hoverColor: opts.hoverColor ?? 'rgba(80,80,120,0.95)',
-      fontSize:   opts.fontSize   ?? 12,
-      visible:    opts.visible    ?? true,
-      onClick:    opts.onClick    ?? (() => {}),
-      _hovered:   false,
+      fontSize: opts.fontSize ?? 12,
+      visible: opts.visible ?? true,
+      onClick: opts.onClick ?? (() => {}),
+      _hovered: false,
     };
     this._add(el);
     return el;
@@ -260,15 +260,15 @@ export class HudLayer {
   addPanel(opts: PanelOptions): HudPanel {
     const el: HudPanel = {
       type: 'panel',
-      id:          opts.id,
-      x:           opts.x,
-      y:           opts.y,
-      w:           opts.w,
-      h:           opts.h,
-      bgColor:     opts.bgColor     ?? 'rgba(0,0,0,0.55)',
+      id: opts.id,
+      x: opts.x,
+      y: opts.y,
+      w: opts.w,
+      h: opts.h,
+      bgColor: opts.bgColor ?? 'rgba(0,0,0,0.55)',
       borderColor: opts.borderColor ?? 'rgba(255,255,255,0.15)',
-      radius:      opts.radius      ?? 6,
-      visible:     opts.visible     ?? true,
+      radius: opts.radius ?? 6,
+      visible: opts.visible ?? true,
     };
     this._add(el);
     return el;
@@ -287,7 +287,7 @@ export class HudLayer {
 
   remove(id: string): void {
     const el = this._map.get(id);
-    if (!el) return;
+    if (!el) {return;}
     this._elements = this._elements.filter(e => e !== el);
     this._map.delete(id);
     this._forget(el);
@@ -308,12 +308,12 @@ export class HudLayer {
    */
   private _forget(el: HudElement): void {
     for (const [id, pressed] of [...this._pressedOn]) {
-      if (pressed !== el) continue;
+      if (pressed !== el) {continue;}
       this._pressedOn.delete(id);
       this._lastX.delete(id);
       this._lastY.delete(id);
     }
-    if (el.type === 'button') el._hovered = false;
+    if (el.type === 'button') {el._hovered = false;}
   }
 
   // ── Input handling ─────────────────────────────────────────────────────────
@@ -328,8 +328,8 @@ export class HudLayer {
   hitTest(x: number, y: number): HudElement | null {
     for (let i = this._elements.length - 1; i >= 0; i--) {
       const el = this._elements[i];
-      if (!el.visible || el.type === 'label') continue;
-      if (this._contains(el, x, y)) return el;
+      if (!el.visible || el.type === 'label') {continue;}
+      if (this._contains(el, x, y)) {return el;}
     }
     return null;
   }
@@ -340,7 +340,7 @@ export class HudLayer {
    */
   handleMove(x: number, y: number): void {
     for (const el of this._elements) {
-      if (el.type !== 'button') continue;
+      if (el.type !== 'button') {continue;}
       // An invisible button used to be skipped entirely, so it kept whatever
       // hover state it had and came back highlighted when shown again.
       el._hovered = el.visible && this._contains(el, x, y);
@@ -357,7 +357,7 @@ export class HudLayer {
    */
   handleClick(x: number, y: number): boolean {
     const hit = this.hitTest(x, y);
-    if (hit?.type !== 'button') return false;
+    if (hit?.type !== 'button') {return false;}
     hit.onClick();
     return true;
   }
@@ -381,13 +381,13 @@ export class HudLayer {
 
     // Touch: one press/release cycle per contact.
     for (const touch of input.touches) {
-      if (isTaken?.(touch.id)) continue;
+      if (isTaken?.(touch.id)) {continue;}
       live.add(touch.id);
-      if (this._pressedOn.has(touch.id)) continue;
+      if (this._pressedOn.has(touch.id)) {continue;}
       const hit = this.hitTest(touch.x, touch.y);
-      if (!hit) continue;
+      if (!hit) {continue;}
       this._pressedOn.set(touch.id, hit);
-      if (hit.type === 'button') hit._hovered = true;
+      if (hit.type === 'button') {hit._hovered = true;}
     }
 
     // Mouse shares the mechanism under a reserved id.
@@ -397,22 +397,22 @@ export class HudLayer {
         const hit = this.hitTest(input.pointer.x, input.pointer.y);
         if (hit) {
           this._pressedOn.set(MOUSE_CONTACT, hit);
-          if (hit.type === 'button') hit._hovered = true;
+          if (hit.type === 'button') {hit._hovered = true;}
         }
       }
     }
 
     for (const [id, el] of [...this._pressedOn]) {
-      if (live.has(id)) continue;
+      if (live.has(id)) {continue;}
       // Released (or cancelled). Fire only if the contact ended on the element
       // it started on — dragging off a button must not trigger it.
       this._pressedOn.delete(id);
-      if (el.type === 'button') el._hovered = false;
+      if (el.type === 'button') {el._hovered = false;}
       const releaseX = id === MOUSE_CONTACT ? input.pointer.x : this._lastX.get(id);
       const releaseY = id === MOUSE_CONTACT ? input.pointer.y : this._lastY.get(id);
       this._lastX.delete(id);
       this._lastY.delete(id);
-      if (releaseX === undefined || releaseY === undefined) continue;
+      if (releaseX === undefined || releaseY === undefined) {continue;}
       if (el.type === 'button' && el.visible && this._contains(el, releaseX, releaseY)) {
         el.onClick();
       }
@@ -431,7 +431,7 @@ export class HudLayer {
   /** Drop any in-flight press state, e.g. when switching scenes. */
   resetInput(): void {
     for (const el of this._pressedOn.values()) {
-      if (el.type === 'button') el._hovered = false;
+      if (el.type === 'button') {el._hovered = false;}
     }
     this._pressedOn.clear();
     this._lastX.clear();
@@ -439,7 +439,7 @@ export class HudLayer {
   }
 
   private _contains(el: HudElement, x: number, y: number): boolean {
-    if (el.type === 'label') return false;
+    if (el.type === 'label') {return false;}
     const padX = Math.max(0, (this.minHitSize - el.w) / 2);
     const padY = Math.max(0, (this.minHitSize - el.h) / 2);
     return x >= el.x - padX && x <= el.x + el.w + padX
@@ -464,11 +464,11 @@ export class HudLayer {
 
 
     for (const el of this._elements) {
-      if (!el.visible) continue;
+      if (!el.visible) {continue;}
       switch (el.type) {
-        case 'panel':  this._drawPanel(ctx, el);  break;
-        case 'label':  this._drawLabel(ctx, el);  break;
-        case 'bar':    this._drawBar(ctx, el);    break;
+        case 'panel': this._drawPanel(ctx, el); break;
+        case 'label': this._drawLabel(ctx, el); break;
+        case 'bar': this._drawBar(ctx, el); break;
         case 'button': this._drawButton(ctx, el); break;
       }
     }
@@ -552,7 +552,7 @@ export class HudLayer {
 
   private _roundRect(
     ctx: CanvasRenderingContext2D,
-    x: number, y: number, w: number, h: number, r: number,
+    x: number, y: number, w: number, h: number, r: number
   ): void {
     ctx.beginPath();
     ctx.moveTo(x + r, y);
@@ -579,8 +579,8 @@ export class HudLayer {
     const existing = this._map.get(el.id);
     if (existing) {
       const index = this._elements.indexOf(existing);
-      if (index >= 0) this._elements[index] = el;
-      else this._elements.push(el);
+      if (index >= 0) {this._elements[index] = el;}
+      else {this._elements.push(el);}
       this._forget(existing);
     } else {
       this._elements.push(el);

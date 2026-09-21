@@ -1,30 +1,30 @@
-import { expect, test } from '@playwright/test';
+import {expect, test} from '@playwright/test';
 
 test.describe('WebGL resource lifecycle', () => {
-  test('restores a lost context without resetting fixture state', async ({ page }) => {
+  test('restores a lost context without resetting fixture state', async ({page}) => {
     const runtimeErrors: string[] = [];
-    page.on('console', (message) => {
-      if (message.type() === 'error') runtimeErrors.push(message.text());
+    page.on('console', message => {
+      if (message.type() === 'error') {runtimeErrors.push(message.text());}
     });
-    page.on('pageerror', (error) => runtimeErrors.push(error.message));
+    page.on('pageerror', error => runtimeErrors.push(error.message));
 
-    await page.goto('/webgl-next/?fixture=day-ne', { waitUntil: 'networkidle' });
+    await page.goto('/webgl-next/?fixture=day-ne', {waitUntil: 'networkidle'});
     const canvas = page.locator('#webgl-canvas');
     const status = page.locator('#backend-status');
     await expect(status).toContainText('就绪');
     await expect(page.locator('#textures')).toHaveText('1');
-    const beforeLoss = await canvas.screenshot({ animations: 'disabled' });
+    const beforeLoss = await canvas.screenshot({animations: 'disabled'});
 
     const lifecycle = await page.evaluate(() => new Promise<{
       supported: boolean;
       lostStatus: string;
       restoreMs: number;
-    }>((resolve) => {
+    }>(resolve => {
       const target = document.querySelector<HTMLCanvasElement>('#webgl-canvas');
       const gl = target?.getContext('webgl2');
       const extension = gl?.getExtension('WEBGL_lose_context');
       if (!target || !extension) {
-        resolve({ supported: false, lostStatus: '', restoreMs: -1 });
+        resolve({supported: false, lostStatus: '', restoreMs: -1});
         return;
       }
       const startedAt = performance.now();
@@ -32,14 +32,14 @@ test.describe('WebGL resource lifecycle', () => {
       target.addEventListener('webglcontextlost', () => {
         lostStatus = document.querySelector('#backend-status')?.textContent ?? '';
         setTimeout(() => extension.restoreContext(), 50);
-      }, { once: true });
+      }, {once: true});
       target.addEventListener('webglcontextrestored', () => {
         resolve({
           supported: true,
           lostStatus,
           restoreMs: performance.now() - startedAt,
         });
-      }, { once: true });
+      }, {once: true});
       extension.loseContext();
     }));
     expect(lifecycle.supported).toBe(true);
@@ -49,25 +49,25 @@ test.describe('WebGL resource lifecycle', () => {
     await expect(page.locator('#fixture')).toHaveValue('day-ne');
     await expect(page.locator('#textures')).toHaveText('1');
 
-    await page.evaluate(() => new Promise<void>((resolve) => {
+    await page.evaluate(() => new Promise<void>(resolve => {
       requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
     }));
-    const afterRestore = await canvas.screenshot({ animations: 'disabled' });
+    const afterRestore = await canvas.screenshot({animations: 'disabled'});
     expect(afterRestore.equals(beforeLoss)).toBe(true);
     expect(runtimeErrors).toEqual([]);
   });
 
-  test('releases registered handles across repeated create and dispose cycles', async ({ page }) => {
-    await page.goto('/webgl-next/?fixture=lights-off', { waitUntil: 'networkidle' });
+  test('releases registered handles across repeated create and dispose cycles', async ({page}) => {
+    await page.goto('/webgl-next/?fixture=lights-off', {waitUntil: 'networkidle'});
 
     const result = await page.evaluate(async () => {
       // Exposed by webgl-next/main.ts. Reaching the class this way — rather than
       // dynamically importing its .ts source — is what lets this suite run
       // against the production bundle under `vite preview`.
       const hook = window.__luxisoPreview;
-      if (!hook) throw new Error('window.__luxisoPreview is missing; is the preview entry loaded?');
-      const { WebGLRenderer } = hook;
-      const cycles: Array<{ before: number; after: number; disposedGuard: boolean }> = [];
+      if (!hook) {throw new Error('window.__luxisoPreview is missing; is the preview entry loaded?');}
+      const {WebGLRenderer} = hook;
+      const cycles: Array<{before: number; after: number; disposedGuard: boolean}> = [];
 
       for (let cycle = 0; cycle < 6; cycle++) {
         const canvas = document.createElement('canvas');
@@ -85,16 +85,16 @@ test.describe('WebGL resource lifecycle', () => {
           disposedGuard = true;
         }
         gl?.getExtension('WEBGL_lose_context')?.loseContext();
-        cycles.push({ before, after, disposedGuard });
+        cycles.push({before, after, disposedGuard});
       }
 
       const lostCanvas = document.createElement('canvas');
       const lostRenderer = new WebGLRenderer(lostCanvas);
       const lostGl = lostCanvas.getContext('webgl2');
       const extension = lostGl?.getExtension('WEBGL_lose_context');
-      if (!extension) return { cycles, lostCounts: -1, disposedLostCounts: -1 };
-      const lost = new Promise<void>((resolve) => {
-        lostCanvas.addEventListener('webglcontextlost', () => resolve(), { once: true });
+      if (!extension) {return {cycles, lostCounts: -1, disposedLostCounts: -1};}
+      const lost = new Promise<void>(resolve => {
+        lostCanvas.addEventListener('webglcontextlost', () => resolve(), {once: true});
       });
       extension.loseContext();
       await lost;

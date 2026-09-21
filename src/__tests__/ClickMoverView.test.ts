@@ -1,10 +1,10 @@
-import { describe, it, expect } from 'vitest';
-import { ClickMover } from '../core/ClickMover';
-import { Camera } from '../core/Camera';
-import type { InputManager } from '../core/InputManager';
-import type { InputMap } from '../core/InputMap';
-import type { IsoView } from '../math/IsoProjection';
-import { createDrawContext } from './helpers/canvas';
+import {describe, it, expect} from 'vitest';
+import {ClickMover} from '../core/ClickMover';
+import {Camera} from '../core/Camera';
+import type {InputManager} from '../core/InputManager';
+import type {InputMap} from '../core/InputMap';
+import type {IsoView} from '../math/IsoProjection';
+import {createDrawContext} from './helpers/canvas';
 
 /**
  * Picking under a rotated view.
@@ -28,17 +28,17 @@ const ORIGIN_X = 400;
 const ORIGIN_Y = 300;
 const CANVAS_W = 800;
 const CANVAS_H = 600;
-const VIEW: IsoView = { rotation: 90, elevation: 0.25 };
+const VIEW: IsoView = {rotation: 90, elevation: 0.25};
 
 function fakes() {
-  const pointer = { x: 0, y: 0, pressed: false, down: false };
-  const input = { pointer } as unknown as InputManager;
-  const map = { axis: () => ({ x: 0, y: 0 }) } as unknown as InputMap;
-  return { pointer, input, map };
+  const pointer = {x: 0, y: 0, pressed: false, down: false};
+  const input = {pointer} as unknown as InputManager;
+  const map = {axis: () => ({x: 0, y: 0})} as unknown as InputMap;
+  return {pointer, input, map};
 }
 
 /** Where the renderer actually puts a world point, view included. */
-function onScreen(camera: Camera, wx: number, wy: number): { sx: number; sy: number } {
+function onScreen(camera: Camera, wx: number, wy: number): {sx: number; sy: number} {
   return camera.worldToScreen(wx, wy, 0, TILE_W, TILE_H, ORIGIN_X, ORIGIN_Y, VIEW);
 }
 
@@ -47,20 +47,20 @@ function move(
   input: InputManager,
   map: InputMap,
   camera: Camera,
-  view?: IsoView,
+  view?: IsoView
 ): void {
   mover.update(
     1 / 60, input, map, camera,
     TILE_W, TILE_H, ORIGIN_X, ORIGIN_Y, CANVAS_W, CANVAS_H,
-    1, 1, view,
+    1, 1, view
   );
 }
 
 describe('ClickMover — picking under a rotated view', () => {
   it('lands on the tile under the cursor when the view is passed', () => {
     const camera = new Camera();
-    const mover = new ClickMover({ cols: 16, rows: 12, speed: 0.08 });
-    const { pointer, input, map } = fakes();
+    const mover = new ClickMover({cols: 16, rows: 12, speed: 0.08});
+    const {pointer, input, map} = fakes();
 
     const spot = onScreen(camera, 6, 3);
     pointer.x = spot.sx; pointer.y = spot.sy; pointer.pressed = true;
@@ -73,8 +73,8 @@ describe('ClickMover — picking under a rotated view', () => {
 
   it('lands somewhere else entirely when the view is omitted', () => {
     const camera = new Camera();
-    const mover = new ClickMover({ cols: 16, rows: 12, speed: 0.08 });
-    const { pointer, input, map } = fakes();
+    const mover = new ClickMover({cols: 16, rows: 12, speed: 0.08});
+    const {pointer, input, map} = fakes();
 
     const spot = onScreen(camera, 6, 3);
     pointer.x = spot.sx; pointer.y = spot.sy; pointer.pressed = true;
@@ -90,14 +90,14 @@ describe('ClickMover — picking under a rotated view', () => {
 
   it('draws the marker on the tile it targeted', () => {
     const camera = new Camera();
-    const mover = new ClickMover({ cols: 16, rows: 12, speed: 0.08 });
-    const { pointer, input, map } = fakes();
+    const mover = new ClickMover({cols: 16, rows: 12, speed: 0.08});
+    const {pointer, input, map} = fakes();
 
     const spot = onScreen(camera, 6, 3);
     pointer.x = spot.sx; pointer.y = spot.sy; pointer.pressed = true;
     move(mover, input, map, camera, VIEW);
 
-    const dc = createDrawContext({ tileW: TILE_W, tileH: TILE_H, originX: ORIGIN_X, originY: ORIGIN_Y });
+    const dc = createDrawContext({tileW: TILE_W, tileH: TILE_H, originX: ORIGIN_X, originY: ORIGIN_Y});
     mover.drawMarker(dc.ctx, camera, TILE_W, TILE_H, ORIGIN_X, ORIGIN_Y, 0, VIEW);
 
     const arcs = dc.recorder.argsOf('arc');
@@ -115,14 +115,14 @@ describe('Camera — hardening the inverse transform', () => {
     // Legal from `Engine.loadSceneJson`, which merges an untyped object: the
     // strict `view.elevation !== 0.5` test made `sy *= undefined / 0.5` = NaN,
     // so the scene rendered correctly and every pick came back NaN.
-    const partial = { rotation: 45 } as unknown as IsoView;
+    const partial = {rotation: 45} as unknown as IsoView;
 
     const screen = camera.worldToScreen(4, 4, 0, TILE_W, TILE_H, ORIGIN_X, ORIGIN_Y, partial);
     expect(Number.isFinite(screen.sx)).toBe(true);
     expect(Number.isFinite(screen.sy)).toBe(true);
 
     const world = camera.screenToWorld(
-      screen.sx, screen.sy, CANVAS_W, CANVAS_H, TILE_W, TILE_H, ORIGIN_X, ORIGIN_Y, partial,
+      screen.sx, screen.sy, CANVAS_W, CANVAS_H, TILE_W, TILE_H, ORIGIN_X, ORIGIN_Y, partial
     );
     expect(world.x).toBeCloseTo(4, 6);
     expect(world.y).toBeCloseTo(4, 6);
@@ -135,7 +135,7 @@ describe('Camera — hardening the inverse transform', () => {
     // `dist` is NaN, so no arrival check ever passes.
     camera.zoom = 0;
     const world = camera.screenToWorld(
-      500, 400, CANVAS_W, CANVAS_H, TILE_W, TILE_H, ORIGIN_X, ORIGIN_Y,
+      500, 400, CANVAS_W, CANVAS_H, TILE_W, TILE_H, ORIGIN_X, ORIGIN_Y
     );
     expect(Number.isFinite(world.x)).toBe(true);
     expect(Number.isFinite(world.y)).toBe(true);

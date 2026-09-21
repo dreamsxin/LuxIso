@@ -1,9 +1,9 @@
-import { IsoObject } from '../../elements/IsoObject';
-import { Component } from '../Component';
-import { TileCollider } from '../../physics/TileCollider';
-import { Pathfinder, PathCache, IsoVec2 } from '../../physics/Pathfinder';
-import { FrameClock } from '../../time/FrameClock';
-import type { EventEmitter, LuxIsoEventMap } from '../EventBus';
+import {IsoObject} from '../../elements/IsoObject';
+import {Component} from '../Component';
+import {TileCollider} from '../../physics/TileCollider';
+import {Pathfinder, PathCache, IsoVec2} from '../../physics/Pathfinder';
+import {FrameClock} from '../../time/FrameClock';
+import type {EventEmitter, LuxIsoEventMap} from '../EventBus';
 
 type MovementEventMap = Pick<LuxIsoEventMap, 'move' | 'arrival'>;
 
@@ -43,35 +43,35 @@ export interface MovementOptions {
 export class MovementComponent implements Component {
   readonly componentType = 'movement' as const;
 
-  speed:  number;
+  speed: number;
   radius: number;
 
-  private _owner:    IsoObject | null = null;
-  private _target:   { x: number; y: number; z: number } | null = null;
-  private _waypoints: IsoVec2[] = [];   // remaining path waypoints
-  private _bus:      EventEmitter<MovementEventMap> | null;
+  private _owner: IsoObject | null = null;
+  private _target: {x: number; y: number; z: number} | null = null;
+  private _waypoints: IsoVec2[] = []; // remaining path waypoints
+  private _bus: EventEmitter<MovementEventMap> | null;
   private _collider: TileCollider | null;
   private _pathCache: PathCache | null;
   private _clock = new FrameClock();
   private _fixedStepActive = false;
 
   constructor(opts: MovementOptions = {}) {
-    this.speed     = opts.speed    ?? 2.0;
-    this.radius    = opts.radius   ?? 0.4;
-    this._bus      = opts.bus      ?? null;
+    this.speed = opts.speed ?? 2.0;
+    this.radius = opts.radius ?? 0.4;
+    this._bus = opts.bus ?? null;
     this._collider = opts.collider ?? null;
     this._pathCache = opts.pathCache ?? null;
   }
 
   onAttach(owner: IsoObject): void { this._owner = owner; }
-  onDetach(): void                 { this._owner = null; }
+  onDetach(): void { this._owner = null; }
 
   // ── Public API ─────────────────────────────────────────────────────────────
 
   /** Begin smooth movement toward world position (x, y, z). No pathfinding. */
   moveTo(x: number, y: number, z?: number): void {
     this._waypoints = [];
-    this._target    = { x, y, z: z ?? (this._owner?.position.z ?? 0) };
+    this._target = {x, y, z: z ?? (this._owner?.position.z ?? 0)};
   }
 
   /**
@@ -88,8 +88,8 @@ export class MovementComponent implements Component {
     const path = Pathfinder.find(
       this._collider,
       this._owner.position,
-      { x, y },
-      this._pathCache ?? undefined,
+      {x, y},
+      this._pathCache ?? undefined
     );
     if (!path) {
       this.stopMoving();
@@ -112,7 +112,7 @@ export class MovementComponent implements Component {
 
   /** Cancel movement. */
   stopMoving(): void {
-    this._target    = null;
+    this._target = null;
     this._waypoints = [];
   }
 
@@ -123,7 +123,7 @@ export class MovementComponent implements Component {
    * only destination-tested, so it cannot jump a one-tile wall.
    */
   nudge(dx: number, dy: number): void {
-    if (!this._owner) return;
+    if (!this._owner) {return;}
     const pos = this._owner.position;
     const resolved = this._resolve(pos.x, pos.y, dx, dy);
     pos.x += resolved.dx;
@@ -149,8 +149,8 @@ export class MovementComponent implements Component {
 
   // ── Per-frame update ──────────────────────────────────────────────────────
 
-  /** 
-   * Fixed-timestep update for physics. 
+  /**
+   * Fixed-timestep update for physics.
    * Called by Engine/Scene automatically if attached to an Entity.
    */
   fixedUpdate(dt: number): void {
@@ -159,12 +159,12 @@ export class MovementComponent implements Component {
   }
 
   private _integrate(dt: number): void {
-    if (!this._owner || !this._target) return;
+    if (!this._owner || !this._target) {return;}
 
-    const pos  = this._owner.position;
-    const dx   = this._target.x - pos.x;
-    const dy   = this._target.y - pos.y;
-    const dz   = this._target.z - pos.z;
+    const pos = this._owner.position;
+    const dx = this._target.x - pos.x;
+    const dy = this._target.y - pos.y;
+    const dz = this._target.z - pos.z;
     const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
     const step = this.speed * dt;
 
@@ -175,7 +175,7 @@ export class MovementComponent implements Component {
       // distance, which any dash speed does (speed 30 over a clamped 100 ms
       // frame is a 3-unit step).
       const resolved = dx === 0 && dy === 0
-        ? { dx: 0, dy: 0 }
+        ? {dx: 0, dy: 0}
         : this._resolve(pos.x, pos.y, dx, dy);
       pos.x += resolved.dx;
       pos.y += resolved.dy;
@@ -191,7 +191,7 @@ export class MovementComponent implements Component {
         this._advanceWaypoint();
       } else {
         this._target = null;
-        this._bus?.emit('arrival', { id: this._owner.id, x: pos.x, y: pos.y });
+        this._bus?.emit('arrival', {id: this._owner.id, x: pos.x, y: pos.y});
       }
     } else {
       const nx = (dx / dist) * step;
@@ -211,7 +211,7 @@ export class MovementComponent implements Component {
       pos.y += resolved.dy;
       pos.z += (dz / dist) * step;
 
-      this._bus?.emit('move', { x: pos.x, y: pos.y, z: pos.z });
+      this._bus?.emit('move', {x: pos.x, y: pos.y, z: pos.z});
     }
   }
 
@@ -223,8 +223,8 @@ export class MovementComponent implements Component {
    * dash speed or a long frame (`speed * 0.1 s`). Those steps are swept
    * instead; short steps keep `resolveMove`'s wall sliding.
    */
-  private _resolve(x: number, y: number, dx: number, dy: number): { dx: number; dy: number } {
-    if (!this._collider) return { dx, dy };
+  private _resolve(x: number, y: number, dx: number, dy: number): {dx: number; dy: number} {
+    if (!this._collider) {return {dx, dy};}
     if (Math.hypot(dx, dy) > this.radius) {
       return this._collider.sweepMove(x, y, dx, dy, this.radius);
     }
@@ -235,7 +235,7 @@ export class MovementComponent implements Component {
    * Variable-timestep update for compatibility.
    */
   update(ts?: number): void {
-    if (ts === undefined) return; 
+    if (ts === undefined) {return;}
     const now = ts;
     if (this._fixedStepActive) {
       // Keep the baseline current so a later switch back to timestamp stepping
@@ -244,7 +244,7 @@ export class MovementComponent implements Component {
       return;
     }
     const dt = this._clock.sample(now);
-    if (dt > 0) this._integrate(dt);
+    if (dt > 0) {this._integrate(dt);}
   }
 
   // ── Internal ───────────────────────────────────────────────────────────────
@@ -257,6 +257,6 @@ export class MovementComponent implements Component {
       this._target = null;
       return;
     }
-    this._target = { x: wp.x, y: wp.y, z: z ?? (this._owner?.position.z ?? 0) };
+    this._target = {x: wp.x, y: wp.y, z: z ?? (this._owner?.position.z ?? 0)};
   }
 }

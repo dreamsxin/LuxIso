@@ -11,7 +11,7 @@ const SHADOW_FIELDS = [0, 1, 4, 5, 6, 7] as const;
 export function computeShadowMaskCacheKey(
   snapshot: RenderSnapshot,
   targetWidth: number,
-  targetHeight: number,
+  targetHeight: number
 ): number {
   const geometry = snapshot.geometry;
   const shadows = geometry.shadows;
@@ -36,7 +36,7 @@ export function computeShadowMaskCacheKey(
   const end = shadows.first + shadows.count;
   for (let vertex = shadows.first; vertex < end; vertex++) {
     const offset = vertex * RENDER_VERTEX_FLOATS;
-    for (const field of SHADOW_FIELDS) hash = hashFloat(hash, geometry.data[offset + field]);
+    for (const field of SHADOW_FIELDS) {hash = hashFloat(hash, geometry.data[offset + field]);}
   }
   return hash >>> 0;
 }

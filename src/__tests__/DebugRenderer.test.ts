@@ -1,13 +1,13 @@
-import { describe, it, expect } from 'vitest';
-import { DebugRenderer } from '../core/DebugRenderer';
-import { Scene } from '../core/Scene';
-import { TileCollider } from '../physics/TileCollider';
-import { OmniLight } from '../lighting/OmniLight';
-import { Entity } from '../ecs/Entity';
-import { TriggerZoneComponent } from '../ecs/components/TriggerZoneComponent';
-import { project } from '../math/IsoProjection';
-import type { AABB } from '../math/depthSort';
-import type { DrawContext } from '../elements/IsoObject';
+import {describe, it, expect} from 'vitest';
+import {DebugRenderer} from '../core/DebugRenderer';
+import {Scene} from '../core/Scene';
+import {TileCollider} from '../physics/TileCollider';
+import {OmniLight} from '../lighting/OmniLight';
+import {Entity} from '../ecs/Entity';
+import {TriggerZoneComponent} from '../ecs/components/TriggerZoneComponent';
+import {project} from '../math/IsoProjection';
+import type {AABB} from '../math/depthSort';
+import type {DrawContext} from '../elements/IsoObject';
 
 /**
  * DebugRenderer was the largest 0%-coverage file in `src/core` (181 statements).
@@ -26,7 +26,7 @@ class Mob extends Entity {
   draw(_dc: DrawContext): void {}
 }
 
-interface Rec { ctx: CanvasRenderingContext2D; calls: unknown[][] }
+interface Rec {ctx: CanvasRenderingContext2D; calls: unknown[][]}
 
 function recorder(): Rec {
   const calls: unknown[][] = [];
@@ -34,11 +34,11 @@ function recorder(): Rec {
     get: (_t, prop) => (...args: unknown[]) => { calls.push([prop, ...args]); },
     set: (_t, prop, value) => { calls.push(['set', prop, value]); return true; },
   }) as unknown as CanvasRenderingContext2D;
-  return { ctx, calls };
+  return {ctx, calls};
 }
 
 function scene(): Scene {
-  return new Scene({ tileW: 64, tileH: 32, cols: 4, rows: 4 });
+  return new Scene({tileW: 64, tileH: 32, cols: 4, rows: 4});
 }
 
 function only(calls: unknown[][], name: string): unknown[][] {
@@ -56,7 +56,7 @@ describe('DebugRenderer — gating', () => {
   it('drawPath does nothing while disabled or with an empty path', () => {
     const debug = new DebugRenderer(scene(), 400, 300);
     const r = recorder();
-    debug.drawPath(r.ctx, [{ x: 1, y: 1 }], 0, 0, 0, 800, 600);
+    debug.drawPath(r.ctx, [{x: 1, y: 1}], 0, 0, 0, 800, 600);
     expect(r.calls.length).toBe(0);
 
     debug.enabled = true;
@@ -72,7 +72,7 @@ describe('DebugRenderer — collision overlay', () => {
     collider.setWalkable(1, 0, false);
     s.collider = collider;
 
-    const debug = new DebugRenderer(s, 400, 300, { showLights: false, showTriggers: false });
+    const debug = new DebugRenderer(s, 400, 300, {showLights: false, showTriggers: false});
     debug.enabled = true;
     const r = recorder();
     debug.draw(r.ctx, 800, 600, 1000);
@@ -82,7 +82,7 @@ describe('DebugRenderer — collision overlay', () => {
   });
 
   it('is inert without a collider', () => {
-    const debug = new DebugRenderer(scene(), 400, 300, { showLights: false, showTriggers: false });
+    const debug = new DebugRenderer(scene(), 400, 300, {showLights: false, showTriggers: false});
     debug.enabled = true;
     const r = recorder();
     debug.draw(r.ctx, 800, 600, 1000);
@@ -112,7 +112,7 @@ describe('DebugRenderer — AABB overlay', () => {
   it('stays off by default', () => {
     const s = scene();
     s.addObject(new Mob('mob', 1, 1, 0));
-    const debug = new DebugRenderer(s, 400, 300, { showLights: false, showTriggers: false });
+    const debug = new DebugRenderer(s, 400, 300, {showLights: false, showTriggers: false});
     debug.enabled = true;
     const r = recorder();
     debug.draw(r.ctx, 800, 600, 1000);
@@ -123,9 +123,9 @@ describe('DebugRenderer — AABB overlay', () => {
 describe('DebugRenderer — light overlay', () => {
   it('draws the circle at the light\'s actual pixel radius', () => {
     const s = scene();
-    s.addLight(new OmniLight({ id: 'torch', x: 2, y: 2, z: 0, radius: 320 }));
+    s.addLight(new OmniLight({id: 'torch', x: 2, y: 2, z: 0, radius: 320}));
 
-    const debug = new DebugRenderer(s, 400, 300, { showCollision: false, showTriggers: false });
+    const debug = new DebugRenderer(s, 400, 300, {showCollision: false, showTriggers: false});
     debug.enabled = true;
     const r = recorder();
     debug.draw(r.ctx, 800, 600, 1000);
@@ -139,14 +139,14 @@ describe('DebugRenderer — light overlay', () => {
 
   it('places the ring at the projected light position, lifted by z', () => {
     const s = scene();
-    s.addLight(new OmniLight({ id: 'torch', x: 3, y: 1, z: 48, radius: 100 }));
+    s.addLight(new OmniLight({id: 'torch', x: 3, y: 1, z: 48, radius: 100}));
 
-    const debug = new DebugRenderer(s, 400, 300, { showCollision: false, showTriggers: false });
+    const debug = new DebugRenderer(s, 400, 300, {showCollision: false, showTriggers: false});
     debug.enabled = true;
     const r = recorder();
     debug.draw(r.ctx, 800, 600, 1000);
 
-    const { sx, sy } = project(3, 1, 0, 64, 32);
+    const {sx, sy} = project(3, 1, 0, 64, 32);
     const arc = only(r.calls, 'arc')[0];
     expect(arc[1]).toBeCloseTo(sx, 6);
     expect(arc[2]).toBeCloseTo(sy - 48, 6);
@@ -154,11 +154,11 @@ describe('DebugRenderer — light overlay', () => {
 
   it('skips disabled lights', () => {
     const s = scene();
-    const light = new OmniLight({ id: 'torch', x: 1, y: 1, z: 0 });
+    const light = new OmniLight({id: 'torch', x: 1, y: 1, z: 0});
     light.enabled = false;
     s.addLight(light);
 
-    const debug = new DebugRenderer(s, 400, 300, { showCollision: false, showTriggers: false });
+    const debug = new DebugRenderer(s, 400, 300, {showCollision: false, showTriggers: false});
     debug.enabled = true;
     const r = recorder();
     debug.draw(r.ctx, 800, 600, 1000);
@@ -170,10 +170,10 @@ describe('DebugRenderer — trigger overlay', () => {
   it('maps a world-unit radius onto the isometric ellipse', () => {
     const s = scene();
     const mob = new Mob('mob', 2, 2, 0);
-    mob.addComponent(new TriggerZoneComponent({ radius: 2 }));
+    mob.addComponent(new TriggerZoneComponent({radius: 2}));
     s.addObject(mob);
 
-    const debug = new DebugRenderer(s, 400, 300, { showCollision: false, showLights: false });
+    const debug = new DebugRenderer(s, 400, 300, {showCollision: false, showLights: false});
     debug.enabled = true;
     const r = recorder();
     debug.draw(r.ctx, 800, 600, 1000);
@@ -190,7 +190,7 @@ describe('DebugRenderer — trigger overlay', () => {
   it('ignores entities without a trigger zone', () => {
     const s = scene();
     s.addObject(new Mob('plain', 1, 1, 0));
-    const debug = new DebugRenderer(s, 400, 300, { showCollision: false, showLights: false });
+    const debug = new DebugRenderer(s, 400, 300, {showCollision: false, showLights: false});
     debug.enabled = true;
     const r = recorder();
     debug.draw(r.ctx, 800, 600, 1000);
@@ -276,7 +276,7 @@ describe('DebugRenderer — path overlay', () => {
     const debug = new DebugRenderer(scene(), 400, 300);
     debug.enabled = true;
     const r = recorder();
-    debug.drawPath(r.ctx, [{ x: 1, y: 0 }, { x: 2, y: 0 }, { x: 2, y: 1 }], 0, 0, 0, 800, 600);
+    debug.drawPath(r.ctx, [{x: 1, y: 0}, {x: 2, y: 0}, {x: 2, y: 1}], 0, 0, 0, 800, 600);
 
     expect(only(r.calls, 'lineTo').length).toBe(3);
     expect(only(r.calls, 'arc').length).toBe(3);
@@ -290,7 +290,7 @@ describe('DebugRenderer — path overlay', () => {
     debug.setOrigin(100, 50);
 
     const r = recorder();
-    debug.drawPath(r.ctx, [{ x: 1, y: 1 }], 0, 0, 0, 800, 600);
+    debug.drawPath(r.ctx, [{x: 1, y: 1}], 0, 0, 0, 800, 600);
     // The camera transform carries the origin, so it must reach the context.
     expect(r.calls.some(c => c[0] === 'translate' || c[0] === 'setTransform')).toBe(true);
   });

@@ -1,10 +1,10 @@
 /**
  * VolcanoFX — 烟雾柱 + 地面裂缝火星喷发（使用框架 ParticleSystem）
  */
-import { IsoObject, DrawContext } from '../../src/elements/IsoObject';
-import { ParticleSystem } from '../../src/animation/ParticleSystem';
-import { AABB } from '../../src/math/depthSort';
-import { project } from '../../src/math/IsoProjection';
+import {IsoObject, DrawContext} from '../../src/elements/IsoObject';
+import {ParticleSystem} from '../../src/animation/ParticleSystem';
+import {AABB} from '../../src/math/depthSort';
+import {project} from '../../src/math/IsoProjection';
 
 // ── 烟雾柱 ────────────────────────────────────────────────────────────────────
 
@@ -25,7 +25,7 @@ export class SmokePlumeSystem extends IsoObject {
       lifetime: [1.5, 3.0],
       speed: [0.1, 0.4],
       angle: [0, Math.PI * 2],
-      vz: [8, 20],          // 像素/秒，烟雾向上飘
+      vz: [8, 20], // 像素/秒，烟雾向上飘
       gravity: 0,
       size: [6, 14],
       sizeFinal: 2.5,
@@ -49,8 +49,11 @@ export class SmokePlumeSystem extends IsoObject {
 
   update(ts?: number): void {
     // 根据 densityMult 动态调整发射率（emitter 内部字段为 .config，非 .cfg）
-    const cfg = (this._ps as any)._emitters[0]?.config;
-    if (cfg) cfg.rate = Math.round(18 * this.densityMult);
+    // `_emitters` 是 ParticleSystem 的 TS private 字段，这里用结构化类型描述
+    // 真正读到的那一个字段，避免 any。
+    const emitters = (this._ps as unknown as {_emitters: {config: {rate: number}}[]})._emitters;
+    const cfg = emitters[0]?.config;
+    if (cfg) {cfg.rate = Math.round(18 * this.densityMult);}
     this._ps.update(ts);
   }
 
@@ -81,14 +84,14 @@ export class LavaCrack extends IsoObject {
     this._sparkPs = new ParticleSystem(`${id}-sparks`, x, y, 0);
     this._sparkPs.addEmitter({
       maxParticles: 40,
-      rate: 0,            // 只 burst，不连续发射
+      rate: 0, // 只 burst，不连续发射
       shape: 'ring',
       spawnRadius: 0.15,
       lifetime: [0.4, 0.9],
       speed: [0.8, 2.5],
       angle: [0, Math.PI * 2],
-      vz: [12, 30],       // 像素/秒，火星向上弹射
-      gravity: -25,       // 像素/秒²，重力拉回
+      vz: [12, 30], // 像素/秒，火星向上弹射
+      gravity: -25, // 像素/秒²，重力拉回
       size: [2, 5],
       sizeFinal: 0,
       colorStart: '#ff8800',
@@ -112,7 +115,7 @@ export class LavaCrack extends IsoObject {
 
   update(ts?: number): void {
     const now = ts ?? performance.now();
-    const dt  = this._lastTs === 0 ? 0.016 : Math.min((now - this._lastTs) / 1000, 0.1);
+    const dt = this._lastTs === 0 ? 0.016 : Math.min((now - this._lastTs) / 1000, 0.1);
     this._lastTs = now;
 
     this._timer += dt;
@@ -126,16 +129,16 @@ export class LavaCrack extends IsoObject {
 
     if (this._burstActive) {
       this.burstAge += dt;
-      if (this.burstAge > 0.6) this._burstActive = false;
+      if (this.burstAge > 0.6) {this._burstActive = false;}
     }
 
     this._sparkPs.update(ts);
   }
 
   draw(dc: DrawContext): void {
-    const { ctx, tileW, tileH, originX, originY } = dc;
-    const { x, y } = this.position;
-    const { sx, sy } = project(x, y, 0, tileW, tileH);
+    const {ctx, tileW, tileH, originX, originY} = dc;
+    const {x, y} = this.position;
+    const {sx, sy} = project(x, y, 0, tileW, tileH);
     const cx = originX + sx, cy = originY + sy;
     const seed = this.crackSeed;
 
@@ -145,16 +148,16 @@ export class LavaCrack extends IsoObject {
     const pts: Array<[number, number]> = [
       [-tileW * 0.18, 0],
       [-tileW * 0.08, -tileH * 0.1 + Math.sin(seed * 7) * 3],
-      [0,              tileH * 0.05],
-      [ tileW * 0.1,  -tileH * 0.08 + Math.cos(seed * 11) * 3],
-      [ tileW * 0.2,   tileH * 0.04],
+      [0, tileH * 0.05],
+      [ tileW * 0.1, -tileH * 0.08 + Math.cos(seed * 11) * 3],
+      [ tileW * 0.2, tileH * 0.04],
     ];
 
     ctx.strokeStyle = '#5a1a08';
     ctx.lineWidth = 1.5;
     ctx.beginPath();
     ctx.moveTo(pts[0][0], pts[0][1]);
-    for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
+    for (let i = 1; i < pts.length; i++) {ctx.lineTo(pts[i][0], pts[i][1]);}
     ctx.stroke();
 
     // 裂缝内发光（喷发时更亮）
@@ -163,15 +166,15 @@ export class LavaCrack extends IsoObject {
     ctx.lineWidth = 0.8;
     ctx.beginPath();
     ctx.moveTo(pts[0][0], pts[0][1]);
-    for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
+    for (let i = 1; i < pts.length; i++) {ctx.lineTo(pts[i][0], pts[i][1]);}
     ctx.stroke();
 
     // 喷发时裂缝口光晕
     if (this._burstActive) {
       const pulse = 1 - this.burstAge / 0.6;
       const glow = ctx.createRadialGradient(0, 0, 0, 0, 0, tileW * 0.4);
-      glow.addColorStop(0,   `rgba(255,160,20,${(pulse * 0.7).toFixed(2)})`);
-      glow.addColorStop(1,   'rgba(255,60,0,0)');
+      glow.addColorStop(0, `rgba(255,160,20,${(pulse * 0.7).toFixed(2)})`);
+      glow.addColorStop(1, 'rgba(255,60,0,0)');
       ctx.globalCompositeOperation = 'screen';
       ctx.beginPath();
       ctx.arc(0, 0, tileW * 0.4, 0, Math.PI * 2);

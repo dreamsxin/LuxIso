@@ -1,8 +1,8 @@
-import { describe, it, expect, vi } from 'vitest';
-import { MovementComponent } from '../ecs/components/MovementComponent';
-import { TileCollider } from '../physics/TileCollider';
-import { EventBus } from '../ecs/EventBus';
-import { IsoObject } from '../elements/IsoObject';
+import {describe, it, expect, vi} from 'vitest';
+import {MovementComponent} from '../ecs/components/MovementComponent';
+import {TileCollider} from '../physics/TileCollider';
+import {EventBus} from '../ecs/EventBus';
+import {IsoObject} from '../elements/IsoObject';
 
 /**
  * MovementComponent — timing and blocked-path behaviour.
@@ -16,8 +16,8 @@ import { IsoObject } from '../elements/IsoObject';
 function owner(x = 0, y = 0, z = 0): IsoObject {
   return {
     id: 'e',
-    position: { x, y, z },
-    aabb: { minX: 0, minY: 0, maxX: 1, maxY: 1, baseZ: 0 },
+    position: {x, y, z},
+    aabb: {minX: 0, minY: 0, maxX: 1, maxY: 1, baseZ: 0},
     draw: () => {},
   } as unknown as IsoObject;
 }
@@ -25,26 +25,26 @@ function owner(x = 0, y = 0, z = 0): IsoObject {
 /** Wall filling column 2, so an entity at x < 2 moving +x is stopped head-on. */
 function wallCollider(): TileCollider {
   const collider = new TileCollider(5, 5);
-  for (let r = 0; r < 5; r++) collider.setWalkable(2, r, false);
+  for (let r = 0; r < 5; r++) {collider.setWalkable(2, r, false);}
   return collider;
 }
 
 describe('MovementComponent — frame delta', () => {
   it('moves when the first timestamp is 0', () => {
     const o = owner(0, 0, 0);
-    const mv = new MovementComponent({ speed: 2 });
+    const mv = new MovementComponent({speed: 2});
     mv.onAttach(o);
     mv.moveTo(5, 0);
 
     mv.update(0);
-    for (let ts = 16; ts <= 500; ts += 16) mv.update(ts);
+    for (let ts = 16; ts <= 500; ts += 16) {mv.update(ts);}
 
     expect(o.position.x).toBeGreaterThan(0.5);
   });
 
   it('does not integrate on the first frame', () => {
     const o = owner(0, 0, 0);
-    const mv = new MovementComponent({ speed: 2 });
+    const mv = new MovementComponent({speed: 2});
     mv.onAttach(o);
     mv.moveTo(5, 0);
     mv.update(1000);
@@ -53,7 +53,7 @@ describe('MovementComponent — frame delta', () => {
 
   it('does not drop the frame after timestamp 0', () => {
     const o = owner(0, 0, 0);
-    const mv = new MovementComponent({ speed: 2 });
+    const mv = new MovementComponent({speed: 2});
     mv.onAttach(o);
     mv.moveTo(5, 0);
     mv.update(0);
@@ -65,7 +65,7 @@ describe('MovementComponent — frame delta', () => {
 
   it('clamps a long stall to 100 ms', () => {
     const o = owner(0, 0, 0);
-    const mv = new MovementComponent({ speed: 2 });
+    const mv = new MovementComponent({speed: 2});
     mv.onAttach(o);
     mv.moveTo(5, 0);
     mv.update(1000);
@@ -75,7 +75,7 @@ describe('MovementComponent — frame delta', () => {
 
   it('ignores a backwards timestamp instead of moving in reverse', () => {
     const o = owner(0, 0, 0);
-    const mv = new MovementComponent({ speed: 2 });
+    const mv = new MovementComponent({speed: 2});
     mv.onAttach(o);
     mv.moveTo(5, 0);
     mv.update(1000);
@@ -87,7 +87,7 @@ describe('MovementComponent — frame delta', () => {
 
   it('ignores update() without a timestamp', () => {
     const o = owner(0, 0, 0);
-    const mv = new MovementComponent({ speed: 2 });
+    const mv = new MovementComponent({speed: 2});
     mv.onAttach(o);
     mv.moveTo(5, 0);
     mv.update();
@@ -98,7 +98,7 @@ describe('MovementComponent — frame delta', () => {
 describe('MovementComponent — blocked head-on', () => {
   it('gives up instead of pushing into a wall forever', () => {
     const o = owner(1.5, 2.5, 0);
-    const mv = new MovementComponent({ speed: 5, collider: wallCollider() });
+    const mv = new MovementComponent({speed: 5, collider: wallCollider()});
     mv.onAttach(o);
     mv.moveTo(4, 2.5);
 
@@ -118,7 +118,7 @@ describe('MovementComponent — blocked head-on', () => {
     bus.on('move', onMove);
 
     const o = owner(1.5, 2.5, 0);
-    const mv = new MovementComponent({ speed: 5, collider: wallCollider(), bus });
+    const mv = new MovementComponent({speed: 5, collider: wallCollider(), bus});
     mv.onAttach(o);
     mv.moveTo(4, 2.5);
 
@@ -132,7 +132,7 @@ describe('MovementComponent — blocked head-on', () => {
 
   it('still slides along a wall it hits at an angle', () => {
     const o = owner(1.5, 2.5, 0);
-    const mv = new MovementComponent({ speed: 2, collider: wallCollider(), radius: 0.4 });
+    const mv = new MovementComponent({speed: 2, collider: wallCollider(), radius: 0.4});
     mv.onAttach(o);
     mv.moveTo(4, 4.5);
 
@@ -146,7 +146,7 @@ describe('MovementComponent — blocked head-on', () => {
 
   it('moves freely with no collider attached', () => {
     const o = owner(1.5, 2.5, 0);
-    const mv = new MovementComponent({ speed: 5 });
+    const mv = new MovementComponent({speed: 5});
     mv.onAttach(o);
     mv.moveTo(4, 2.5);
 
@@ -161,9 +161,9 @@ describe('MovementComponent — blocked head-on', () => {
 describe('MovementComponent — paths', () => {
   it('followPath walks every waypoint in order', () => {
     const o = owner(0, 0, 0);
-    const mv = new MovementComponent({ speed: 8 });
+    const mv = new MovementComponent({speed: 8});
     mv.onAttach(o);
-    mv.followPath([{ x: 1, y: 0 }, { x: 1, y: 1 }]);
+    mv.followPath([{x: 1, y: 0}, {x: 1, y: 1}]);
     expect(mv.remainingWaypoints.length).toBe(1);
 
     let ts = 1000;
@@ -176,7 +176,7 @@ describe('MovementComponent — paths', () => {
 
   it('followPath with an empty path cancels the current move', () => {
     const o = owner(0, 0, 0);
-    const mv = new MovementComponent({ speed: 2 });
+    const mv = new MovementComponent({speed: 2});
     mv.onAttach(o);
     mv.moveTo(5, 0);
     // `_advanceWaypoint()` used to shift `undefined` off the empty array and
@@ -187,7 +187,7 @@ describe('MovementComponent — paths', () => {
 
   it('pathTo without a collider degrades to a straight move', () => {
     const o = owner(0, 0, 0);
-    const mv = new MovementComponent({ speed: 2 });
+    const mv = new MovementComponent({speed: 2});
     mv.onAttach(o);
     expect(mv.pathTo(3, 3)).toBe(true);
     expect(mv.isMoving).toBe(true);
@@ -197,7 +197,7 @@ describe('MovementComponent — paths', () => {
   it('pathTo returns false and stops when the target is unreachable', () => {
     const collider = wallCollider();
     const o = owner(1.5, 2.5, 0);
-    const mv = new MovementComponent({ speed: 2, collider });
+    const mv = new MovementComponent({speed: 2, collider});
     mv.onAttach(o);
     mv.moveTo(1.5, 3.5);
     expect(mv.pathTo(4, 2)).toBe(false);
@@ -206,9 +206,9 @@ describe('MovementComponent — paths', () => {
 
   it('moveTo clears any remaining waypoints', () => {
     const o = owner(0, 0, 0);
-    const mv = new MovementComponent({ speed: 2 });
+    const mv = new MovementComponent({speed: 2});
     mv.onAttach(o);
-    mv.followPath([{ x: 1, y: 0 }, { x: 2, y: 0 }, { x: 3, y: 0 }]);
+    mv.followPath([{x: 1, y: 0}, {x: 2, y: 0}, {x: 3, y: 0}]);
     mv.moveTo(9, 9);
     expect(mv.remainingWaypoints.length).toBe(0);
   });
@@ -217,7 +217,7 @@ describe('MovementComponent — paths', () => {
 describe('MovementComponent — tunnelling', () => {
   it('a knockback nudge cannot jump a one-tile wall', () => {
     const o = owner(1.5, 2.5, 0);
-    const mv = new MovementComponent({ collider: wallCollider(), radius: 0.4 });
+    const mv = new MovementComponent({collider: wallCollider(), radius: 0.4});
     mv.onAttach(o);
     // `resolveMove` only tests the destination footprint, so this landed at 3.5
     // — straight through the wall in column 2.
@@ -227,7 +227,7 @@ describe('MovementComponent — tunnelling', () => {
 
   it('a dash-speed step cannot jump a one-tile wall', () => {
     const o = owner(1.5, 2.5, 0);
-    const mv = new MovementComponent({ speed: 30, collider: wallCollider(), radius: 0.4 });
+    const mv = new MovementComponent({speed: 30, collider: wallCollider(), radius: 0.4});
     mv.onAttach(o);
     mv.moveTo(4.5, 2.5);
 
@@ -239,7 +239,7 @@ describe('MovementComponent — tunnelling', () => {
 
   it('a short step still slides instead of sweeping', () => {
     const o = owner(1.5, 2.5, 0);
-    const mv = new MovementComponent({ speed: 2, collider: wallCollider(), radius: 0.4 });
+    const mv = new MovementComponent({speed: 2, collider: wallCollider(), radius: 0.4});
     mv.onAttach(o);
     mv.moveTo(4, 4.5);
 
@@ -253,7 +253,7 @@ describe('MovementComponent — tunnelling', () => {
 describe('MovementComponent — nudge and lifecycle', () => {
   it('nudge stops at the wall face instead of passing through it', () => {
     const o = owner(1.5, 2.5, 0);
-    const mv = new MovementComponent({ collider: wallCollider(), radius: 0.4 });
+    const mv = new MovementComponent({collider: wallCollider(), radius: 0.4});
     mv.onAttach(o);
     mv.nudge(2, 0);
     // Slides up flush against column 2: 2 - radius.
@@ -271,7 +271,7 @@ describe('MovementComponent — nudge and lifecycle', () => {
 
   it('does nothing after onDetach', () => {
     const o = owner(0, 0, 0);
-    const mv = new MovementComponent({ speed: 2 });
+    const mv = new MovementComponent({speed: 2});
     mv.onAttach(o);
     mv.moveTo(5, 0);
     mv.onDetach();
@@ -283,7 +283,7 @@ describe('MovementComponent — nudge and lifecycle', () => {
 
   it('setCollider swaps collision behaviour at runtime', () => {
     const o = owner(1.5, 2.5, 0);
-    const mv = new MovementComponent({ radius: 0.4 });
+    const mv = new MovementComponent({radius: 0.4});
     mv.onAttach(o);
     mv.setCollider(wallCollider());
     mv.nudge(2, 0);

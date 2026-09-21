@@ -3,9 +3,9 @@
  *
  * 激活后：地面出现旋转金色符文圆圈，2秒后出现宝箱。
  */
-import { IsoObject, DrawContext } from '../../src/elements/IsoObject';
-import { AABB } from '../../src/math/depthSort';
-import { project } from '../../src/math/IsoProjection';
+import {IsoObject, DrawContext} from '../../src/elements/IsoObject';
+import {AABB} from '../../src/math/depthSort';
+import {project} from '../../src/math/IsoProjection';
 
 export class HiddenPortal extends IsoObject {
   isActivated = false;
@@ -23,18 +23,22 @@ export class HiddenPortal extends IsoObject {
   }
 
   get aabb(): AABB {
-    return { minX: this.position.x - 1.5, minY: this.position.y - 1.5, maxX: this.position.x + 1.5, maxY: this.position.y + 1.5, baseZ: 0 };
+    return {
+      minX: this.position.x - 1.5, minY: this.position.y - 1.5,
+      maxX: this.position.x + 1.5, maxY: this.position.y + 1.5,
+      baseZ: 0,
+    };
   }
 
   activate(): void {
-    if (this.isActivated) return;
+    if (this.isActivated) {return;}
     this.isActivated = true;
     this.visible = true;
     this._activationTime = 0;
   }
 
   update(ts?: number): void {
-    if (!this.isActivated) return;
+    if (!this.isActivated) {return;}
     const now = ts ?? performance.now();
     const dt = this._lastTs === 0 ? 0.016 : Math.min((now - this._lastTs) / 1000, 0.1);
     this._lastTs = now;
@@ -50,10 +54,10 @@ export class HiddenPortal extends IsoObject {
   }
 
   draw(dc: DrawContext): void {
-    if (!this.isActivated) return;
-    const { ctx, tileW, tileH, originX, originY } = dc;
-    const { x, y } = this.position;
-    const { sx, sy } = project(x, y, 0, tileW, tileH);
+    if (!this.isActivated) {return;}
+    const {ctx, tileW, tileH, originX, originY} = dc;
+    const {x, y} = this.position;
+    const {sx, sy} = project(x, y, 0, tileW, tileH);
     const cx = originX + sx, cy = originY + sy;
     const scaleY = tileH / tileW;
 
@@ -67,9 +71,9 @@ export class HiddenPortal extends IsoObject {
     ctx.scale(1, scaleY);
     const glowR = tileW * 1.4;
     const glow = ctx.createRadialGradient(0, 0, 0, 0, 0, glowR);
-    glow.addColorStop(0,   `rgba(255,200,60,${pulse * 0.3})`);
+    glow.addColorStop(0, `rgba(255,200,60,${pulse * 0.3})`);
     glow.addColorStop(0.5, `rgba(200,140,20,${pulse * 0.12})`);
-    glow.addColorStop(1,   'rgba(160,100,0,0)');
+    glow.addColorStop(1, 'rgba(160,100,0,0)');
     ctx.beginPath();
     ctx.arc(0, 0, glowR, 0, Math.PI * 2);
     ctx.fillStyle = glow;
@@ -77,18 +81,18 @@ export class HiddenPortal extends IsoObject {
     ctx.restore();
 
     // 旋转符文圆圈（3层）
-    this._drawRuneRing(ctx, tileW * 0.9, scaleY, 8, this._phase * 0.4,  `rgba(255,200,60,${pulse * 0.8})`,  1.5);
-    this._drawRuneRing(ctx, tileW * 0.6, scaleY, 6, -this._phase * 0.6, `rgba(255,160,40,${pulse * 0.9})`,  1.2);
-    this._drawRuneRing(ctx, tileW * 0.32, scaleY, 4, this._phase * 1.2, `rgba(255,220,80,${pulse})`,        1.0);
+    this._drawRuneRing(ctx, tileW * 0.9, scaleY, 8, this._phase * 0.4, `rgba(255,200,60,${pulse * 0.8})`, 1.5);
+    this._drawRuneRing(ctx, tileW * 0.6, scaleY, 6, -this._phase * 0.6, `rgba(255,160,40,${pulse * 0.9})`, 1.2);
+    this._drawRuneRing(ctx, tileW * 0.32, scaleY, 4, this._phase * 1.2, `rgba(255,220,80,${pulse})`, 1.0);
 
     // 中心光核
     ctx.save();
     ctx.scale(1, scaleY);
     const coreR = tileW * 0.12;
     const cg = ctx.createRadialGradient(0, 0, 0, 0, 0, coreR);
-    cg.addColorStop(0,   `rgba(255,255,200,${pulse})`);
+    cg.addColorStop(0, `rgba(255,255,200,${pulse})`);
     cg.addColorStop(0.5, `rgba(255,200,60,${pulse * 0.6})`);
-    cg.addColorStop(1,   'rgba(200,140,0,0)');
+    cg.addColorStop(1, 'rgba(200,140,0,0)');
     ctx.beginPath();
     ctx.arc(0, 0, coreR, 0, Math.PI * 2);
     ctx.fillStyle = cg;
@@ -106,7 +110,7 @@ export class HiddenPortal extends IsoObject {
   private _drawRuneRing(
     ctx: CanvasRenderingContext2D,
     radius: number, scaleY: number, sides: number,
-    rotation: number, stroke: string, lineWidth: number,
+    rotation: number, stroke: string, lineWidth: number
   ): void {
     ctx.save();
     ctx.scale(1, scaleY);
@@ -114,7 +118,7 @@ export class HiddenPortal extends IsoObject {
     for (let i = 0; i <= sides; i++) {
       const a = (i / sides) * Math.PI * 2 + rotation;
       const px = Math.cos(a) * radius, py = Math.sin(a) * radius;
-      if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+      if (i === 0) {ctx.moveTo(px, py);} else {ctx.lineTo(px, py);}
     }
     ctx.closePath();
     ctx.strokeStyle = stroke;
@@ -161,8 +165,8 @@ export class HiddenPortal extends IsoObject {
     // 金色光晕
     const glowR = w * 2;
     const glow = ctx.createRadialGradient(0, -h * 0.5, 0, 0, -h * 0.5, glowR);
-    glow.addColorStop(0,   `rgba(255,200,60,${0.4 * scale})`);
-    glow.addColorStop(1,   'rgba(255,160,0,0)');
+    glow.addColorStop(0, `rgba(255,200,60,${0.4 * scale})`);
+    glow.addColorStop(1, 'rgba(255,160,0,0)');
     ctx.beginPath();
     ctx.arc(0, -h * 0.5, glowR, 0, Math.PI * 2);
     ctx.fillStyle = glow;

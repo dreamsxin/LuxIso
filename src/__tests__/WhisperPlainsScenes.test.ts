@@ -1,10 +1,13 @@
-import { describe, it, expect } from 'vitest';
-import { buildLakeScene, LAKE_PORTAL_X, LAKE_PORTAL_Y, LAKE_SPAWN_X, LAKE_SPAWN_Y } from '../../examples/05-whisper-plains/scenes/LakeScene';
+import {describe, it, expect} from 'vitest';
+import {
+  buildLakeScene,
+  LAKE_PORTAL_X, LAKE_PORTAL_Y, LAKE_SPAWN_X, LAKE_SPAWN_Y,
+} from '../../examples/05-whisper-plains/scenes/LakeScene';
 import {
   buildDeepSeaScene,
   DEEP_PORTAL_X, DEEP_PORTAL_Y, DEEP_SPAWN_X, DEEP_SPAWN_Y,
 } from '../../examples/05-whisper-plains/scenes/DeepSeaScene';
-import { Pathfinder } from '../physics/Pathfinder';
+import {Pathfinder} from '../physics/Pathfinder';
 
 /**
  * example-05 scene reachability.
@@ -17,7 +20,7 @@ import { Pathfinder } from '../physics/Pathfinder';
  */
 
 describe('example-05 LakeScene collider', () => {
-  const { collider } = buildLakeScene(13, 13);
+  const {collider} = buildLakeScene(13, 13);
 
   it('blocks the rock tiles', () => {
     // A sample from the hardcoded rock list in LakeScene.
@@ -40,8 +43,8 @@ describe('example-05 LakeScene collider', () => {
   it('leaves the portal reachable from the spawn point', () => {
     const path = Pathfinder.find(
       collider,
-      { x: LAKE_SPAWN_X, y: LAKE_SPAWN_Y },
-      { x: LAKE_PORTAL_X, y: LAKE_PORTAL_Y },
+      {x: LAKE_SPAWN_X, y: LAKE_SPAWN_Y},
+      {x: LAKE_PORTAL_X, y: LAKE_PORTAL_Y}
     );
     expect(path).not.toBeNull();
     expect(path!.length).toBeGreaterThan(1);
@@ -49,7 +52,7 @@ describe('example-05 LakeScene collider', () => {
 });
 
 describe('example-05 DeepSeaScene collider', () => {
-  const { collider } = buildDeepSeaScene();
+  const {collider} = buildDeepSeaScene();
 
   it('blocks the coral tiles', () => {
     expect(collider.isWalkable(2, 3)).toBe(false);
@@ -71,8 +74,8 @@ describe('example-05 DeepSeaScene collider', () => {
   it('leaves the portal reachable from the spawn point', () => {
     const path = Pathfinder.find(
       collider,
-      { x: DEEP_SPAWN_X, y: DEEP_SPAWN_Y },
-      { x: DEEP_PORTAL_X, y: DEEP_PORTAL_Y },
+      {x: DEEP_SPAWN_X, y: DEEP_SPAWN_Y},
+      {x: DEEP_PORTAL_X, y: DEEP_PORTAL_Y}
     );
     expect(path).not.toBeNull();
     expect(path!.length).toBeGreaterThan(1);

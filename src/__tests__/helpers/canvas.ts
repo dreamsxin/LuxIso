@@ -7,10 +7,10 @@
  * that stub, once: it records calls in order and property writes as they happen,
  * so a test can assert *what* was drawn rather than merely that nothing threw.
  */
-import { DEFAULT_ISO_VIEW } from '../../math/IsoProjection';
-import type { DrawContext } from '../../elements/IsoObject';
-import type { OmniLight } from '../../lighting/OmniLight';
-import type { DirectionalLight } from '../../lighting/DirectionalLight';
+import {DEFAULT_ISO_VIEW} from '../../math/IsoProjection';
+import type {DrawContext} from '../../elements/IsoObject';
+import type {OmniLight} from '../../lighting/OmniLight';
+import type {DirectionalLight} from '../../lighting/DirectionalLight';
 
 export interface CtxCall {
   fn: string;
@@ -22,7 +22,7 @@ export interface CtxRecorder {
   /** Every method call, in order. */
   calls: CtxCall[];
   /** Every property write, in order — `fillStyle`, `globalAlpha`, … */
-  sets: Array<{ prop: string; value: unknown }>;
+  sets: Array<{prop: string; value: unknown}>;
   /** Method names in call order, for coarse sequence assertions. */
   names(): string[];
   /** Argument lists of every call to `fn`. */
@@ -34,28 +34,28 @@ export interface CtxRecorder {
 
 /** Methods that return something the drawing code then uses. */
 const RETURNS: Record<string, () => unknown> = {
-  createLinearGradient: () => ({ addColorStop: () => {} }),
-  createRadialGradient: () => ({ addColorStop: () => {} }),
+  createLinearGradient: () => ({addColorStop: () => {}}),
+  createRadialGradient: () => ({addColorStop: () => {}}),
   createPattern: () => null,
-  measureText: () => ({ width: 0 }),
-  getImageData: () => ({ data: new Uint8ClampedArray(4) }),
+  measureText: () => ({width: 0}),
+  getImageData: () => ({data: new Uint8ClampedArray(4)}),
 };
 
 export function createCtxRecorder(): CtxRecorder {
   const calls: CtxCall[] = [];
-  const sets: Array<{ prop: string; value: unknown }> = [];
+  const sets: Array<{prop: string; value: unknown}> = [];
 
   const ctx = new Proxy({} as Record<string, unknown>, {
     get: (target, prop: string) => {
-      if (prop in target) return target[prop];
+      if (prop in target) {return target[prop];}
       return (...args: unknown[]) => {
-        calls.push({ fn: prop, args: args.map((a) => (typeof a === 'number' ? a : NaN)) });
+        calls.push({fn: prop, args: args.map(a => (typeof a === 'number' ? a : NaN))});
         return RETURNS[prop]?.();
       };
     },
     set: (target, prop: string, value: unknown) => {
       target[prop] = value;
-      sets.push({ prop, value });
+      sets.push({prop, value});
       return true;
     },
   }) as unknown as CanvasRenderingContext2D;
@@ -64,9 +64,9 @@ export function createCtxRecorder(): CtxRecorder {
     ctx,
     calls,
     sets,
-    names: () => calls.map((c) => c.fn),
-    argsOf: (fn) => calls.filter((c) => c.fn === fn).map((c) => c.args),
-    valuesOf: (prop) => sets.filter((s) => s.prop === prop).map((s) => s.value),
+    names: () => calls.map(c => c.fn),
+    argsOf: fn => calls.filter(c => c.fn === fn).map(c => c.args),
+    valuesOf: prop => sets.filter(s => s.prop === prop).map(s => s.value),
     reset: () => { calls.length = 0; sets.length = 0; },
   };
 }
@@ -91,7 +91,7 @@ export function createDrawContext(overrides: Partial<DrawContext> = {}): TestDra
     omniLights: [] as OmniLight[],
     dirLights: [] as DirectionalLight[],
     ambientRgb: [0.2, 0.2, 0.2],
-    view: { ...DEFAULT_ISO_VIEW },
+    view: {...DEFAULT_ISO_VIEW},
     ...overrides,
     recorder,
   };

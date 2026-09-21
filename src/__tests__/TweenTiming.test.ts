@@ -1,6 +1,6 @@
-import { describe, it, expect, vi } from 'vitest';
-import { TweenComponent, Easing, type TweenOptions } from '../ecs/components/TweenComponent';
-import { IsoObject } from '../elements/IsoObject';
+import {describe, it, expect, vi} from 'vitest';
+import {TweenComponent, Easing, type TweenOptions} from '../ecs/components/TweenComponent';
+import {IsoObject} from '../elements/IsoObject';
 
 /**
  * TweenComponent timing.
@@ -13,8 +13,8 @@ import { IsoObject } from '../elements/IsoObject';
 function owner(x = 0, y = 0, z = 0): IsoObject {
   return {
     id: 'e',
-    position: { x, y, z },
-    aabb: { minX: 0, minY: 0, maxX: 1, maxY: 1, baseZ: 0 },
+    position: {x, y, z},
+    aabb: {minX: 0, minY: 0, maxX: 1, maxY: 1, baseZ: 0},
     draw: () => {},
   } as unknown as IsoObject;
 }
@@ -22,39 +22,39 @@ function owner(x = 0, y = 0, z = 0): IsoObject {
 function tween(opts: Partial<TweenOptions> = {}) {
   const o = owner();
   const tw = new TweenComponent({
-    targets: [{ prop: 'z', from: 0, to: 100 }],
+    targets: [{prop: 'z', from: 0, to: 100}],
     duration: 1,
     easing: Easing.linear,
     ...opts,
   });
   tw.onAttach(o);
-  return { tw, o };
+  return {tw, o};
 }
 
 describe('TweenComponent — frame delta', () => {
   it('does not advance on the first frame', () => {
-    const { tw, o } = tween();
+    const {tw, o} = tween();
     tw.update(1000);
     expect(o.position.z).toBe(0);
     expect(tw.progress).toBe(0);
   });
 
   it('measures the real delta on the second frame', () => {
-    const { tw, o } = tween();
+    const {tw, o} = tween();
     tw.update(1000);
     tw.update(1250);
     expect(o.position.z).toBeCloseTo(25, 6);
   });
 
   it('works when the first timestamp is 0', () => {
-    const { tw, o } = tween();
+    const {tw, o} = tween();
     tw.update(0);
     tw.update(250);
     expect(o.position.z).toBeCloseTo(25, 6);
   });
 
   it('never runs backwards on a backwards timestamp', () => {
-    const { tw, o } = tween();
+    const {tw, o} = tween();
     tw.update(1000);
     tw.update(1250);
     tw.update(500);
@@ -62,7 +62,7 @@ describe('TweenComponent — frame delta', () => {
   });
 
   it('restart does not jump forward', () => {
-    const { tw, o } = tween();
+    const {tw, o} = tween();
     tw.update(1000);
     tw.update(1500);
     expect(o.position.z).toBeCloseTo(50, 6);
@@ -79,7 +79,7 @@ describe('TweenComponent — frame delta', () => {
   });
 
   it('pause does not credit the time spent paused', () => {
-    const { tw, o } = tween();
+    const {tw, o} = tween();
     tw.update(1000);
     tw.update(1100);
     expect(o.position.z).toBeCloseTo(10, 6);
@@ -98,7 +98,7 @@ describe('TweenComponent — frame delta', () => {
 
 describe('TweenComponent — delay', () => {
   it('carries the leftover of the frame that ends the delay', () => {
-    const { tw, o } = tween({ delay: 0.1 });
+    const {tw, o} = tween({delay: 0.1});
     tw.update(1000);
     // 300 ms frame: 100 ms is the delay, the remaining 200 ms belongs to the
     // tween. Discarding it made every delayed tween start late.
@@ -107,7 +107,7 @@ describe('TweenComponent — delay', () => {
   });
 
   it('does not start before the delay elapses', () => {
-    const { tw, o } = tween({ delay: 0.5 });
+    const {tw, o} = tween({delay: 0.5});
     tw.update(1000);
     tw.update(1200);
     expect(o.position.z).toBe(0);
@@ -116,7 +116,7 @@ describe('TweenComponent — delay', () => {
 
 describe('TweenComponent — repeat and yoyo', () => {
   it('carries the overshoot across a repeat boundary', () => {
-    const { tw, o } = tween({ duration: 0.2, repeat: 2 });
+    const {tw, o} = tween({duration: 0.2, repeat: 2});
     tw.update(1000);
     // 300 ms covers the first 200 ms cycle plus 100 ms of the second, so the
     // second cycle must already be halfway through. Zeroing `_elapsed` at the
@@ -130,7 +130,7 @@ describe('TweenComponent — repeat and yoyo', () => {
   });
 
   it('yoyo reverses and lands back at the start', () => {
-    const { tw, o } = tween({ duration: 0.2, yoyo: true, repeat: 1 });
+    const {tw, o} = tween({duration: 0.2, yoyo: true, repeat: 1});
     tw.update(1000);
     tw.update(1200); // end of the forward pass
     tw.update(1400); // end of the reverse pass
@@ -140,7 +140,7 @@ describe('TweenComponent — repeat and yoyo', () => {
 
   it('snaps to the end value and reports done', () => {
     const onComplete = vi.fn();
-    const { tw, o } = tween({ duration: 0.2, onComplete });
+    const {tw, o} = tween({duration: 0.2, onComplete});
     tw.update(1000);
     tw.update(1500);
     expect(o.position.z).toBe(100);
@@ -151,7 +151,7 @@ describe('TweenComponent — repeat and yoyo', () => {
 
   it('stops updating once done', () => {
     const onUpdate = vi.fn();
-    const { tw } = tween({ duration: 0.1, onUpdate });
+    const {tw} = tween({duration: 0.1, onUpdate});
     tw.update(1000);
     tw.update(1200);
     const calls = onUpdate.mock.calls.length;
@@ -160,14 +160,14 @@ describe('TweenComponent — repeat and yoyo', () => {
   });
 
   it('repeat: -1 never finishes', () => {
-    const { tw } = tween({ duration: 0.1, repeat: -1 });
+    const {tw} = tween({duration: 0.1, repeat: -1});
     let ts = 1000;
     for (let i = 0; i < 30; i++) { tw.update(ts); ts += 100; }
     expect(tw.isDone).toBe(false);
   });
 
   it('does nothing without an owner', () => {
-    const tw = new TweenComponent({ targets: [{ prop: 'z', from: 0, to: 1 }], duration: 1 });
+    const tw = new TweenComponent({targets: [{prop: 'z', from: 0, to: 1}], duration: 1});
     expect(() => { tw.update(1000); tw.update(1100); }).not.toThrow();
     expect(tw.progress).toBe(0);
   });
