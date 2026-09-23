@@ -88,4 +88,21 @@ describe('Camera — lerp follow', () => {
     cam.update();
     expect(cam.x).toBeCloseTo(5, 6);
   });
+
+  it('stops tracking after unfollow, and leaves the camera where it was', () => {
+    const cam = new Camera({lerpFactor: 1});
+    const target = {id: 't', position: {x: 7, y: 3, z: 0}, aabb: {} as never, draw: () => {}} as never;
+    cam.follow(target);
+    cam.update();
+
+    cam.unfollow();
+    target.position.x = 99;
+    target.position.y = 99;
+    cam.update();
+
+    // Still at the position the last followed frame put it in: unfollow drops
+    // the target, it does not recentre or reset.
+    expect(cam.x).toBe(7);
+    expect(cam.y).toBe(3);
+  });
 });
