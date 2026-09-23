@@ -25,10 +25,10 @@ import {RENDER_VERTEX_FLOATS, type RenderSnapshot} from '../../webgl-next/src/co
  * the tests below hold both backends to the same answer, from opposite sides:
  * `topoSort` order on the Canvas2D side, vertex submission order on the GL side.
  *
- * Note for whoever regenerates the pixel baselines: this change moves every
- * particle and cloud in the preview scene, so all nine fixtures shift and the
- * three committed PNGs have to be re-minted through the `webgl-baselines`
- * workflow. See `webgl-next/ROADMAP.md`, Phase 5.
+ * These have to be unit tests. A fixture URL skips `scene.fixedUpdate`
+ * (`webgl-next/main.ts:400`) so captures stay deterministic, so no emitter ever
+ * ticks and the pixel-gated fixtures contain zero particles — regenerating the
+ * baselines after this fix produced byte-identical PNGs. The gate is blind here.
  */
 
 /** An emitter that spawns only on `burst` and whose particles outlive a test. */

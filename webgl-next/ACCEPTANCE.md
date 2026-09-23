@@ -107,9 +107,13 @@ now holds both backends to the same answer from opposite sides: `topoSort` order
 on the Canvas2D side, vertex submission order read back out of the arena via the
 encoded pick ID on the GL side. No browser, no threshold.
 
-The fix moves pixels in all nine fixtures, so the three committed PNGs are stale
-until `webgl-baselines` re-mints them; until then the gate is expected to fail on
-those three.
+The fix turned out to move no pixels at all: baselines regenerated on 2026-09-23
+came back byte-identical to the committed ones. The reason is worse than the
+defect was. A fixture URL skips `scene.fixedUpdate` entirely
+(`webgl-next/main.ts:400`) so that captures are deterministic, which also means
+no emitter ever ticks — **every gated fixture contains zero particles**. The
+budget was never going to catch this, at any threshold. Anything particle-shaped
+has to be tested below the browser.
 
 
 2,500 is a ratchet, set above the current known-good delta and only ever

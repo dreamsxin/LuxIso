@@ -129,10 +129,12 @@ source on 2026-09-21:
   extractor makes one pass over the sorted list, so particles and clouds are
   submitted where they stand instead of being deferred past every object. Both
   orderings are pinned from opposite sides in
-  `src/__tests__/ParticleDrawOrderParity.test.ts`. **This moves pixels in all
-  nine fixtures** — the preview scene has a cloud and two emitters — so the three
-  committed baselines must be re-minted through `webgl-baselines` before the
-  pixel gate can pass again.
+  `src/__tests__/ParticleDrawOrderParity.test.ts`. The pixel baselines did *not*
+  move — a regenerated set came back byte-identical on 2026-09-23. That is not
+  reassurance, it is the gate's blind spot: a fixture URL skips
+  `scene.fixedUpdate` entirely (`webgl-next/main.ts:400`), so no emitter ever
+  ticks and every gated capture contains zero particles. The gate cannot see a
+  particle regression at all, which is why the parity test had to be unit-level.
 - `MAX_OMNI_LIGHTS` is 8 and the renderer clamps to it, while the performance
   budget in `ACCEPTANCE.md` specifies a 16-omni reference workload. One of the
   two numbers has to move.

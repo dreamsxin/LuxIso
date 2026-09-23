@@ -91,8 +91,10 @@ describe('Camera — lerp follow', () => {
 
   it('stops tracking after unfollow, and leaves the camera where it was', () => {
     const cam = new Camera({lerpFactor: 1});
-    const target = {id: 't', position: {x: 7, y: 3, z: 0}, aabb: {} as never, draw: () => {}} as never;
-    cam.follow(target);
+    // Not cast to `never` here, unlike the cases above: the test moves the
+    // target after unfollowing, so `position` has to stay writable.
+    const target = {id: 't', position: {x: 7, y: 3, z: 0}, aabb: {} as never, draw: () => {}};
+    cam.follow(target as never);
     cam.update();
 
     cam.unfollow();
