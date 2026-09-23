@@ -32,6 +32,26 @@ import {
 } from './ShadowProjector';
 import {ShadowProjectionCache, type ShadowCacheStats} from './ShadowProjectionCache';
 
+/** Where one `extract` spent its time, and on how much work. */
+export interface ExtractStats {
+  /** Visible-bounds computation and the two filter passes. */
+  cullMs: number;
+  /** `topoSort` alone. */
+  sortMs: number;
+  /** Everything after the sort: shadows, geometry, halos, debug, minimap. */
+  buildMs: number;
+  totalMs: number;
+  floorObjects: number;
+  /** Renderables that survived culling, i.e. what the sort had to order. */
+  sortedObjects: number;
+  /**
+   * Draw segments recorded. A draw call is a `range ∩ segment` intersection, so
+   * this is the number batching has to bring down.
+   */
+  segments: number;
+  vertices: number;
+}
+
 export interface ExtractOptions {
   viewportWidth: number;
   viewportHeight: number;
@@ -153,12 +173,34 @@ export class SceneExtractor {
   private _minimapWalkable = new Uint8Array(0);
   private _nextPickId = 1;
   private _frame = 0;
+  private _stats: ExtractStats = {
+    cullMs: 0, sortMs: 0, buildMs: 0, totalMs: 0,
+    floorObjects: 0, sortedObjects: 0, segments: 0, vertices: 0,
+  };
 
   get shadowCacheStats(): ShadowCacheStats {
     return this._shadowCache.stats;
   }
 
+  /**
+   * Where the last `extract` spent its time, and on how much.
+   *
+   * `RenderStats.cpuMs` brackets `WebGLRenderer.render()` only, so the
+   * "CPU extraction + sorting" budget in `ACCEPTANCE.md` had no meter at all.
+   * The split matters because the two halves scale differently: culling is
+   * linear in the scene, `topoSort` is not, and batching work changes the third
+   * phase without touching either.
+   *
+   * `segments` is the figure to watch for batching: a draw call is a
+   * `range ∩ segment` intersection, so merging segments is what reduces draw
+   * calls, and it is observable here without a GL context.
+   */
+  get extractStats(): ExtractStats {
+    return this._stats;
+  }
+
   extract(scene: Scene, options: ExtractOptions): RenderSnapshot {
+    const startedAt = performance.now();
     this._shadowCache.beginFrame();
     this._builder.reset();
     this._pickLookup.clear();
@@ -180,7 +222,9 @@ export class SceneExtractor {
         !object.isGroundLayer &&
         intersects(object, visibleBounds)
     );
+    const culledAt = performance.now();
     const sorted = topoSort([...renderables]);
+    const sortedAt = performance.now();
 
     const floorStart = this._builder.mark();
     for (const floor of floorObjects) {this._extractFloor(floor, scene.tileW, scene.tileH, visibleBounds);}
@@ -236,6 +280,18 @@ export class SceneExtractor {
     this._extractMinimap(scene);
     const clearColor = rgb(options.clearColor ?? '#12161d');
     const ambientColor = rgb(scene.ambientColor);
+
+    const finishedAt = performance.now();
+    this._stats = {
+      cullMs: culledAt - startedAt,
+      sortMs: sortedAt - culledAt,
+      buildMs: finishedAt - sortedAt,
+      totalMs: finishedAt - startedAt,
+      floorObjects: floorObjects.length,
+      sortedObjects: sorted.length,
+      segments: this._segments.length,
+      vertices: this._builder.vertexCount,
+    };
 
     return {
       frame: ++this._frame,

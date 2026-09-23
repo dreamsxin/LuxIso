@@ -111,16 +111,32 @@ delete/import/export flows pass.
   test, and package declaration checks.
 - Document custom object migration from `draw(ctx)` to render primitives.
 
-Prerequisite: atlas pages and batching. The extractor and the renderer are
-correct but issue one draw per record, so a 100x100 floor is 10,000 quads and
-WebGL2 has no measurable advantage over Canvas2D — which is the whole argument
-for the preview. Two steps, in order: give `TextureRegistry` atlas pages with UV
-remapping, then merge snapshot records by `(texturePage, blendMode, shader)`.
-The isometric constraint is that `topoSort` has already fixed the draw order, so
-merging is only legal inside a run that crosses no depth-conflict pair; the
-batchers in orthogonal engines assume no such ordering and cannot be copied
-wholesale. `Floor` is the cheapest start: it already renders through its own
-buffer and never enters `topoSort`, so an entire layer can collapse to one quad.
+Prerequisite: reduce the vertex volume. Measured on 2026-09-23 with
+`src/__tests__/ExtractionScale.test.ts` (100x100 floor, 200 props, 1920x1080
+viewport, Windows/node): `total=4.56ms cull=0.12 sort=0.14 build=4.30`,
+`segments=4`, `vertices=16803`, of which `floorVerts=11094`.
+
+Two things follow, and the first corrects an assumption this section used to
+state. Draw-call batching for untextured geometry **is already done**:
+`_recordSegment` extends the previous segment whenever blend and texture match,
+so a hundred props collapse into one run and the whole frame issues four
+segments, not one per record. An atlas would only help where runs are split *by
+texture*, which the preview scene does not exercise.
+
+The actual hot spot is vertex writing — 94% of extraction time — and the floor is
+two thirds of the vertices. So the cheapest real win is the one already
+identified: collapse an entire `Floor` layer into one quad instead of six
+vertices per visible tile (1,849 tiles at this viewport). It renders through its
+own buffer and never enters `topoSort`, so nothing about ordering constrains it.
+
+Note also that 4.56 ms already exceeds the 4 ms p95 row in `ACCEPTANCE.md`, with
+only 49 props surviving culling against a reference workload of 1,000 visible
+objects. The budget's own reference load has never been run.
+
+When texture-split runs do need merging, the isometric constraint is that
+`topoSort` has already fixed the draw order, so merging is only legal inside a
+run that crosses no depth-conflict pair; the batchers in orthogonal engines
+assume no such ordering and cannot be copied wholesale.
 
 Known parity gaps to close or accept before the preview, each verified in the
 source on 2026-09-21:

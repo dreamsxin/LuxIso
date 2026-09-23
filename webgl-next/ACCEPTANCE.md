@@ -194,10 +194,16 @@ meter, which is worth stating plainly: a budget nobody can read is not a gate.
   under-report during texture loads.
 - **Context restore** — asserted in `webgl-next/e2e/lifecycle.pw.ts`, the only
   timing assertion in the repo.
-- **CPU extraction + sorting** — not covered. `RenderStats.cpuMs` brackets
-  `WebGLRenderer.render()` only; `SceneExtractor.extract()`, which is where
-  culling and `topoSort` happen, is called outside that window and is not timed
-  at any granularity.
+- **CPU extraction + sorting** — now covered, as of 2026-09-23.
+  `SceneExtractor.extractStats` splits the pass into `cullMs` / `sortMs` /
+  `buildMs` plus the counts each phase worked on, and
+  `src/__tests__/ExtractionScale.test.ts` drives it deterministically without a
+  browser. First reading on the 100x100 / 200-prop workload:
+  `total=4.56ms cull=0.12 sort=0.14 build=4.30`, `segments=4`,
+  `vertices=16803` of which 11,094 are floor. Two consequences: vertex writing is
+  94% of the cost while sorting is noise, and the figure already exceeds the 4 ms
+  row above with only 49 props surviving culling — a twentieth of the 1,000
+  visible objects this budget names. The reference workload has never been run.
 - **GPU render passes** — no instrumentation exists.
   `EXT_disjoint_timer_query_webgl2` is never requested.
 - **Per-frame JS allocation**, **runtime GPU memory** — no instrumentation.
