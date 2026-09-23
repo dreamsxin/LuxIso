@@ -181,6 +181,37 @@ Targets on the agreed reference machine:
 Budgets are regression gates, not reasons to weaken correctness. Record the
 machine, browser, resolution, DPR, scene seed, and commit with every benchmark.
 
+### Instrumentation status (2026-09-23)
+
+Two of the seven rows can be measured today. The rest are targets without a
+meter, which is worth stating plainly: a budget nobody can read is not a gate.
+
+- **Draw calls** — `RenderStats.drawCalls` counts `drawArrays` calls in JS. It
+  used to include the ID-buffer pass, which re-draws the sorted scene, the halos
+  and the debug range every frame, so the figure ran roughly double what this row
+  means. Picking now reports separately as `pickingDrawCalls`. Caveat: a segment
+  whose texture has not resolved yet is skipped at draw time, so the count can
+  under-report during texture loads.
+- **Context restore** — asserted in `webgl-next/e2e/lifecycle.pw.ts`, the only
+  timing assertion in the repo.
+- **CPU extraction + sorting** — not covered. `RenderStats.cpuMs` brackets
+  `WebGLRenderer.render()` only; `SceneExtractor.extract()`, which is where
+  culling and `topoSort` happen, is called outside that window and is not timed
+  at any granularity.
+- **GPU render passes** — no instrumentation exists.
+  `EXT_disjoint_timer_query_webgl2` is never requested.
+- **Per-frame JS allocation**, **runtime GPU memory** — no instrumentation.
+- **Frame rate p95** — only means are computed, in two places that disagree:
+  `DebugRenderer` averages `1000/dt` over a 30-frame window (which a burst of
+  fast frames pulls upward), the preview counts frames in a 500 ms window. No
+  percentiles anywhere, and `FrameClock.sample` clamps long frames to `maxDt`,
+  which discards exactly the tail a p95 is for.
+
+So "optimization only after pass-level profiling" (ROADMAP, Work Order 6) is not
+yet satisfiable for the extraction and GPU rows. Atlas and batching work should
+start by making those two measurable, in a deterministic harness, so the before
+and after are comparable.
+
 ## Browser Matrix
 
 - Current Chrome and Edge on Windows.

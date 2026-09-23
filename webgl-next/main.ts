@@ -484,7 +484,7 @@ function updateMetrics(_dt: number): void {
   if (!renderer || mode === 'canvas') {return;}
   const stats = renderer.stats;
   required('cpu').textContent = `${stats.cpuMs.toFixed(2)} ms`;
-  required('draw-calls').textContent = String(stats.drawCalls);
+  required('draw-calls').textContent = `${stats.drawCalls} (+${stats.pickingDrawCalls} pick)`;
   required('triangles').textContent = Math.round(stats.triangles).toLocaleString();
   required('buffer').textContent = `${(stats.bufferBytes / 1024).toFixed(1)} KB`;
   required('lights').textContent = String(stats.omniLights);

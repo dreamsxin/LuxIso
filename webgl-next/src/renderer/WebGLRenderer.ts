@@ -95,6 +95,7 @@ export class WebGLRenderer implements RenderBackend {
     frame: 0,
     cpuMs: 0,
     drawCalls: 0,
+    pickingDrawCalls: 0,
     triangles: 0,
     vertices: 0,
     bufferBytes: 0,
@@ -220,8 +221,10 @@ export class WebGLRenderer implements RenderBackend {
     this._lastSnapshot = snapshot;
     this._statsValue.frame = snapshot.frame;
     this._statsValue.cpuMs = performance.now() - startedAt;
-    this._statsValue.drawCalls = visualDrawCalls + pickingDrawCalls;
-    this._statsValue.triangles = geometry.vertexCount / 3;
+    this._statsValue.drawCalls = visualDrawCalls;
+    this._statsValue.pickingDrawCalls = pickingDrawCalls;
+    this._statsValue.triangles = (geometry.floor.count + geometry.opaque.count
+      + geometry.transparent.count + geometry.debug.count) / 3;
     this._statsValue.vertices = geometry.vertexCount;
     this._statsValue.bufferBytes = byteLength;
     this._statsValue.omniLights = Math.min(MAX_OMNI_LIGHTS, snapshot.omniLights.length);
