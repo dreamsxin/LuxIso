@@ -1,4 +1,4 @@
-import { defineConfig } from 'vitest/config';
+import {defineConfig} from 'vitest/config';
 
 /**
  * Vitest configuration, kept separate from vite.config.ts because that file
@@ -43,28 +43,28 @@ export default defineConfig({
         functions: 85,
         lines: 86,
         // Isometric projection, depth sort, colour math — fully unit-testable.
-        'src/math/**':     { statements: 90, branches: 88, functions: 92, lines: 92 },
+        'src/math/**': {statements: 90, branches: 88, functions: 92, lines: 92},
         // Collision and A*: where the tunnelling and corner-cut bugs lived.
-        'src/physics/**':  { statements: 90, branches: 85, functions: 94, lines: 93 },
-        'src/lighting/**': { statements: 90, branches: 84, functions: 92, lines: 94 },
-        'src/ecs/**':      { statements: 92, branches: 88, functions: 88, lines: 94 },
-        'src/animation/**':{ statements: 88, branches: 80, functions: 95, lines: 89 },
-        'src/audio/**':    { statements: 94, branches: 84, functions: 86, lines: 94 },
-        'src/core/**':     { statements: 95.9, branches: 84.9, functions: 96, lines: 97.7 },
+        'src/physics/**': {statements: 90, branches: 85, functions: 94, lines: 93},
+        'src/lighting/**': {statements: 90, branches: 84, functions: 92, lines: 94},
+        'src/ecs/**': {statements: 92, branches: 88, functions: 88, lines: 94},
+        'src/animation/**': {statements: 88, branches: 80, functions: 95, lines: 89},
+        'src/audio/**': {statements: 94, branches: 84, functions: 86, lines: 94},
+        'src/core/**': {statements: 95.9, branches: 84.9, functions: 96, lines: 97.7},
         // `FrameClock` owns the frame-delta contract for a dozen modules, so it
         // is held at complete coverage rather than a ratchet.
-        'src/time/**':     { statements: 100, branches: 100, functions: 100, lines: 100 },
+        'src/time/**': {statements: 100, branches: 100, functions: 100, lines: 100},
         // Renderable objects: much of the body is canvas drawing code, reachable
         // through the recording context in `src/__tests__/helpers/canvas.ts`.
-        'src/elements/**': { statements: 94, branches: 80, functions: 94, lines: 95 },
+        'src/elements/**': {statements: 94, branches: 80, functions: 94, lines: 95},
         // GPU resource ownership: the texture cache and the handle registry are
         // pure bookkeeping, so they are unit-testable through a fake GL context
         // (`src/__tests__/helpers/gl.ts`) despite living in the WebGL package.
-        'webgl-next/src/resources/**': { statements: 94, branches: 84, functions: 100, lines: 97 },
+        'webgl-next/src/resources/**': {statements: 94, branches: 84, functions: 100, lines: 97},
         // The handle registry: every GPU object the renderer owns passes through
         // it, and the context-loss story depends on its counts. Held complete —
         // the failure paths are where the shader leaks were hiding.
-        'webgl-next/src/device/**': { statements: 100, branches: 100, functions: 100, lines: 100 },
+        'webgl-next/src/device/**': {statements: 100, branches: 100, functions: 100, lines: 100},
       },
     },
   },

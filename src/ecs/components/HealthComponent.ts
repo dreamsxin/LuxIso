@@ -1,6 +1,6 @@
-import { IsoObject } from '../../elements/IsoObject';
-import { Component } from '../Component';
-import type { EventEmitter, LuxIsoEventMap } from '../EventBus';
+import {IsoObject} from '../../elements/IsoObject';
+import {Component} from '../Component';
+import type {EventEmitter, LuxIsoEventMap} from '../EventBus';
 
 type HealthEventMap = Pick<LuxIsoEventMap, 'damage' | 'death'>;
 
@@ -54,9 +54,9 @@ export class HealthComponent implements Component {
     // Assign constructor callbacks directly to the public fields.
     // This eliminates the private _onDeathCb / _onChangeCb duplicates that
     // previously caused double-firing when both paths were set.
-    this.onDeath  = opts.onDeath;
+    this.onDeath = opts.onDeath;
     this.onChange = opts.onChange;
-    this._bus     = opts.bus ?? null;
+    this._bus = opts.bus ?? null;
   }
 
   onAttach(owner: IsoObject): void {
@@ -85,7 +85,7 @@ export class HealthComponent implements Component {
    * path, bypassing the clamp `heal()` applies.
    */
   takeDamage(amount: number, sourceId?: string): void {
-    if (this.isDead) return;
+    if (this.isDead) {return;}
     const damage = Math.max(0, amount);
     this._current = Math.max(0, this._current - damage);
     // Emit damage event before callbacks so bus listeners see the correct hp.
@@ -96,7 +96,7 @@ export class HealthComponent implements Component {
     });
     this._notify();
     if (this._current === 0 && this._owner) {
-      this._bus?.emit('death', { id: this._owner.id });
+      this._bus?.emit('death', {id: this._owner.id});
       this.onDeath?.(this._owner);
     }
   }
@@ -107,7 +107,7 @@ export class HealthComponent implements Component {
    * no `death` event and no `onDeath` callback. Use `takeDamage()` to hurt.
    */
   heal(amount: number): void {
-    if (this.isDead) return;
+    if (this.isDead) {return;}
     this._current = Math.min(this._max, this._current + Math.max(0, amount));
     this._notify();
   }
@@ -118,7 +118,7 @@ export class HealthComponent implements Component {
    * entity reading as dead without any death event ever firing.
    */
   setMax(max: number, scaleCurrentHp = false): void {
-    if (!(max > 0)) return;
+    if (!(max > 0)) {return;}
     const ratio = scaleCurrentHp ? this._current / this._max : 1;
     this._max = max;
     this._current = scaleCurrentHp ? Math.round(max * ratio) : Math.min(this._current, max);
@@ -137,7 +137,7 @@ export class HealthComponent implements Component {
    * the point: the death already happened before the save.
    */
   restore(hp: number): void {
-    if (!Number.isFinite(hp)) return;
+    if (!Number.isFinite(hp)) {return;}
     this._current = Math.max(0, Math.min(this._max, hp));
   }
 

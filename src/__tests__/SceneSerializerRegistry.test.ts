@@ -1,14 +1,14 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { Scene } from '../core/Scene';
-import { Engine } from '../core/Engine';
-import { SceneSerializer } from '../core/SceneSerializer';
-import { Entity } from '../ecs/Entity';
-import { Chest } from '../elements/props/Chest';
-import { HealthComponent } from '../ecs/components/HealthComponent';
-import { BaseLight } from '../lighting/BaseLight';
-import { OmniLight } from '../lighting/OmniLight';
-import type { AABB } from '../math/depthSort';
-import type { DrawContext } from '../elements/IsoObject';
+import {describe, it, expect, vi, beforeEach, afterEach} from 'vitest';
+import {Scene} from '../core/Scene';
+import {Engine} from '../core/Engine';
+import {SceneSerializer} from '../core/SceneSerializer';
+import {Entity} from '../ecs/Entity';
+import {Chest} from '../elements/props/Chest';
+import {HealthComponent} from '../ecs/components/HealthComponent';
+import {BaseLight} from '../lighting/BaseLight';
+import {OmniLight} from '../lighting/OmniLight';
+import type {AABB} from '../math/depthSort';
+import type {DrawContext} from '../elements/IsoObject';
 
 /**
  * Custom prop serialization.
@@ -22,7 +22,7 @@ import type { DrawContext } from '../elements/IsoObject';
 class Mob extends Entity {
   constructor(id: string, x: number, y: number, public tier = 1) { super(id, x, y, 0); }
   get aabb(): AABB {
-    return { minX: this.position.x, maxX: this.position.x, minY: this.position.y, maxY: this.position.y, baseZ: 0 };
+    return {minX: this.position.x, maxX: this.position.x, minY: this.position.y, maxY: this.position.y, baseZ: 0};
   }
   draw(_dc: DrawContext): void {}
 }
@@ -33,13 +33,13 @@ class Boss extends Mob {}
 class Portal extends Entity {
   constructor(id: string, x: number, y: number, public target = 'level2') { super(id, x, y, 0); }
   get aabb(): AABB {
-    return { minX: this.position.x, maxX: this.position.x, minY: this.position.y, maxY: this.position.y, baseZ: 0 };
+    return {minX: this.position.x, maxX: this.position.x, minY: this.position.y, maxY: this.position.y, baseZ: 0};
   }
   draw(_dc: DrawContext): void {}
 }
 
 function canvas(): HTMLCanvasElement {
-  return { width: 1, height: 1, getContext: () => ({}) } as unknown as HTMLCanvasElement;
+  return {width: 1, height: 1, getContext: () => ({})} as unknown as HTMLCanvasElement;
 }
 
 /** A light type the engine knows nothing about — a boss aura, say. */
@@ -51,11 +51,11 @@ class AuraLight extends BaseLight {
 }
 
 function props(scene: Scene): Array<Record<string, unknown>> {
-  return (scene.toJSON() as { props: Array<Record<string, unknown>> }).props;
+  return (scene.toJSON() as {props: Array<Record<string, unknown>>}).props;
 }
 
 function lights(scene: Scene): Array<Record<string, unknown>> {
-  return (scene.toJSON() as { lights: Array<Record<string, unknown>> }).lights;
+  return (scene.toJSON() as {lights: Array<Record<string, unknown>>}).lights;
 }
 
 let warn: ReturnType<typeof vi.spyOn>;
@@ -76,29 +76,29 @@ afterEach(() => {
 
 describe('SceneSerializer — custom prop registry', () => {
   it('writes a registered custom object into props[]', () => {
-    SceneSerializer.register(Mob, (mob) => ({ type: 'mob', tier: mob.tier }));
+    SceneSerializer.register(Mob, mob => ({type: 'mob', tier: mob.tier}));
 
-    const scene = new Scene({ cols: 8, rows: 8 });
+    const scene = new Scene({cols: 8, rows: 8});
     scene.addObject(new Mob('mob-1', 3, 4, 2));
 
     expect(props(scene)).toEqual([
-      { type: 'mob', id: 'mob-1', x: 3, y: 4, tier: 2 },
+      {type: 'mob', id: 'mob-1', x: 3, y: 4, tier: 2},
     ]);
   });
 
   it('fills in id/x/y so a serializer only declares its own fields', () => {
-    SceneSerializer.register(Portal, () => ({ type: 'portal' }));
-    const scene = new Scene({ cols: 8, rows: 8 });
+    SceneSerializer.register(Portal, () => ({type: 'portal'}));
+    const scene = new Scene({cols: 8, rows: 8});
     scene.addObject(new Portal('gate', 1.5, 2.5));
 
-    expect(props(scene)[0]).toEqual({ type: 'portal', id: 'gate', x: 1.5, y: 2.5 });
+    expect(props(scene)[0]).toEqual({type: 'portal', id: 'gate', x: 1.5, y: 2.5});
   });
 
   it('lets the serializer override the defaults', () => {
-    SceneSerializer.register(Portal, (portal) => ({
+    SceneSerializer.register(Portal, portal => ({
       type: 'portal', id: `saved-${portal.id}`, x: 9, y: 9, target: portal.target,
     }));
-    const scene = new Scene({ cols: 8, rows: 8 });
+    const scene = new Scene({cols: 8, rows: 8});
     scene.addObject(new Portal('gate', 1, 1));
 
     expect(props(scene)[0]).toEqual({
@@ -107,7 +107,7 @@ describe('SceneSerializer — custom prop registry', () => {
   });
 
   it('drops an object with no serializer, warning once per type', () => {
-    const scene = new Scene({ cols: 8, rows: 8 });
+    const scene = new Scene({cols: 8, rows: 8});
     scene.addObject(new Mob('a', 1, 1));
     scene.addObject(new Mob('b', 2, 2));
 
@@ -117,52 +117,52 @@ describe('SceneSerializer — custom prop registry', () => {
   });
 
   it('a later registration wins, and a subclass can override its base', () => {
-    SceneSerializer.register(Mob, () => ({ type: 'mob' }));
-    SceneSerializer.register(Boss, () => ({ type: 'boss', phase: 1 }));
+    SceneSerializer.register(Mob, () => ({type: 'mob'}));
+    SceneSerializer.register(Boss, () => ({type: 'boss', phase: 1}));
 
-    const scene = new Scene({ cols: 8, rows: 8 });
+    const scene = new Scene({cols: 8, rows: 8});
     scene.addObject(new Mob('m', 1, 1));
     scene.addObject(new Boss('b', 2, 2));
 
     expect(props(scene)).toEqual([
-      { type: 'mob', id: 'm', x: 1, y: 1 },
-      { type: 'boss', id: 'b', x: 2, y: 2, phase: 1 },
+      {type: 'mob', id: 'm', x: 1, y: 1},
+      {type: 'boss', id: 'b', x: 2, y: 2, phase: 1},
     ]);
   });
 
   it('a base-class serializer still covers a subclass', () => {
-    SceneSerializer.register(Mob, (mob) => ({ type: 'mob', tier: mob.tier }));
-    const scene = new Scene({ cols: 8, rows: 8 });
+    SceneSerializer.register(Mob, mob => ({type: 'mob', tier: mob.tier}));
+    const scene = new Scene({cols: 8, rows: 8});
     scene.addObject(new Boss('b', 2, 2, 9));
-    expect(props(scene)).toEqual([{ type: 'mob', id: 'b', x: 2, y: 2, tier: 9 }]);
+    expect(props(scene)).toEqual([{type: 'mob', id: 'b', x: 2, y: 2, tier: 9}]);
   });
 
   it('returning null skips the object silently', () => {
-    SceneSerializer.register(Mob, (mob) => (mob.tier > 1 ? { type: 'mob' } : null));
-    const scene = new Scene({ cols: 8, rows: 8 });
+    SceneSerializer.register(Mob, mob => (mob.tier > 1 ? {type: 'mob'} : null));
+    const scene = new Scene({cols: 8, rows: 8});
     scene.addObject(new Mob('weak', 1, 1, 1));
     scene.addObject(new Mob('elite', 2, 2, 5));
 
-    expect(props(scene)).toEqual([{ type: 'mob', id: 'elite', x: 2, y: 2 }]);
+    expect(props(scene)).toEqual([{type: 'mob', id: 'elite', x: 2, y: 2}]);
     expect(warn).not.toHaveBeenCalled();
   });
 
   it('a throwing serializer costs one object, not the whole save', () => {
-    SceneSerializer.register(Mob, (mob) => {
-      if (mob.id === 'bad') throw new Error('boom');
-      return { type: 'mob' };
+    SceneSerializer.register(Mob, mob => {
+      if (mob.id === 'bad') {throw new Error('boom');}
+      return {type: 'mob'};
     });
-    const scene = new Scene({ cols: 8, rows: 8 });
+    const scene = new Scene({cols: 8, rows: 8});
     scene.addObject(new Mob('bad', 1, 1));
     scene.addObject(new Mob('good', 2, 2));
 
-    expect(props(scene)).toEqual([{ type: 'mob', id: 'good', x: 2, y: 2 }]);
+    expect(props(scene)).toEqual([{type: 'mob', id: 'good', x: 2, y: 2}]);
     expect(String(warn.mock.calls[0][0])).toContain('threw');
   });
 
   it('drops an entry with no type, since it could not be loaded back', () => {
-    SceneSerializer.register(Mob, () => ({ tier: 3 }));
-    const scene = new Scene({ cols: 8, rows: 8 });
+    SceneSerializer.register(Mob, () => ({tier: 3}));
+    const scene = new Scene({cols: 8, rows: 8});
     scene.addObject(new Mob('m', 1, 1));
 
     expect(props(scene)).toEqual([]);
@@ -170,14 +170,14 @@ describe('SceneSerializer — custom prop registry', () => {
   });
 
   it('unregister and clearSerializers take effect', () => {
-    SceneSerializer.register(Mob, () => ({ type: 'mob' }));
+    SceneSerializer.register(Mob, () => ({type: 'mob'}));
     expect(SceneSerializer.findSerializer(new Mob('m', 0, 0))).not.toBeNull();
 
     expect(SceneSerializer.unregister(Mob)).toBe(true);
     expect(SceneSerializer.unregister(Mob)).toBe(false);
     expect(SceneSerializer.findSerializer(new Mob('m', 0, 0))).toBeNull();
 
-    SceneSerializer.register(Mob, () => ({ type: 'mob' }));
+    SceneSerializer.register(Mob, () => ({type: 'mob'}));
     SceneSerializer.clearSerializers();
     expect(SceneSerializer.findSerializer(new Mob('m', 0, 0))).toBeNull();
   });
@@ -185,19 +185,19 @@ describe('SceneSerializer — custom prop registry', () => {
 
 describe('SceneSerializer — built-ins keep priority', () => {
   it('a built-in prop is written by its own branch, not the registry', () => {
-    const serialize = vi.fn(() => ({ type: 'loot-chest' }));
+    const serialize = vi.fn(() => ({type: 'loot-chest'}));
     SceneSerializer.register(Chest, serialize);
 
-    const scene = new Scene({ cols: 8, rows: 8 });
+    const scene = new Scene({cols: 8, rows: 8});
     scene.addObject(new Chest('c1', 2, 2, '#8b5a2b'));
 
-    expect(props(scene)).toEqual([{ type: 'chest', id: 'c1', x: 2, y: 2, color: '#8b5a2b' }]);
+    expect(props(scene)).toEqual([{type: 'chest', id: 'c1', x: 2, y: 2, color: '#8b5a2b'}]);
     expect(serialize).not.toHaveBeenCalled();
   });
 
   it('transient built-ins are skipped without a warning', () => {
-    const scene = new Scene({ cols: 8, rows: 8 });
-    scene.spawnFloatingText({ text: '-12', x: 1, y: 1, z: 0 });
+    const scene = new Scene({cols: 8, rows: 8});
+    scene.spawnFloatingText({text: '-12', x: 1, y: 1, z: 0});
 
     expect(props(scene)).toEqual([]);
     expect(warn).not.toHaveBeenCalled();
@@ -206,33 +206,33 @@ describe('SceneSerializer — built-ins keep priority', () => {
 
 describe('SceneSerializer — custom light registry', () => {
   it('writes a registered custom light into lights[]', () => {
-    SceneSerializer.registerLight(AuraLight, (light) => ({ radius: light.radius }));
+    SceneSerializer.registerLight(AuraLight, light => ({radius: light.radius}));
 
-    const scene = new Scene({ cols: 8, rows: 8 });
+    const scene = new Scene({cols: 8, rows: 8});
     const aura = new AuraLight('#ff8844', 0.8, 120);
     aura.id = 'boss-aura';
     scene.addLight(aura);
 
     expect(lights(scene)).toEqual([
-      { type: 'aura', id: 'boss-aura', enabled: true, color: '#ff8844', intensity: 0.8, radius: 120 },
+      {type: 'aura', id: 'boss-aura', enabled: true, color: '#ff8844', intensity: 0.8, radius: 120},
     ]);
   });
 
   it('defaults type to the light\'s own discriminator and carries enabled', () => {
     SceneSerializer.registerLight(AuraLight, () => ({}));
 
-    const scene = new Scene({ cols: 8, rows: 8 });
+    const scene = new Scene({cols: 8, rows: 8});
     const aura = new AuraLight();
     aura.enabled = false;
     scene.addLight(aura);
 
     expect(lights(scene)).toEqual([
-      { type: 'aura', enabled: false, color: '#ffffff', intensity: 1 },
+      {type: 'aura', enabled: false, color: '#ffffff', intensity: 1},
     ]);
   });
 
   it('drops an unregistered light type, warning once', () => {
-    const scene = new Scene({ cols: 8, rows: 8 });
+    const scene = new Scene({cols: 8, rows: 8});
     scene.addLight(new AuraLight());
     scene.addLight(new AuraLight());
 
@@ -245,27 +245,27 @@ describe('SceneSerializer — custom light registry', () => {
     const serialize = vi.fn(() => ({}));
     SceneSerializer.registerLight(OmniLight, serialize);
 
-    const scene = new Scene({ cols: 8, rows: 8 });
-    scene.addLight(new OmniLight({ id: 'torch', x: 1, y: 2, z: 0, radius: 200 }));
+    const scene = new Scene({cols: 8, rows: 8});
+    scene.addLight(new OmniLight({id: 'torch', x: 1, y: 2, z: 0, radius: 200}));
 
     expect(lights(scene).length).toBe(1);
-    expect(lights(scene)[0]).toMatchObject({ type: 'omni', id: 'torch', radius: 200 });
+    expect(lights(scene)[0]).toMatchObject({type: 'omni', id: 'torch', radius: 200});
     expect(serialize).not.toHaveBeenCalled();
   });
 
   it('a throwing light serializer costs one light', () => {
-    SceneSerializer.registerLight(AuraLight, (light) => {
-      if (light.id === 'bad') throw new Error('boom');
+    SceneSerializer.registerLight(AuraLight, light => {
+      if (light.id === 'bad') {throw new Error('boom');}
       return {};
     });
-    const scene = new Scene({ cols: 8, rows: 8 });
+    const scene = new Scene({cols: 8, rows: 8});
     const bad = new AuraLight(); bad.id = 'bad';
     const good = new AuraLight(); good.id = 'good';
     scene.addLight(bad);
     scene.addLight(good);
 
     expect(lights(scene)).toEqual([
-      { type: 'aura', id: 'good', enabled: true, color: '#ffffff', intensity: 1 },
+      {type: 'aura', id: 'good', enabled: true, color: '#ffffff', intensity: 1},
     ]);
   });
 
@@ -281,15 +281,15 @@ describe('SceneSerializer — custom light registry', () => {
   });
 
   it('a custom light survives toJSON -> buildScene', () => {
-    Engine.registerLight('aura', (j) => new AuraLight(j.color, j.intensity, j.radius));
-    SceneSerializer.registerLight(AuraLight, (light) => ({ radius: light.radius }));
+    Engine.registerLight('aura', j => new AuraLight(j.color, j.intensity, j.radius));
+    SceneSerializer.registerLight(AuraLight, light => ({radius: light.radius}));
 
-    const original = new Scene({ cols: 8, rows: 8 });
+    const original = new Scene({cols: 8, rows: 8});
     const aura = new AuraLight('#ff8844', 0.5, 90);
     aura.id = 'boss-aura';
     original.addLight(aura);
 
-    const restored = new Engine({ canvas: canvas() }).buildScene(original.toJSON());
+    const restored = new Engine({canvas: canvas()}).buildScene(original.toJSON());
     const auras = restored.allLights.filter((l): l is AuraLight => l instanceof AuraLight);
 
     expect(auras.length).toBe(1);
@@ -301,13 +301,13 @@ describe('SceneSerializer — custom light registry', () => {
 
 describe('SceneSerializer — round trip through Engine', () => {
   it('a custom prop survives toJSON -> buildScene', () => {
-    Engine.registerProp('mob', (p) => new Mob(p.id, p.x, p.y, p.tier as number));
-    SceneSerializer.register(Mob, (mob) => ({ type: 'mob', tier: mob.tier }));
+    Engine.registerProp('mob', p => new Mob(p.id, p.x, p.y, p.tier as number));
+    SceneSerializer.register(Mob, mob => ({type: 'mob', tier: mob.tier}));
 
-    const original = new Scene({ name: 'Wave 1', cols: 8, rows: 8 });
+    const original = new Scene({name: 'Wave 1', cols: 8, rows: 8});
     original.addObject(new Mob('mob-1', 3, 4, 7));
 
-    const restored = new Engine({ canvas: canvas() }).buildScene(original.toJSON());
+    const restored = new Engine({canvas: canvas()}).buildScene(original.toJSON());
     const mobs = restored.getAll(Mob);
 
     expect(mobs.length).toBe(1);
@@ -318,13 +318,13 @@ describe('SceneSerializer — round trip through Engine', () => {
   });
 
   it('health round-trips through the engine hook', () => {
-    Engine.registerProp('mob', (p) => new Mob(p.id, p.x, p.y));
-    SceneSerializer.register(Mob, () => ({ type: 'mob', health: 250 }));
+    Engine.registerProp('mob', p => new Mob(p.id, p.x, p.y));
+    SceneSerializer.register(Mob, () => ({type: 'mob', health: 250}));
 
-    const original = new Scene({ cols: 8, rows: 8 });
+    const original = new Scene({cols: 8, rows: 8});
     original.addObject(new Mob('mob-1', 1, 1));
 
-    const restored = new Engine({ canvas: canvas() }).buildScene(original.toJSON());
+    const restored = new Engine({canvas: canvas()}).buildScene(original.toJSON());
     const hp = restored.getAll(Mob)[0].getComponent(HealthComponent);
 
     expect(hp?.maxHp).toBe(250);

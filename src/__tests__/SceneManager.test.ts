@@ -1,8 +1,8 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { SceneManager } from '../core/SceneManager';
-import { Engine } from '../core/Engine';
-import { Scene } from '../core/Scene';
-import { AssetLoader } from '../core/AssetLoader';
+import {describe, it, expect, beforeEach, vi} from 'vitest';
+import {SceneManager} from '../core/SceneManager';
+import {Engine} from '../core/Engine';
+import {Scene} from '../core/Scene';
+import {AssetLoader} from '../core/AssetLoader';
 
 /** Minimal canvas stub: Engine only needs a 2D context and dimensions here. */
 function makeCanvas(): HTMLCanvasElement {
@@ -24,7 +24,7 @@ describe('SceneManager', () => {
   let mgr: SceneManager;
 
   beforeEach(() => {
-    engine = new Engine({ canvas: makeCanvas() });
+    engine = new Engine({canvas: makeCanvas()});
     mgr = new SceneManager(engine);
   });
 
@@ -32,14 +32,14 @@ describe('SceneManager', () => {
   it('registers and pushes scenes', async () => {
     const scene1 = new Scene();
     const onEnter = vi.fn();
-    
+
     mgr.register('menu', () => ({
       scene: scene1,
-      onEnter
+      onEnter,
     }));
 
     await mgr.push('menu');
-    
+
     expect(mgr.current).toBe('menu');
     expect(engine.scene).toBe(scene1);
     expect(onEnter).toHaveBeenCalledTimes(1);
@@ -55,12 +55,12 @@ describe('SceneManager', () => {
     mgr.register('level1', () => ({
       scene: scene1,
       onPause,
-      onResume
+      onResume,
     }));
 
     mgr.register('pauseMenu', () => ({
       scene: scene2,
-      onExit
+      onExit,
     }));
 
     await mgr.push('level1');
@@ -83,8 +83,8 @@ describe('SceneManager', () => {
     const onExit1 = vi.fn();
     const onEnter2 = vi.fn();
 
-    mgr.register('s1', () => ({ scene: scene1, onExit: onExit1 }));
-    mgr.register('s2', () => ({ scene: scene2, onEnter: onEnter2 }));
+    mgr.register('s1', () => ({scene: scene1, onExit: onExit1}));
+    mgr.register('s2', () => ({scene: scene2, onEnter: onEnter2}));
 
     await mgr.push('s1');
     await mgr.replace('s2');
@@ -96,7 +96,7 @@ describe('SceneManager', () => {
   });
 
   it('runs the factory on every push, not just the first', async () => {
-    const factory = vi.fn(() => ({ scene: new Scene() }));
+    const factory = vi.fn(() => ({scene: new Scene()}));
     mgr.register('s', factory);
 
     await mgr.push('s');
@@ -120,8 +120,8 @@ describe('SceneManager', () => {
   it('drives only the top scene from update()', async () => {
     const bottom = vi.fn();
     const top = vi.fn();
-    mgr.register('bottom', () => ({ scene: new Scene(), onUpdate: bottom }));
-    mgr.register('top',    () => ({ scene: new Scene(), onUpdate: top }));
+    mgr.register('bottom', () => ({scene: new Scene(), onUpdate: bottom}));
+    mgr.register('top', () => ({scene: new Scene(), onUpdate: top}));
 
     await mgr.push('bottom');
     await mgr.push('top');
@@ -137,15 +137,15 @@ describe('SceneManager — failed push rollback', () => {
   let mgr: SceneManager;
 
   beforeEach(() => {
-    engine = new Engine({ canvas: makeCanvas() });
+    engine = new Engine({canvas: makeCanvas()});
     mgr = new SceneManager(engine);
   });
 
   it('resumes the previous scene when the new scene fails to build', async () => {
     const base = new Scene();
-    const onPause  = vi.fn();
+    const onPause = vi.fn();
     const onResume = vi.fn();
-    mgr.register('base', () => ({ scene: base, onPause, onResume }));
+    mgr.register('base', () => ({scene: base, onPause, onResume}));
     mgr.register('broken', () => { throw new Error('build failed'); });
 
     await mgr.push('base');
@@ -161,7 +161,7 @@ describe('SceneManager — failed push rollback', () => {
   it('rolls back a scene whose onEnter throws', async () => {
     const base = new Scene();
     const onResume = vi.fn();
-    mgr.register('base', () => ({ scene: base, onPause: vi.fn(), onResume }));
+    mgr.register('base', () => ({scene: base, onPause: vi.fn(), onResume}));
     mgr.register('bad', () => ({
       scene: new Scene(),
       onEnter() { throw new Error('enter failed'); },
@@ -185,7 +185,7 @@ describe('SceneManager — failed push rollback', () => {
 
   it('clears the loading guard so a later push still works', async () => {
     mgr.register('broken', () => { throw new Error('nope'); });
-    mgr.register('good', () => ({ scene: new Scene() }));
+    mgr.register('good', () => ({scene: new Scene()}));
 
     await expect(mgr.push('broken')).rejects.toThrow('nope');
     await mgr.push('good');
@@ -198,7 +198,7 @@ describe('SceneManager — per-scene AssetLoader', () => {
   let mgr: SceneManager;
 
   beforeEach(() => {
-    engine = new Engine({ canvas: makeCanvas() });
+    engine = new Engine({canvas: makeCanvas()});
     mgr = new SceneManager(engine);
   });
 
@@ -210,7 +210,7 @@ describe('SceneManager — per-scene AssetLoader', () => {
 
   it('clears the scene loader on pop', async () => {
     const assetLoader = loaderWithOneAsset();
-    mgr.register('s', () => ({ scene: new Scene(), assetLoader }));
+    mgr.register('s', () => ({scene: new Scene(), assetLoader}));
 
     await mgr.push('s');
     expect(assetLoader.size).toBe(1);
@@ -220,8 +220,8 @@ describe('SceneManager — per-scene AssetLoader', () => {
 
   it('clears the scene loader on replace', async () => {
     const assetLoader = loaderWithOneAsset();
-    mgr.register('s1', () => ({ scene: new Scene(), assetLoader }));
-    mgr.register('s2', () => ({ scene: new Scene() }));
+    mgr.register('s1', () => ({scene: new Scene(), assetLoader}));
+    mgr.register('s2', () => ({scene: new Scene()}));
 
     await mgr.push('s1');
     await mgr.replace('s2');
@@ -230,10 +230,10 @@ describe('SceneManager — per-scene AssetLoader', () => {
 
   it('clears every stacked scene loader on replace', async () => {
     const bottomLoader = loaderWithOneAsset();
-    const topLoader    = loaderWithOneAsset();
-    mgr.register('bottom', () => ({ scene: new Scene(), assetLoader: bottomLoader }));
-    mgr.register('top',    () => ({ scene: new Scene(), assetLoader: topLoader }));
-    mgr.register('fresh',  () => ({ scene: new Scene() }));
+    const topLoader = loaderWithOneAsset();
+    mgr.register('bottom', () => ({scene: new Scene(), assetLoader: bottomLoader}));
+    mgr.register('top', () => ({scene: new Scene(), assetLoader: topLoader}));
+    mgr.register('fresh', () => ({scene: new Scene()}));
 
     await mgr.push('bottom');
     await mgr.push('top');
@@ -262,7 +262,7 @@ describe('SceneManager — per-scene AssetLoader', () => {
 
   it("clears the failed scene's loader when the push rolls back", async () => {
     const assetLoader = loaderWithOneAsset();
-    mgr.register('base', () => ({ scene: new Scene() }));
+    mgr.register('base', () => ({scene: new Scene()}));
     mgr.register('bad', () => ({
       scene: new Scene(),
       assetLoader,
@@ -285,7 +285,7 @@ describe('SceneManager — pop keeps the engine and the stack in step', () => {
   let mgr: SceneManager;
 
   beforeEach(() => {
-    engine = new Engine({ canvas: makeCanvas() });
+    engine = new Engine({canvas: makeCanvas()});
     mgr = new SceneManager(engine);
   });
 
@@ -294,7 +294,7 @@ describe('SceneManager — pop keeps the engine and the stack in step', () => {
     const dead = new Scene();
     const onResume = vi.fn();
 
-    mgr.register('base', () => ({ scene: base, onPause: vi.fn(), onResume }));
+    mgr.register('base', () => ({scene: base, onPause: vi.fn(), onResume}));
     mgr.register('overlay', () => ({
       scene: dead,
       onExit() { throw new Error('exit failed'); },
@@ -333,7 +333,7 @@ describe('SceneManager — replace builds before it retires', () => {
   let mgr: SceneManager;
 
   beforeEach(() => {
-    engine = new Engine({ canvas: makeCanvas() });
+    engine = new Engine({canvas: makeCanvas()});
     mgr = new SceneManager(engine);
   });
 
@@ -343,7 +343,7 @@ describe('SceneManager — replace builds before it retires', () => {
     assetLoader.register('/a.png', {} as HTMLImageElement);
     const onExit = vi.fn();
 
-    mgr.register('base', () => ({ scene: base, assetLoader, onExit }));
+    mgr.register('base', () => ({scene: base, assetLoader, onExit}));
     mgr.register('broken', () => { throw new Error('build failed'); });
 
     await mgr.push('base');
@@ -362,7 +362,7 @@ describe('SceneManager — replace builds before it retires', () => {
   it('rolls back to the previous scene when onEnter throws', async () => {
     const base = new Scene();
     const onExit = vi.fn();
-    mgr.register('base', () => ({ scene: base, onExit }));
+    mgr.register('base', () => ({scene: base, onExit}));
     mgr.register('bad', () => ({
       scene: new Scene(),
       onEnter() { throw new Error('enter failed'); },
@@ -403,9 +403,9 @@ describe('SceneManager — replace builds before it retires', () => {
 
   it('unwinds a deeper stack top-down after the new scene enters', async () => {
     const order: string[] = [];
-    mgr.register('a', () => ({ scene: new Scene(), onExit() { order.push('a'); } }));
-    mgr.register('b', () => ({ scene: new Scene(), onExit() { order.push('b'); } }));
-    mgr.register('c', () => ({ scene: new Scene(), onEnter() { order.push('enter'); } }));
+    mgr.register('a', () => ({scene: new Scene(), onExit() { order.push('a'); }}));
+    mgr.register('b', () => ({scene: new Scene(), onExit() { order.push('b'); }}));
+    mgr.register('c', () => ({scene: new Scene(), onEnter() { order.push('enter'); }}));
 
     await mgr.push('a');
     await mgr.push('b');
@@ -416,9 +416,9 @@ describe('SceneManager — replace builds before it retires', () => {
   });
 
   it('clears the loading guard after a failed replace', async () => {
-    mgr.register('base', () => ({ scene: new Scene() }));
+    mgr.register('base', () => ({scene: new Scene()}));
     mgr.register('broken', () => { throw new Error('nope'); });
-    mgr.register('good', () => ({ scene: new Scene() }));
+    mgr.register('good', () => ({scene: new Scene()}));
 
     await mgr.push('base');
     await expect(mgr.replace('broken')).rejects.toThrow('nope');

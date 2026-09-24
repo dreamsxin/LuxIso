@@ -22,16 +22,16 @@ import {
   Scene, Floor, Boulder, TileCollider, InputManager, InputMap, TouchStick, HudLayer,
   OmniLight, DirectionalLight, SceneSerializer, Engine, AudioManager,
 } from '../../src/index';
-import { SceneExtractor } from '../../webgl-next/src/extraction/SceneExtractor';
-import { WebGLRenderer } from '../../webgl-next/src/renderer/WebGLRenderer';
-import { HudOverlayRenderer } from '../../webgl-next/src/overlays/HudOverlayRenderer';
-import { registerCombatantExtractor } from './CombatantExtractor';
-import { registerCombatantPersistence } from './persistence';
-import { Combatant } from './Combatant';
-import { ArenaRun, type ArenaRunSnapshot } from './ArenaRun';
-import { ArenaAudio, ARENA_CUES, ARENA_TRACKS, resolveCues } from './ArenaAudio';
+import {SceneExtractor} from '../../webgl-next/src/extraction/SceneExtractor';
+import {WebGLRenderer} from '../../webgl-next/src/renderer/WebGLRenderer';
+import {HudOverlayRenderer} from '../../webgl-next/src/overlays/HudOverlayRenderer';
+import {registerCombatantExtractor} from './CombatantExtractor';
+import {registerCombatantPersistence} from './persistence';
+import {Combatant} from './Combatant';
+import {ArenaRun, type ArenaRunSnapshot} from './ArenaRun';
+import {ArenaAudio, ARENA_CUES, ARENA_TRACKS, resolveCues} from './ArenaAudio';
 
-import { type ArpgPhase } from './WaveDirector';
+import {type ArpgPhase} from './WaveDirector';
 
 
 const COLS = 14, ROWS = 14;
@@ -57,17 +57,20 @@ const collider = new TileCollider(COLS, ROWS);
 // Both halves of the save/load round trip, so anything that serializes this live
 // scene keeps its fighters instead of silently dropping them. A checkpoint is the
 // pair: this, plus `ArenaRun.snapshot()` — K and L below.
-registerCombatantPersistence({ collider });
+registerCombatantPersistence({collider});
 
-const scene = new Scene({ name: 'Arena', tileW: 64, tileH: 32, cols: COLS, rows: ROWS });
+const scene = new Scene({name: 'Arena', tileW: 64, tileH: 32, cols: COLS, rows: ROWS});
 scene.collider = collider;
 scene.dynamicLighting = true;
 scene.ambientColor = '#8aa0b8';
 scene.ambientIntensity = 0.42;
 
-scene.addObject(new Floor({ id: 'floor', cols: COLS, rows: ROWS, color: '#2b3340', altColor: '#242b36' }));
-scene.addLight(new DirectionalLight({ id: 'sun', angle: 225, elevation: 55, color: '#ffe8c0', intensity: 0.7 }));
-scene.addLight(new OmniLight({ id: 'brazier', x: COLS / 2, y: ROWS / 2, z: 90, color: '#ffb060', intensity: 0.55, radius: 320 }));
+scene.addObject(new Floor({id: 'floor', cols: COLS, rows: ROWS, color: '#2b3340', altColor: '#242b36'}));
+scene.addLight(new DirectionalLight({id: 'sun', angle: 225, elevation: 55, color: '#ffe8c0', intensity: 0.7}));
+scene.addLight(new OmniLight({
+  id: 'brazier', x: COLS / 2, y: ROWS / 2, z: 90,
+  color: '#ffb060', intensity: 0.55, radius: 320,
+}));
 
 // ── Input ─────────────────────────────────────────────────────────────────────
 
@@ -90,7 +93,7 @@ map.define('load', ['l', 'L']);
 map.define('mute', ['m', 'M']);
 
 
-const stick = new TouchStick({ x: 110, y: 260, radius: 56 });
+const stick = new TouchStick({x: 110, y: 260, radius: 56});
 map.addAxisSource(stick);
 
 // ── HUD ───────────────────────────────────────────────────────────────────────
@@ -101,14 +104,18 @@ const SKILL_COOLING_BG = 'rgba(40,48,58,0.55)';
 
 const hud = new HudLayer();
 hud.minHitSize = 44;
-const hpBar = hud.addBar({ id: 'hp', x: 16, y: 16, w: 190, h: 15, color: '#5ad07a', label: 'HP' });
+const hpBar = hud.addBar({id: 'hp', x: 16, y: 16, w: 190, h: 15, color: '#5ad07a', label: 'HP'});
 // Experience sits directly under health: both are "how the hero is doing", and
 // the level is the one number a player checks between waves.
-const xpBar = hud.addBar({ id: 'xp', x: 16, y: 34, w: 190, h: 8, color: '#c9a44c', fontSize: 9 });
-const waveLabel = hud.addLabel({ id: 'wave', x: 16, y: 58, text: '', color: '#cfe4f0', fontSize: 14 });
-const phaseLabel = hud.addLabel({ id: 'phase', x: 16, y: 78, text: '', color: '#8fb8d0', fontSize: 12 });
-const resultLabel = hud.addLabel({ id: 'result', x: 16, y: 104, text: '', color: '#ffd890', fontSize: 18, visible: false });
-const noticeLabel = hud.addLabel({ id: 'notice', x: 16, y: 130, text: '', color: '#9fd8b0', fontSize: 12, visible: false });
+const xpBar = hud.addBar({id: 'xp', x: 16, y: 34, w: 190, h: 8, color: '#c9a44c', fontSize: 9});
+const waveLabel = hud.addLabel({id: 'wave', x: 16, y: 58, text: '', color: '#cfe4f0', fontSize: 14});
+const phaseLabel = hud.addLabel({id: 'phase', x: 16, y: 78, text: '', color: '#8fb8d0', fontSize: 12});
+const resultLabel = hud.addLabel({
+  id: 'result', x: 16, y: 104, text: '', color: '#ffd890', fontSize: 18, visible: false,
+});
+const noticeLabel = hud.addLabel({
+  id: 'notice', x: 16, y: 130, text: '', color: '#9fd8b0', fontSize: 12, visible: false,
+});
 const attackButton = hud.addButton({
   id: 'attack', x: 0, y: 0, w: 92, h: 92, label: 'ATTACK',
   bgColor: 'rgba(200,80,60,0.55)', hoverColor: 'rgba(240,120,90,0.8)',
@@ -130,7 +137,7 @@ const dashButton = hud.addButton({
 const hudOverlay = new HudOverlayRenderer(hudCanvas, hud, {
   // The stick is not a HudLayer element type, so it paints through the overlay's
   // own hook rather than by reaching for the 2D context behind its back.
-  paint: (ctx) => stick.draw(ctx),
+  paint: ctx => stick.draw(ctx),
 });
 
 // ── Audio ─────────────────────────────────────────────────────────────────────
@@ -144,7 +151,7 @@ audio.bindPageLifecycle();
 // Decoding needs a context, not a resumed one, so this runs before the first tap
 // rather than after it. Failures are already reported by the manager.
 void audio.preloadAll([
-  ...Object.values(ARENA_CUES).map((cue) => cue.url),
+  ...Object.values(ARENA_CUES).map(cue => cue.url),
   ...Object.values(ARENA_TRACKS),
 ]);
 const arenaAudio = new ArenaAudio(audio);
@@ -152,7 +159,7 @@ const arenaAudio = new ArenaAudio(audio);
 // swaps in whatever `/sfx/arpg-cues.json` names and the browser can decode, so a
 // missing or half-filled pack costs nothing. See that file for the format.
 void resolveCues({
-  fetchJson: async (url) => {
+  fetchJson: async url => {
     try {
       const res = await fetch(url);
       return res.ok ? ((await res.json()) as Record<string, unknown>) : null;
@@ -160,8 +167,8 @@ void resolveCues({
       return null;
     }
   },
-  preload: (url) => audio.preload(url),
-}).then((cues) => arenaAudio.setCues(cues));
+  preload: url => audio.preload(url),
+}).then(cues => arenaAudio.setCues(cues));
 
 
 // ── Run ───────────────────────────────────────────────────────────────────────
@@ -173,18 +180,20 @@ const run = new ArenaRun({
   cols: COLS,
   rows: ROWS,
   collider,
-  onSpawn: (unit) => scene.addObject(unit),
-  onDespawn: (unit) => scene.removeById(unit.id),
-  onEvent: (event) => arenaAudio.handle(event),
-  onFloatingText: (opts) => scene.spawnFloatingText(opts),
-  onPhase: (phase) => {
+  onSpawn: unit => scene.addObject(unit),
+  onDespawn: unit => scene.removeById(unit.id),
+  onEvent: event => arenaAudio.handle(event),
+  onFloatingText: opts => scene.spawnFloatingText(opts),
+  onPhase: phase => {
     arenaAudio.setPhase(phase);
     resultLabel.visible = phase === 'victory' || phase === 'defeat';
 
+    const lv = `LV ${run.progress.level}`;
+    const kills = run.director.kills;
     resultLabel.text = phase === 'victory'
-      ? `VICTORY  ·  ${run.director.kills} kills in ${run.director.elapsed.toFixed(1)}s  ·  LV ${run.progress.level}  ·  R to replay`
+      ? `VICTORY  ·  ${kills} kills in ${run.director.elapsed.toFixed(1)}s  ·  ${lv}  ·  R to replay`
       : phase === 'defeat'
-        ? `DEFEATED  ·  wave ${run.director.wave}  ·  ${run.director.kills} kills  ·  LV ${run.progress.level}  ·  R to retry`
+        ? `DEFEATED  ·  wave ${run.director.wave}  ·  ${kills} kills  ·  ${lv}  ·  R to retry`
         : '';
   },
 });
@@ -192,7 +201,7 @@ run.start();
 
 // Cover. `ArenaRun` blocked these tiles on the collider; drawing them is the
 // page's job, and a boulder is a built-in the GL extractor already knows.
-for (const { col, row } of run.pillars) {
+for (const {col, row} of run.pillars) {
   scene.addObject(new Boulder(`pillar-${col}-${row}`, col + 0.5, row + 0.5, '#6b6f7e', 22));
 }
 
@@ -238,7 +247,7 @@ function saveCheckpoint(): void {
 }
 
 function loadCheckpoint(): void {
-  let raw: string | null = null;
+  let raw: string | null;
   try {
     raw = localStorage.getItem(SAVE_KEY);
   } catch {
@@ -248,7 +257,7 @@ function loadCheckpoint(): void {
   if (!raw) { notify('no checkpoint yet'); return; }
 
   try {
-    const save = JSON.parse(raw) as { scene?: { props?: [] }; run?: ArenaRunSnapshot };
+    const save = JSON.parse(raw) as {scene?: {props?: []}; run?: ArenaRunSnapshot};
     if (!save.scene) { notify('checkpoint unreadable'); return; }
     // `Engine.buildProps` restores objects without a Scene, so the fighters go
     // straight into the live one through `adopt`'s spawn callback.
@@ -283,7 +292,7 @@ function layoutHud(): void {
 
 const resize = (): void => {
   const rect = glCanvas.getBoundingClientRect();
-  if (rect.width <= 0 || rect.height <= 0) return;
+  if (rect.width <= 0 || rect.height <= 0) {return;}
   renderer.resize(rect.width, rect.height);
   layoutHud();
 };
@@ -321,7 +330,7 @@ function swingRequested(): boolean {
  */
 function skillRequested(action: 'cleave' | 'dash'): boolean {
   const queued = action === 'cleave' ? cleaveQueued : dashQueued;
-  if (action === 'cleave') cleaveQueued = false; else dashQueued = false;
+  if (action === 'cleave') {cleaveQueued = false;} else {dashQueued = false;}
   return queued || map.wasPressed(action);
 }
 
@@ -335,13 +344,13 @@ function frame(ts: number): void {
 
   // The HUD claims its contacts first; the stick then ignores those, so a thumb
   // on ATTACK never also steers.
-  const hudHeld = hud.update(input, (id) => id === stick.touchId);
-  stick.update(input, (id) => hudHeld.includes(id));
+  const hudHeld = hud.update(input, id => id === stick.touchId);
+  stick.update(input, id => hudHeld.includes(id));
   hud.handleMove(input.pointer.x, input.pointer.y);
 
-  if (map.wasPressed('restart')) restart();
-  if (map.wasPressed('save')) saveCheckpoint();
-  if (map.wasPressed('load')) loadCheckpoint();
+  if (map.wasPressed('restart')) {restart();}
+  if (map.wasPressed('save')) {saveCheckpoint();}
+  if (map.wasPressed('load')) {loadCheckpoint();}
   if (map.wasPressed('mute')) {
     arenaAudio.setMuted(!arenaAudio.muted);
     audio.masterVolume = arenaAudio.muted ? 0 : 1;
@@ -375,7 +384,7 @@ function refreshHud(dt: number): void {
   const director = run.director;
   if (noticeFor > 0) {
     noticeFor = Math.max(0, noticeFor - dt);
-    if (noticeFor === 0) noticeLabel.visible = false;
+    if (noticeFor === 0) {noticeLabel.visible = false;}
   }
   hpBar.value = run.hero.health.fraction;
   hpBar.label = `HP ${Math.ceil(run.hero.health.hp)} / ${run.hero.health.maxHp}`;
@@ -384,9 +393,10 @@ function refreshHud(dt: number): void {
   xpBar.label = progress.isMaxLevel
     ? `LV ${progress.level}  ·  MAX`
     : `LV ${progress.level}  ·  XP ${progress.xp} / ${progress.xpForNextLevel}`;
+  const waveNumber = Math.min(Math.max(1, director.wave), director.totalWaves);
   waveLabel.text = director.phase === 'boss'
     ? `BOSS  ·  kills ${director.kills}`
-    : `WAVE ${Math.min(Math.max(1, director.wave), director.totalWaves)} / ${director.totalWaves}  ·  kills ${director.kills}`;
+    : `WAVE ${waveNumber} / ${director.totalWaves}  ·  kills ${director.kills}`;
   phaseLabel.text = director.phase === 'intermission'
     ? `${PHASE_TEXT.intermission}  ${director.countdown.toFixed(1)}s`
     : PHASE_TEXT[director.phase];
@@ -399,9 +409,9 @@ function refreshHud(dt: number): void {
 
 /** A skill button reads either its key or the seconds left on it. */
 function paintSkill(
-  button: { label: string; bgColor: string },
+  button: {label: string; bgColor: string},
   id: 'cleave' | 'dash',
-  ready: string,
+  ready: string
 ): void {
   const remaining = run.abilities.remaining(id);
   button.label = remaining > 0 ? `${ready.split(' ')[0]} ${remaining.toFixed(1)}s` : ready;
@@ -410,7 +420,7 @@ function paintSkill(
 
 function draw(): void {
   const rect = glCanvas.getBoundingClientRect();
-  if (rect.width <= 0 || rect.height <= 0) return;
+  if (rect.width <= 0 || rect.height <= 0) {return;}
   const snapshot = extractor.extract(scene, {
     viewportWidth: rect.width,
     viewportHeight: rect.height,

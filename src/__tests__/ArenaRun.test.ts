@@ -1,7 +1,7 @@
-import { describe, it, expect } from 'vitest';
-import { TileCollider } from '../physics/TileCollider';
-import { ArenaRun, type ArenaEvent, type HeroIntent } from '../../examples/10-arpg/ArenaRun';
-import { Combatant } from '../../examples/10-arpg/Combatant';
+import {describe, it, expect} from 'vitest';
+import {TileCollider} from '../physics/TileCollider';
+import {ArenaRun, type ArenaEvent, type HeroIntent} from '../../examples/10-arpg/ArenaRun';
+import {Combatant} from '../../examples/10-arpg/Combatant';
 
 
 /**
@@ -23,12 +23,12 @@ const DT = 1 / 60;
 /** Chase the nearest enemy and swing. What an attentive player does. */
 function brawler(run: ArenaRun): HeroIntent {
   const target = run.nearestEnemy();
-  if (!target) return {};
+  if (!target) {return {};}
   const dx = target.position.x - run.hero.position.x;
   const dy = target.position.y - run.hero.position.y;
   const distance = Math.hypot(dx, dy);
-  if (distance <= run.hero.attackRange * 0.8) return { attack: true };
-  return { x: dx / distance, y: dy / distance, attack: true };
+  if (distance <= run.hero.attackRange * 0.8) {return {attack: true};}
+  return {x: dx / distance, y: dy / distance, attack: true};
 }
 
 const idle = (): HeroIntent => ({});
@@ -59,7 +59,7 @@ describe('ArenaRun — a full run', () => {
 
   it('walks every phase in order, once each', () => {
     const phases: string[] = [];
-    const run = new ArenaRun({ onPhase: (phase) => phases.push(phase) });
+    const run = new ArenaRun({onPhase: phase => phases.push(phase)});
     play(run, brawler);
 
     expect(phases).toEqual([
@@ -79,7 +79,7 @@ describe('ArenaRun — a full run', () => {
   it('stalls out against the boss if the hero stands its ground', () => {
     // Swinging without closing is not enough: the boss's reach is longer.
     const run = new ArenaRun();
-    play(run, () => ({ attack: true }));
+    play(run, () => ({attack: true}));
     expect(run.director.kills).toBe(9); // all three waves cleared
     expect(run.phase).toBe('defeat');
   });
@@ -87,8 +87,8 @@ describe('ArenaRun — a full run', () => {
   it('spawns and despawns through the callbacks, leaving nothing behind', () => {
     const live = new Set<Combatant>();
     const run = new ArenaRun({
-      onSpawn: (unit) => live.add(unit),
-      onDespawn: (unit) => live.delete(unit),
+      onSpawn: unit => live.add(unit),
+      onDespawn: unit => live.delete(unit),
     });
     play(run, brawler);
 
@@ -99,14 +99,14 @@ describe('ArenaRun — a full run', () => {
   it('does nothing before start, or on a non-finite or non-positive dt', () => {
     const run = new ArenaRun();
     expect(run.phase).toBe('ready');
-    run.step(DT, { attack: true });
+    run.step(DT, {attack: true});
     expect(run.director.elapsed).toBe(0);
 
     run.start();
     const hp = run.hero.health.hp;
-    run.step(0, { attack: true });
-    run.step(-1, { attack: true });
-    run.step(NaN, { attack: true });
+    run.step(0, {attack: true});
+    run.step(-1, {attack: true});
+    run.step(NaN, {attack: true});
     expect(run.director.elapsed).toBe(0);
     expect(run.hero.health.hp).toBe(hp);
   });
@@ -115,7 +115,7 @@ describe('ArenaRun — a full run', () => {
     const run = new ArenaRun();
     run.start();
     const max = run.hero.health.maxHp;
-    run.hero.health.takeDamage(max - 1);   // 1 hp left
+    run.hero.health.takeDamage(max - 1); // 1 hp left
     const target = run.enemies[0];
     target.health.takeDamage(target.health.maxHp);
     run.step(DT, {});
@@ -131,13 +131,13 @@ describe('ArenaRun — a full run', () => {
 
 describe('ArenaRun — movement', () => {
   it('keeps the hero inside the arena however hard the axis pushes', () => {
-    const run = new ArenaRun({ cols: 10, rows: 10 });
+    const run = new ArenaRun({cols: 10, rows: 10});
     run.start();
-    for (let i = 0; i < 600; i++) run.step(DT, { x: 1, y: 1 });
+    for (let i = 0; i < 600; i++) {run.step(DT, {x: 1, y: 1});}
     expect(run.hero.position.x).toBeLessThanOrEqual(8.4);
     expect(run.hero.position.y).toBeLessThanOrEqual(8.4);
 
-    for (let i = 0; i < 1200; i++) run.step(DT, { x: -1, y: -1 });
+    for (let i = 0; i < 1200; i++) {run.step(DT, {x: -1, y: -1});}
     expect(run.hero.position.x).toBeGreaterThanOrEqual(0.6);
     expect(run.hero.position.y).toBeGreaterThanOrEqual(0.6);
   });
@@ -146,7 +146,7 @@ describe('ArenaRun — movement', () => {
     const run = new ArenaRun();
     play(run, idle);
     const x = run.hero.position.x, y = run.hero.position.y;
-    for (let i = 0; i < 60; i++) run.step(DT, { x: 1, y: 1 });
+    for (let i = 0; i < 60; i++) {run.step(DT, {x: 1, y: 1});}
     expect(run.hero.position.x).toBeCloseTo(x);
     expect(run.hero.position.y).toBeCloseTo(y);
   });
@@ -156,8 +156,8 @@ describe('ArenaRun — restart', () => {
   it('rebuilds a finished run from scratch', () => {
     const live = new Set<Combatant>();
     const run = new ArenaRun({
-      onSpawn: (unit) => live.add(unit),
-      onDespawn: (unit) => live.delete(unit),
+      onSpawn: unit => live.add(unit),
+      onDespawn: unit => live.delete(unit),
     });
     play(run, idle);
     expect(run.phase).toBe('defeat');
@@ -190,13 +190,13 @@ describe('ArenaRun — restart', () => {
 describe('ArenaRun — crowd separation', () => {
   /** Smallest gap any two living fighters should end a frame with. */
   function closestPair(run: ArenaRun): number {
-    const units = [run.hero, ...run.enemies].filter((unit) => !unit.isDead);
+    const units = [run.hero, ...run.enemies].filter(unit => !unit.isDead);
     let closest = Infinity;
     for (let i = 0; i < units.length; i++) {
       for (let j = i + 1; j < units.length; j++) {
         closest = Math.min(closest, Math.hypot(
           units[i].position.x - units[j].position.x,
-          units[i].position.y - units[j].position.y,
+          units[i].position.y - units[j].position.y
         ));
       }
     }
@@ -213,7 +213,7 @@ describe('ArenaRun — crowd separation', () => {
     }
     expect(closestPair(run)).toBe(0);
 
-    for (let i = 0; i < 120; i++) run.step(DT, {});
+    for (let i = 0; i < 120; i++) {run.step(DT, {});}
     const radii = run.hero.movement.radius + run.enemies[0].movement.radius;
     expect(closestPair(run)).toBeGreaterThan(radii * 0.95);
   });
@@ -222,7 +222,7 @@ describe('ArenaRun — crowd separation', () => {
     const run = new ArenaRun();
     run.start();
     // Let the mobs close in on an idle hero for a few seconds.
-    for (let i = 0; i < 300; i++) run.step(DT, {});
+    for (let i = 0; i < 300; i++) {run.step(DT, {});}
     const radii = run.hero.movement.radius + run.enemies[0].movement.radius;
     expect(closestPair(run)).toBeGreaterThan(radii * 0.9);
   });
@@ -234,7 +234,7 @@ describe('ArenaRun — crowd separation', () => {
     victim.position.x = run.hero.position.x;
     victim.position.y = run.hero.position.y;
     victim.health.takeDamage(999);
-    const { x, y } = { x: victim.position.x, y: victim.position.y };
+    const {x, y} = {x: victim.position.x, y: victim.position.y};
 
     run.step(DT, {});
     expect(victim.position.x).toBeCloseTo(x);
@@ -243,8 +243,8 @@ describe('ArenaRun — crowd separation', () => {
 
   it('cannot push anyone into a wall', () => {
     const collider = new TileCollider(14, 14);
-    for (let row = 0; row < 14; row++) collider.setWalkable(9, row, false);
-    const run = new ArenaRun({ collider });
+    for (let row = 0; row < 14; row++) {collider.setWalkable(9, row, false);}
+    const run = new ArenaRun({collider});
     run.start();
 
     // Crowd everyone against the wall column.
@@ -254,7 +254,7 @@ describe('ArenaRun — crowd separation', () => {
       enemy.position.x = 8.4;
       enemy.position.y = 7;
     }
-    for (let i = 0; i < 120; i++) run.step(DT, {});
+    for (let i = 0; i < 120; i++) {run.step(DT, {});}
 
     for (const unit of [run.hero, ...run.enemies]) {
       // Blocked column starts at x = 9; a body of radius r stops short of it.
@@ -268,10 +268,10 @@ describe('ArenaRun — cover', () => {
 
   it('blocks four pillar tiles and reports them, leaving the centre free', () => {
     const collider = arena();
-    const run = new ArenaRun({ collider });
+    const run = new ArenaRun({collider});
 
     expect(run.pillars.length).toBe(4);
-    for (const { col, row } of run.pillars) {
+    for (const {col, row} of run.pillars) {
       expect(collider.isWalkable(col, row)).toBe(false);
     }
     // The hero spawns in the middle, so that tile must stay open.
@@ -282,7 +282,7 @@ describe('ArenaRun — cover', () => {
     expect(new ArenaRun().pillars).toEqual([]);
 
     const collider = arena();
-    const run = new ArenaRun({ collider, pillars: false });
+    const run = new ArenaRun({collider, pillars: false});
     expect(run.pillars).toEqual([]);
     expect(collider.version).toBe(0);
   });
@@ -290,7 +290,7 @@ describe('ArenaRun — cover', () => {
   it('never spawns a fighter inside a pillar', () => {
     const collider = arena();
     const seen: Combatant[] = [];
-    const run = new ArenaRun({ collider, onSpawn: (unit) => seen.push(unit) });
+    const run = new ArenaRun({collider, onSpawn: unit => seen.push(unit)});
     play(run, brawler);
 
     expect(seen.length).toBeGreaterThan(4);
@@ -298,14 +298,14 @@ describe('ArenaRun — cover', () => {
       // Spawn positions are recorded on the way in; a wedged mob would have been
       // placed on blocked ground and could never have moved off it.
       expect(collider.isWalkable(
-        Math.floor(unit.position.x), Math.floor(unit.position.y),
+        Math.floor(unit.position.x), Math.floor(unit.position.y)
       )).toBe(true);
     }
   });
 
   it('lets mobs reach a hero standing behind cover', () => {
     const collider = arena();
-    const run = new ArenaRun({ collider });
+    const run = new ArenaRun({collider});
     run.start();
     // Tuck the hero directly behind a pillar, on the line from the spawn ring.
     const pillar = run.pillars[0];
@@ -313,13 +313,13 @@ describe('ArenaRun — cover', () => {
     run.hero.position.y = pillar.row - 0.9;
 
     const start = run.hero.health.hp;
-    for (let i = 0; i < 60 * 12; i++) run.step(DT, {});
+    for (let i = 0; i < 60 * 12; i++) {run.step(DT, {});}
     // Cover delays the wave; it does not make the hero unreachable.
     expect(run.hero.health.hp).toBeLessThan(start);
   });
 
   it('is still winnable with cover in the arena', () => {
-    const run = new ArenaRun({ collider: arena() });
+    const run = new ArenaRun({collider: arena()});
     play(run, brawler);
     expect(run.phase).toBe('victory');
     expect(run.director.kills).toBe(10);
@@ -360,8 +360,8 @@ describe('ArenaRun — checkpoint', () => {
     const fighters = [source.hero, ...source.enemies];
 
     const target = new ArenaRun({
-      onSpawn: (unit) => live.add(unit),
-      onDespawn: (unit) => live.delete(unit),
+      onSpawn: unit => live.add(unit),
+      onDespawn: unit => live.delete(unit),
     });
     target.start();
     const replaced = [target.hero, ...target.enemies];
@@ -370,7 +370,7 @@ describe('ArenaRun — checkpoint', () => {
     target.adopt(fighters, source.snapshot());
     expect([...live].sort((a, b) => a.id.localeCompare(b.id)))
       .toEqual([...fighters].sort((a, b) => a.id.localeCompare(b.id)));
-    for (const unit of replaced) expect(live.has(unit)).toBe(false);
+    for (const unit of replaced) {expect(live.has(unit)).toBe(false);}
   });
 
   it('refuses a save with no hero and changes nothing', () => {
@@ -391,8 +391,8 @@ describe('ArenaRun — checkpoint', () => {
 
     const live = new Set<Combatant>();
     const target = new ArenaRun({
-      onSpawn: (unit) => live.add(unit),
-      onDespawn: (unit) => live.delete(unit),
+      onSpawn: unit => live.add(unit),
+      onDespawn: unit => live.delete(unit),
     });
     // The constructor already spawned a placeholder hero; adopting replaces it.
     expect(live.size).toBe(1);
@@ -405,9 +405,9 @@ describe('ArenaRun — checkpoint', () => {
 
 describe('ArenaRun — events', () => {
   /** Collect every event of a run driven by a brawling hero. */
-  function record(opts: { budget?: number } = {}): ArenaEvent[] {
+  function record(opts: {budget?: number} = {}): ArenaEvent[] {
     const events: ArenaEvent[] = [];
-    const run = new ArenaRun({ onEvent: (event) => events.push(event) });
+    const run = new ArenaRun({onEvent: event => events.push(event)});
     play(run, brawler, opts.budget ?? 240);
     return events;
   }
@@ -420,25 +420,25 @@ describe('ArenaRun — events', () => {
 
   it('opens the run with a wave cue at the arena centre', () => {
     const events: ArenaEvent[] = [];
-    const run = new ArenaRun({ cols: 14, rows: 14, onEvent: (event) => events.push(event) });
+    const run = new ArenaRun({cols: 14, rows: 14, onEvent: event => events.push(event)});
     // Nothing before `start()` — the constructor spawns a hero, not a wave.
     expect(events).toEqual([]);
 
     run.start();
-    expect(events).toEqual([{ type: 'wave-start', x: 7, y: 7 }]);
+    expect(events).toEqual([{type: 'wave-start', x: 7, y: 7}]);
   });
 
   it('reports a hit from each side, and every kill', () => {
     const events = record();
-    const types = events.map((event) => event.type);
+    const types = events.map(event => event.type);
 
     expect(types).toContain('hero-hit');
     expect(types).toContain('hero-hurt');
     // One per kill, and the run's own counter says ten.
-    expect(types.filter((type) => type === 'kill').length).toBe(10);
+    expect(types.filter(type => type === 'kill').length).toBe(10);
     // Three waves and a boss, in that order, then the ending.
-    expect(types.filter((type) => type === 'wave-start').length).toBe(3);
-    expect(types.filter((type) => type === 'boss').length).toBe(1);
+    expect(types.filter(type => type === 'wave-start').length).toBe(3);
+    expect(types.filter(type => type === 'boss').length).toBe(1);
     expect(last(types)).toBe('victory');
     expect(types).not.toContain('defeat');
   });
@@ -446,7 +446,7 @@ describe('ArenaRun — events', () => {
 
   it('places a kill where the enemy died, not where the hero is', () => {
     const events: ArenaEvent[] = [];
-    const run = new ArenaRun({ onEvent: (event) => events.push(event) });
+    const run = new ArenaRun({onEvent: event => events.push(event)});
     run.start();
 
     const victim = run.enemies[0];
@@ -457,15 +457,15 @@ describe('ArenaRun — events', () => {
     victim.health.takeDamage(9999, 'test');
     run.step(DT);
 
-    const kill = events.find((event) => event.type === 'kill');
-    expect(kill).toEqual({ type: 'kill', x: 2.25, y: 9.75 });
+    const kill = events.find(event => event.type === 'kill');
+    expect(kill).toEqual({type: 'kill', x: 2.25, y: 9.75});
   });
 
   it('reports defeat for a hero who never fights back', () => {
     const events: ArenaEvent[] = [];
-    const run = new ArenaRun({ onEvent: (event) => events.push(event) });
+    const run = new ArenaRun({onEvent: event => events.push(event)});
     play(run, idle);
-    expect(last(events.map((event) => event.type))).toBe('defeat');
+    expect(last(events.map(event => event.type))).toBe('defeat');
   });
 
   /**
@@ -479,13 +479,13 @@ describe('ArenaRun — events', () => {
    */
   it('re-wires fighters restored from a save, which arrive with no callbacks', () => {
     const events: ArenaEvent[] = [];
-    const run = new ArenaRun({ onEvent: (event) => events.push(event) });
+    const run = new ArenaRun({onEvent: event => events.push(event)});
     run.start();
 
     // Stand-ins for `Engine.buildProps` output: constructed fresh, so nothing
     // has ever set their hooks.
-    const hero = new Combatant('hero', 5, 5, { faction: 'hero', damage: 3, attackRange: 2 });
-    const mob = new Combatant('w1-0', 5.5, 5, { damage: 3, attackRange: 2 });
+    const hero = new Combatant('hero', 5, 5, {faction: 'hero', damage: 3, attackRange: 2});
+    const mob = new Combatant('w1-0', 5.5, 5, {damage: 3, attackRange: 2});
     expect(hero.onAttack).toBeUndefined();
     expect(mob.onAttack).toBeUndefined();
 
@@ -495,8 +495,8 @@ describe('ArenaRun — events', () => {
     expect(mob.swing(hero)).toBe(true);
     expect(hero.swing(mob)).toBe(true);
     expect(events).toEqual([
-      { type: 'hero-hurt', x: 5.5, y: 5 },
-      { type: 'hero-hit', x: 5, y: 5 },
+      {type: 'hero-hurt', x: 5.5, y: 5},
+      {type: 'hero-hit', x: 5, y: 5},
     ]);
   });
 });

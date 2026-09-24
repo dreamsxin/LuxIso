@@ -1,7 +1,7 @@
-import { IsoVec3, IsoView } from '../math/IsoProjection';
-import { OmniLight } from '../lighting/OmniLight';
-import { DirectionalLight } from '../lighting/DirectionalLight';
-import { AABB } from '../math/depthSort';
+import {IsoVec3, IsoView} from '../math/IsoProjection';
+import {OmniLight} from '../lighting/OmniLight';
+import {DirectionalLight} from '../lighting/DirectionalLight';
+import {AABB} from '../math/depthSort';
 
 export interface DrawContext {
   ctx: CanvasRenderingContext2D;
@@ -68,7 +68,7 @@ export abstract class IsoObject {
 
   constructor(id: string, x: number, y: number, z: number) {
     this.id = id;
-    this.position = { x, y, z };
+    this.position = {x, y, z};
   }
 
   /** World-space axis-aligned bounding box used for depth sorting. */

@@ -1,10 +1,10 @@
-import { project } from '../../math/IsoProjection';
-import { AABB } from '../../math/depthSort';
-import { DrawContext } from '../IsoObject';
-import { Entity } from '../../ecs/Entity';
-import { HealthComponent } from '../../ecs/components/HealthComponent';
-import { shiftColor, blendColor } from '../../math/color';
-import { FrameClock } from '../../time/FrameClock';
+import {project} from '../../math/IsoProjection';
+import {AABB} from '../../math/depthSort';
+import {DrawContext} from '../IsoObject';
+import {Entity} from '../../ecs/Entity';
+import {HealthComponent} from '../../ecs/components/HealthComponent';
+import {shiftColor, blendColor} from '../../math/color';
+import {FrameClock} from '../../time/FrameClock';
 
 // Local aliases matching the old private names used throughout this file
 const shift = shiftColor;
@@ -49,8 +49,8 @@ const HS = 0.38;
  */
 export class Chest extends Entity {
   private _woodColor: string;
-  private _lidOpen   = false;
-  private _lidAngle  = 0;    // 0 = closed → 1 = fully open
+  private _lidOpen = false;
+  private _lidAngle = 0; // 0 = closed → 1 = fully open
   private _glowPulse = 0;
   private _clock = new FrameClock();
 
@@ -60,13 +60,13 @@ export class Chest extends Entity {
     this._woodColor = color;
     // Chest is roughly rectangular; use a slightly smaller shadow radius
     this.shadowRadius = 0.32;
-    this.castsShadow  = true;
+    this.castsShadow = true;
   }
 
   get propColor(): string { return this._woodColor; }
 
-  open():   void { this._lidOpen = true;  }
-  close():  void { this._lidOpen = false; }
+  open(): void { this._lidOpen = true; }
+  close(): void { this._lidOpen = false; }
   toggle(): void { this._lidOpen = !this._lidOpen; }
   get isOpen(): boolean { return this._lidOpen; }
 
@@ -126,7 +126,7 @@ export class Chest extends Entity {
     const t = f >= 1 ? 1 : 1 - Math.pow(1 - f, dt * 60);
     const target = this._lidOpen ? 1 : 0;
     this._lidAngle += (target - this._lidAngle) * t;
-    if (this._lidOpen) this._glowPulse = (ts ?? 0) * 0.003;
+    if (this._lidOpen) {this._glowPulse = (ts ?? 0) * 0.003;}
   }
 
   /**
@@ -135,14 +135,14 @@ export class Chest extends Entity {
    * rather than 0, which would collide with a legitimate timestamp of 0.
    */
   private _frameDelta(ts?: number): number {
-    if (ts === undefined) return 1 / 60;
+    if (ts === undefined) {return 1 / 60;}
     return this._clock.sample(ts);
   }
 
 
   draw(dc: DrawContext): void {
-    const { ctx, tileW, tileH, originX, originY, omniLights } = dc;
-    const { x, y } = this.position;
+    const {ctx, tileW, tileH, originX, originY, omniLights} = dc;
+    const {x, y} = this.position;
 
     // ── Chest footprint in world space ────────────────────────────────────
     // The chest occupies a sub-tile diamond scaled by `s` around centre (x, y).
@@ -152,19 +152,19 @@ export class Chest extends Entity {
     //   South = (x + hs, y + hs)
     //   West  = (x - hs, y + hs)
     // where hs = half-size in world units.
-    const hs = 0.38;   // half-size: chest is 0.76 tiles wide
+    const hs = 0.38; // half-size: chest is 0.76 tiles wide
 
     // Project all four ground corners
     const toScreen = (wx: number, wy: number, wz = 0): P => {
       const p = project(wx, wy, wz, tileW, tileH);
-      return { x: originX + p.sx, y: originY + p.sy };
+      return {x: originX + p.sx, y: originY + p.sy};
     };
 
     // Ground plane corners (z = 0)
-    const gN = toScreen(x - hs, y - hs);   // North: back tip
-    const gE = toScreen(x + hs, y - hs);   // East:  right tip
-    const gS = toScreen(x + hs, y + hs);   // South: front tip
-    const gW = toScreen(x - hs, y + hs);   // West:  left tip
+    const gN = toScreen(x - hs, y - hs); // North: back tip
+    const gE = toScreen(x + hs, y - hs); // East:  right tip
+    const gS = toScreen(x + hs, y + hs); // South: front tip
+    const gW = toScreen(x - hs, y + hs); // West:  left tip
 
     // ── Illumination ──────────────────────────────────────────────────────
     // Sample at chest centre
@@ -178,8 +178,8 @@ export class Chest extends Entity {
     illum = Math.min(1, illum);
 
     // ── Body height ───────────────────────────────────────────────────────
-    const bH  = tileH * 1.1;    // body height in screen pixels
-    const lidH = tileH * 0.50;  // lid thickness
+    const bH = tileH * 1.1; // body height in screen pixels
+    const lidH = tileH * 0.50; // lid thickness
 
     // Top-of-body corners (lift ground corners by bH)
     const tN = lift(gN, bH);
@@ -188,13 +188,13 @@ export class Chest extends Entity {
     const tW = lift(gW, bH);
 
     // ── Colors ────────────────────────────────────────────────────────────
-    const woodLeft  = blend(shift(this._woodColor, -22), illum * 0.78);
-    const woodLid   = blend(shift(this._woodColor,  20), illum * 0.90);
+    const woodLeft = blend(shift(this._woodColor, -22), illum * 0.78);
+    const woodLid = blend(shift(this._woodColor, 20), illum * 0.90);
     const metalDark = blend('#252525', illum * 0.85);
-    const metalMid  = blend('#4a4a4a', illum * 0.90);
-    const metalHi   = blend('#909090', illum);
-    const goldBase  = blend('#c49010', illum);
-    const goldHi    = blend('#ffe070', illum);
+    const metalMid = blend('#4a4a4a', illum * 0.90);
+    const metalHi = blend('#909090', illum);
+    const goldBase = blend('#c49010', illum);
+    const goldHi = blend('#ffe070', illum);
 
     ctx.save();
 
@@ -225,7 +225,7 @@ export class Chest extends Entity {
     }
 
     // ── Corner rivets on left face ────────────────────────────────────────
-    for (const [u, v] of [[0.1,0.1],[0.9,0.1],[0.1,0.9],[0.9,0.9]] as [number,number][]) {
+    for (const [u, v] of [[0.1, 0.1], [0.9, 0.1], [0.1, 0.9], [0.9, 0.9]] as [number, number][]) {
       const rp = lerpP2(tW, tS, gW, gS, u, v);
       ctx.beginPath(); ctx.arc(rp.x, rp.y, 2, 0, Math.PI * 2);
       ctx.fillStyle = metalHi; ctx.fill();
@@ -244,7 +244,7 @@ export class Chest extends Entity {
     ctx.beginPath();
     ctx.moveTo(lc2.x - 1, lc2.y + 0.8);
     ctx.lineTo(lc2.x + 1, lc2.y + 0.8);
-    ctx.lineTo(lc2.x,     lc2.y + 2.8);
+    ctx.lineTo(lc2.x, lc2.y + 2.8);
     ctx.closePath(); ctx.fillStyle = '#111'; ctx.fill();
     ctx.beginPath(); ctx.arc(lc2.x - 1.5, lc2.y - 1.5, 1.1, 0, Math.PI * 2);
     ctx.fillStyle = goldHi; ctx.fill();
@@ -277,8 +277,8 @@ export class Chest extends Entity {
       };
     };
 
-    const rE = rotCorner(tE, tN);   // East corner rotates around North hinge
-    const rS = rotCorner(tS, tW);   // South corner rotates around West hinge
+    const rE = rotCorner(tE, tN); // East corner rotates around North hinge
+    const rS = rotCorner(tS, tW); // South corner rotates around West hinge
 
     // Lid top surface: tN → rE → rS → tW
     fillQuad(ctx, tN, rE, rS, tW, woodLid);
@@ -292,9 +292,9 @@ export class Chest extends Entity {
       const edgeLen = Math.hypot(edgeDx, edgeDy) || 1;
       // Perpendicular pointing toward hinge (rotate 90° and check sign)
       const perpX = -edgeDy / edgeLen;
-      const perpY =  edgeDx / edgeLen;
-      const fE2: P = { x: rE.x + perpX * frontFaceDepth, y: rE.y + perpY * frontFaceDepth };
-      const fS2: P = { x: rS.x + perpX * frontFaceDepth, y: rS.y + perpY * frontFaceDepth };
+      const perpY = edgeDx / edgeLen;
+      const fE2: P = {x: rE.x + perpX * frontFaceDepth, y: rE.y + perpY * frontFaceDepth};
+      const fS2: P = {x: rS.x + perpX * frontFaceDepth, y: rS.y + perpY * frontFaceDepth};
       fillQuad(ctx, rE, rS, fS2, fE2, blend(shift(this._woodColor, 10), illum * 0.80));
     }
 
@@ -311,17 +311,17 @@ export class Chest extends Entity {
     // ── Inner glow when open ──────────────────────────────────────────────
     if (this._lidAngle > 0.04) {
       const gAlpha = this._lidAngle * 0.75;
-      const pulse  = 0.85 + Math.sin(this._glowPulse) * 0.15;
+      const pulse = 0.85 + Math.sin(this._glowPulse) * 0.15;
       // Glow centre: inside the open chest
       const gx = (tN.x + tE.x + tS.x + tW.x) / 4;
       const gy = (tN.y + tE.y + tS.y + tW.y) / 4 - bH * 0.1;
       const gr = (tileW / 2) * 1.4 * pulse;
 
       const glow = ctx.createRadialGradient(gx, gy, 0, gx, gy, gr);
-      glow.addColorStop(0,    `rgba(255,235,90,${(gAlpha * 0.95).toFixed(3)})`);
+      glow.addColorStop(0, `rgba(255,235,90,${(gAlpha * 0.95).toFixed(3)})`);
       glow.addColorStop(0.25, `rgba(255,180,20,${(gAlpha * 0.65).toFixed(3)})`);
-      glow.addColorStop(0.6,  `rgba(200,90,0,${(gAlpha * 0.25).toFixed(3)})`);
-      glow.addColorStop(1,    'rgba(0,0,0,0)');
+      glow.addColorStop(0.6, `rgba(200,90,0,${(gAlpha * 0.25).toFixed(3)})`);
+      glow.addColorStop(1, 'rgba(0,0,0,0)');
 
       ctx.save();
       ctx.globalCompositeOperation = 'screen';
@@ -350,7 +350,7 @@ export class Chest extends Entity {
 
   private drawHealthBar(ctx: CanvasRenderingContext2D, x: number, y: number): void {
     const hp = this.getComponent(HealthComponent);
-    if (!hp || hp.isDead) return;
+    if (!hp || hp.isDead) {return;}
     const w = 34, h = 4;
     ctx.fillStyle = 'rgba(0,0,0,0.5)';
     ctx.fillRect(x - w / 2, y, w, h);
@@ -361,14 +361,14 @@ export class Chest extends Entity {
 
 // ── Geometry helpers ──────────────────────────────────────────────────────────
 
-interface P { x: number; y: number; }
+interface P {x: number; y: number;}
 
 function lift(p: P, h: number): P {
-  return { x: p.x, y: p.y - h };
+  return {x: p.x, y: p.y - h};
 }
 
 function lerpP(a: P, b: P, t: number): P {
-  return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
+  return {x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t};
 }
 
 function lerpP2(tl: P, tr: P, bl: P, br: P, u: number, v: number): P {
@@ -387,7 +387,7 @@ function fillQuad(ctx: CanvasRenderingContext2D, a: P, b: P, c: P, d: P, color: 
 function drawPlankLines(
   ctx: CanvasRenderingContext2D,
   a: P, b: P, c: P, d: P,
-  color: string, count: number,
+  color: string, count: number
 ): void {
   ctx.strokeStyle = color;
   ctx.lineWidth = 0.6;

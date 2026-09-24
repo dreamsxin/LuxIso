@@ -28,7 +28,7 @@ export interface IsoView {
   elevation: number;
 }
 
-export const DEFAULT_ISO_VIEW: IsoView = { rotation: 0, elevation: 0.5 };
+export const DEFAULT_ISO_VIEW: IsoView = {rotation: 0, elevation: 0.5};
 
 /**
  * Z convention: **everything is in screen pixels.**
@@ -67,7 +67,7 @@ export function project(
   z: number,
   tileW: number,
   tileH: number,
-  _view?: IsoView,
+  _view?: IsoView
 ): ScreenVec2 {
   return {
     sx: (x - y) * (tileW / 2),
@@ -84,11 +84,11 @@ export function unproject(
   sy: number,
   tileW: number,
   tileH: number,
-  _view?: IsoView,
-): { x: number; y: number } {
+  _view?: IsoView
+): {x: number; y: number} {
   const a = sx / (tileW / 2);
   const b = sy / (tileH / 2);
-  return { x: (a + b) / 2, y: (b - a) / 2 };
+  return {x: (a + b) / 2, y: (b - a) / 2};
 }
 
 /**
@@ -133,22 +133,22 @@ export function drawIsoCube(
   h: number,
   topColor: string,
   leftColor: string,
-  rightColor: string,
+  rightColor: string
 ): void {
-  const tl  = project(wx,     wy,     wz + h, tileW, tileH);
-  const tr  = project(wx + w, wy,     wz + h, tileW, tileH);
-  const br  = project(wx + w, wy + d, wz + h, tileW, tileH);
-  const bl  = project(wx,     wy + d, wz + h, tileW, tileH);
-  const blB = project(wx,     wy + d, wz,     tileW, tileH);
-  const brB = project(wx + w, wy + d, wz,     tileW, tileH);
-  const trB = project(wx + w, wy,     wz,     tileW, tileH);
-  const tlB = project(wx,     wy,     wz,     tileW, tileH);
+  const tl = project(wx, wy, wz + h, tileW, tileH);
+  const tr = project(wx + w, wy, wz + h, tileW, tileH);
+  const br = project(wx + w, wy + d, wz + h, tileW, tileH);
+  const bl = project(wx, wy + d, wz + h, tileW, tileH);
+  const blB = project(wx, wy + d, wz, tileW, tileH);
+  const brB = project(wx + w, wy + d, wz, tileW, tileH);
+  const trB = project(wx + w, wy, wz, tileW, tileH);
+  const tlB = project(wx, wy, wz, tileW, tileH);
   const ox = originX, oy = originY;
 
   // Left face
   ctx.beginPath();
-  ctx.moveTo(ox + tl.sx,  oy + tl.sy);
-  ctx.lineTo(ox + bl.sx,  oy + bl.sy);
+  ctx.moveTo(ox + tl.sx, oy + tl.sy);
+  ctx.lineTo(ox + bl.sx, oy + bl.sy);
   ctx.lineTo(ox + blB.sx, oy + blB.sy);
   ctx.lineTo(ox + tlB.sx, oy + tlB.sy);
   ctx.closePath();
@@ -157,8 +157,8 @@ export function drawIsoCube(
 
   // Right face
   ctx.beginPath();
-  ctx.moveTo(ox + tr.sx,  oy + tr.sy);
-  ctx.lineTo(ox + br.sx,  oy + br.sy);
+  ctx.moveTo(ox + tr.sx, oy + tr.sy);
+  ctx.lineTo(ox + br.sx, oy + br.sy);
   ctx.lineTo(ox + brB.sx, oy + brB.sy);
   ctx.lineTo(ox + trB.sx, oy + trB.sy);
   ctx.closePath();

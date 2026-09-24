@@ -54,11 +54,11 @@ export class ObjectPool<T> {
     factory: () => T,
     reset: (obj: T) => void,
     initialSize = 0,
-    maxSize = 0,
+    maxSize = 0
   ) {
-    this._factory  = factory;
-    this._reset    = reset;
-    this._maxSize  = maxSize;
+    this._factory = factory;
+    this._reset = reset;
+    this._maxSize = maxSize;
 
     for (let i = 0; i < initialSize; i++) {
       this._free.push(factory());
@@ -87,7 +87,7 @@ export class ObjectPool<T> {
    * The reset function is called before the object is made available again.
    */
   release(obj: T): void {
-    if (!this._active.has(obj)) return;
+    if (!this._active.has(obj)) {return;}
     this._active.delete(obj);
     this._reset(obj);
     this._free.push(obj);

@@ -11,7 +11,14 @@ export interface RenderGeometry {
   vertexCount: number;
   floor: RenderRange;
   shadows: RenderRange;
+  /**
+   * Every depth-sorted object, in `topoSort` order — including particles and
+   * clouds, which are translucent but still have to be occluded by what stands
+   * in front of them. The name predates that: read it as "the sorted scene",
+   * not "opaque only". Per-particle blends travel in `segments`.
+   */
   opaque: RenderRange;
+  /** Order-independent additive overlays (light halos) drawn over the scene. */
   transparent: RenderRange;
   debug: RenderRange;
   segments: RenderDrawSegment[];

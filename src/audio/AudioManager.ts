@@ -18,7 +18,7 @@ export interface SpatialOptions {
    */
   refDistance?: number;
   /**
-   * World-unit distance at which volume reaches 0 (linear) or 
+   * World-unit distance at which volume reaches 0 (linear) or
    * becomes very quiet (exponential). Default: 10 world units.
    */
   maxDistance?: number;
@@ -38,6 +38,16 @@ export interface PlayOptions {
   /** Spatial options. Omit for non-spatial (UI sounds etc.). */
   spatial?: SpatialOptions;
 }
+
+/**
+ * The pre-AudioParam listener API, still the only one Safari implements.
+ * `lib.dom` dropped these two methods, so they are declared here rather than
+ * reached through `any`.
+ */
+type LegacyAudioListener = AudioListener & {
+  setPosition(x: number, y: number, z: number): void;
+  setOrientation(x: number, y: number, z: number, xUp: number, yUp: number, zUp: number): void;
+};
 
 export class AudioManager {
   private _ctx: AudioContext | null = null;
@@ -63,8 +73,8 @@ export class AudioManager {
   private _bgmRequest = 0;
 
   private _masterVol = 1;
-  private _sfxVol    = 1;
-  private _bgmVol    = 0.6;
+  private _sfxVol = 1;
+  private _bgmVol = 0.6;
 
   private _detachLifecycle: (() => void) | null = null;
 
@@ -77,26 +87,26 @@ export class AudioManager {
    * waits for `resume()`.
    */
   private _ensureContext(): AudioContext {
-    if (this._ctx) return this._ctx;
+    if (this._ctx) {return this._ctx;}
     this._ctx = new AudioContext();
     this._masterGain = this._ctx.createGain();
-    this._sfxGain    = this._ctx.createGain();
-    this._bgmGain    = this._ctx.createGain();
+    this._sfxGain = this._ctx.createGain();
+    this._bgmGain = this._ctx.createGain();
 
     this._sfxGain.connect(this._masterGain);
     this._bgmGain.connect(this._masterGain);
     this._masterGain.connect(this._ctx.destination);
 
     this._masterGain.gain.value = this._masterVol;
-    this._sfxGain.gain.value    = this._sfxVol;
-    this._bgmGain.gain.value    = this._bgmVol;
+    this._sfxGain.gain.value = this._sfxVol;
+    this._bgmGain.gain.value = this._bgmVol;
 
     const l = this._ctx.listener;
     if (l.forwardX) {
       l.forwardX.value = 0; l.forwardY.value = -1; l.forwardZ.value = -1;
       l.upX.value = 0; l.upY.value = 1; l.upZ.value = 0;
     } else {
-      (l as any).setOrientation(0, -1, -1, 0, 1, 0);
+      (l as LegacyAudioListener).setOrientation(0, -1, -1, 0, 1, 0);
     }
     return this._ctx;
   }
@@ -109,7 +119,7 @@ export class AudioManager {
    */
   resume(): void {
     const ctx = this._ensureContext();
-    if (ctx.state === 'suspended') void ctx.resume();
+    if (ctx.state === 'suspended') {void ctx.resume();}
   }
 
   suspend(): void { this._ctx?.suspend(); }
@@ -143,29 +153,29 @@ export class AudioManager {
       const onGesture = (): void => {
         this.resume();
         // One shot: a resumed context stays resumed until suspend() or hide.
-        for (const off of gestureOffs) off();
+        for (const off of gestureOffs) {off();}
       };
       const gestureOffs: Array<() => void> = [];
       for (const type of ['pointerdown', 'touchend', 'keydown', 'mousedown']) {
         target.addEventListener(type, onGesture);
         gestureOffs.push(() => target.removeEventListener(type, onGesture));
       }
-      cleanups.push(() => { for (const off of gestureOffs) off(); });
+      cleanups.push(() => { for (const off of gestureOffs) {off();} });
     }
 
     if (suspendHidden && typeof document !== 'undefined') {
       const onVisibility = (): void => {
-        if (!this._ctx) return;
-        if (document.hidden) this.suspend();
-        else if (this._ctx.state === 'suspended') void this._ctx.resume();
+        if (!this._ctx) {return;}
+        if (document.hidden) {this.suspend();}
+        else if (this._ctx.state === 'suspended') {void this._ctx.resume();}
       };
       document.addEventListener('visibilitychange', onVisibility);
       cleanups.push(() => document.removeEventListener('visibilitychange', onVisibility));
     }
 
     const detach = (): void => {
-      for (const off of cleanups) off();
-      if (this._detachLifecycle === detach) this._detachLifecycle = null;
+      for (const off of cleanups) {off();}
+      if (this._detachLifecycle === detach) {this._detachLifecycle = null;}
     };
     this._detachLifecycle = detach;
     return detach;
@@ -173,33 +183,33 @@ export class AudioManager {
 
 
   updateListener(x: number, y: number, z = 0): void {
-    if (!this._ctx) return;
+    if (!this._ctx) {return;}
     const l = this._ctx.listener;
     if (l.positionX) {
       l.positionX.setTargetAtTime(x, this._ctx.currentTime, 0.03);
       l.positionY.setTargetAtTime(z, this._ctx.currentTime, 0.03);
       l.positionZ.setTargetAtTime(y, this._ctx.currentTime, 0.03);
     } else {
-      (l as any).setPosition(x, z, y);
+      (l as LegacyAudioListener).setPosition(x, z, y);
     }
   }
 
   get masterVolume(): number { return this._masterVol; }
   set masterVolume(v: number) {
     this._masterVol = clamp01(v);
-    if (this._masterGain) this._masterGain.gain.value = this._masterVol;
+    if (this._masterGain) {this._masterGain.gain.value = this._masterVol;}
   }
 
   get sfxVolume(): number { return this._sfxVol; }
   set sfxVolume(v: number) {
     this._sfxVol = clamp01(v);
-    if (this._sfxGain) this._sfxGain.gain.value = this._sfxVol;
+    if (this._sfxGain) {this._sfxGain.gain.value = this._sfxVol;}
   }
 
   get bgmVolume(): number { return this._bgmVol; }
   set bgmVolume(v: number) {
     this._bgmVol = clamp01(v);
-    if (this._bgmGain) this._bgmGain.gain.value = this._bgmVol;
+    if (this._bgmGain) {this._bgmGain.gain.value = this._bgmVol;}
   }
 
   async preload(url: string): Promise<void> { await this._loadBuffer(url); }
@@ -207,7 +217,7 @@ export class AudioManager {
 
   playSfx(url: string, opts: PlayOptions = {}): AudioBufferSourceNode | null {
     const ctx = this._ctx;
-    if (!ctx) return null;
+    if (!ctx) {return null;}
     const buffer = this._bufferCache.get(url);
     if (!buffer) {
       // Fire-and-forget: report the failure instead of raising an unhandled
@@ -221,19 +231,19 @@ export class AudioManager {
   }
 
   async playBgm(url: string, fadeDuration = 1.0): Promise<void> {
-    if (!this._ctx) return;
-    if (url === this._bgmUrl && this._bgmSource) return;
+    if (!this._ctx) {return;}
+    if (url === this._bgmUrl && this._bgmSource) {return;}
     const request = ++this._bgmRequest;
     const buffer = await this._loadBuffer(url);
     const ctx = this._ctx;
-    if (!ctx) return;
+    if (!ctx) {return;}
     // A newer request started while this one was decoding, so that one owns the
     // BGM slot. Starting this source anyway would leave it audible and
     // unreachable — see `_bgmRequest`.
-    if (request !== this._bgmRequest) return;
+    if (request !== this._bgmRequest) {return;}
 
     const previous = this._bgmSource;
-    if (previous) this._retireBgm(previous, this._bgmFadeIn, fadeDuration);
+    if (previous) {this._retireBgm(previous, this._bgmFadeIn, fadeDuration);}
 
     const src = ctx.createBufferSource();
     src.buffer = buffer; src.loop = true;
@@ -252,7 +262,7 @@ export class AudioManager {
   }
 
   stopBgm(fadeDuration = 0.5): void {
-    if (!this._ctx || !this._bgmSource) return;
+    if (!this._ctx || !this._bgmSource) {return;}
     const src = this._bgmSource;
     const fadeIn = this._bgmFadeIn;
     this._bgmSource = null; this._bgmUrl = ''; this._bgmFadeIn = null;
@@ -271,12 +281,12 @@ export class AudioManager {
   private _retireBgm(
     src: AudioBufferSourceNode,
     fadeIn: GainNode | null,
-    fadeDuration: number,
+    fadeDuration: number
   ): void {
     const ctx = this._ctx;
-    if (!ctx) return;
+    if (!ctx) {return;}
     const drop = (node: AudioNode | null): void => {
-      if (!node) return;
+      if (!node) {return;}
       try { node.disconnect(); } catch { /* already detached */ }
     };
 
@@ -315,16 +325,16 @@ export class AudioManager {
     const dist = Math.hypot(dx, dy);
     const ref = opts.refDistance ?? 1;
     const max = opts.maxDistance ?? 10;
-    if (dist <= ref) return 1;
-    if (dist >= max) return 0;
+    if (dist <= ref) {return 1;}
+    if (dist >= max) {return 0;}
     return 1 - (dist - ref) / (max - ref);
   }
 
   private async _loadBuffer(url: string): Promise<AudioBuffer> {
     const cached = this._bufferCache.get(url);
-    if (cached) return cached;
+    if (cached) {return cached;}
     const inFlight = this._pending.get(url);
-    if (inFlight) return inFlight;
+    if (inFlight) {return inFlight;}
     const promise = (async () => {
       try {
         // Decoding does not need a resumed context, only an existing one — so
@@ -333,7 +343,7 @@ export class AudioManager {
         // preload issued before the first gesture failed outright.
         const ctx = this._ensureContext();
         const res = await fetch(url);
-        if (!res.ok) throw new Error(`AudioManager: failed to fetch "${url}" (${res.status})`);
+        if (!res.ok) {throw new Error(`AudioManager: failed to fetch "${url}" (${res.status})`);}
         const arrayBuffer = await res.arrayBuffer();
         const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
         this._bufferCache.set(url, audioBuffer);
@@ -413,7 +423,7 @@ export class AudioManager {
     this._pending.clear();
     const ctx = this._ctx;
     this._ctx = null;
-    if (ctx) void ctx.close().catch(() => { /* already closed */ });
+    if (ctx) {void ctx.close().catch(() => { /* already closed */ });}
   }
 }
 

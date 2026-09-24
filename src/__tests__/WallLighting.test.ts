@@ -1,7 +1,7 @@
-import { describe, it, expect, vi } from 'vitest';
-import { Wall } from '../elements/Wall';
-import { OmniLight } from '../lighting/OmniLight';
-import { DirectionalLight } from '../lighting/DirectionalLight';
+import {describe, it, expect, vi} from 'vitest';
+import {Wall} from '../elements/Wall';
+import {OmniLight} from '../lighting/OmniLight';
+import {DirectionalLight} from '../lighting/DirectionalLight';
 
 /**
  * Wall directional-light factor tests.
@@ -23,10 +23,10 @@ function captureWallFillStyle(elevDeg: number): string {
     save: vi.fn(), restore: vi.fn(), beginPath: vi.fn(),
     moveTo: vi.fn(), lineTo: vi.fn(), closePath: vi.fn(), fill: vi.fn(),
     stroke: vi.fn(), clip: vi.fn(),
-    createRadialGradient: () => ({ addColorStop: vi.fn() }),
-    createLinearGradient: () => ({ addColorStop: vi.fn() }),
+    createRadialGradient: () => ({addColorStop: vi.fn()}),
+    createLinearGradient: () => ({addColorStop: vi.fn()}),
     setLineDash: vi.fn(), strokeRect: vi.fn(), fillText: vi.fn(),
-    measureText: () => ({ width: 0 }),
+    measureText: () => ({width: 0}),
     get fillStyle() { return fillStyle; },
     set fillStyle(v: string) { fillStyle = v; },
     strokeStyle: '', lineWidth: 1,
@@ -35,13 +35,13 @@ function captureWallFillStyle(elevDeg: number): string {
   // normal NX_WALL = (0.8944, -0.4472) has positive dot with (cos0,sin0)=(1,0)
   // = 0.8944. DirectionalLight takes angle/elevation in DEGREES (constructor
   // converts to radians internally).
-  const wall = new Wall({ id: 'w', x: 0, y: 0, endX: 4, endY: 0, height: 64 });
+  const wall = new Wall({id: 'w', x: 0, y: 0, endX: 4, endY: 0, height: 64});
   const dc = {
     ctx, tileW: 64, tileH: 32, originX: 100, originY: 100,
     omniLights: [] as OmniLight[],
-    dirLights: [new DirectionalLight({ angle: 0, elevation: elevDeg, color: '#ffffff', intensity: 1 })],
+    dirLights: [new DirectionalLight({angle: 0, elevation: elevDeg, color: '#ffffff', intensity: 1})],
     ambientRgb: [0, 0, 0] as [number, number, number],
-    view: { rotation: 0, elevation: 0.5 },
+    view: {rotation: 0, elevation: 0.5},
   };
   wall.draw(dc);
   return fillStyle;

@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { AudioManager } from '../audio/AudioManager';
+import {describe, it, expect, beforeEach, afterEach, vi} from 'vitest';
+import {AudioManager} from '../audio/AudioManager';
 
 /**
  * AudioManager had zero unit coverage, which is how the two defects fixed in
@@ -65,23 +65,29 @@ class FakeAudioContext {
   createGain(): FakeGain { const g = new FakeGain(); this.gains.push(g); return g; }
   createBufferSource(): FakeSource { const s = new FakeSource(); this.sources.push(s); return s; }
   createPanner(): FakePanner { const p = new FakePanner(); this.panners.push(p); return p; }
-  decodeAudioData(): Promise<unknown> { this.decodeCalls++; return Promise.resolve({ duration: 1 }); }
+  decodeAudioData(): Promise<unknown> { this.decodeCalls++; return Promise.resolve({duration: 1}); }
   resume(): Promise<void> { this.state = 'running'; return Promise.resolve(); }
   suspend(): Promise<void> { this.state = 'suspended'; return Promise.resolve(); }
   close(): Promise<void> { this.closed = true; this.state = 'closed'; return Promise.resolve(); }
 }
 
 let contexts: FakeAudioContext[] = [];
-let fetchImpl: (url: string) => Promise<{ ok: boolean; status: number; arrayBuffer(): Promise<ArrayBuffer> }>;
+let fetchImpl: (url: string) => Promise<{ok: boolean; status: number; arrayBuffer(): Promise<ArrayBuffer>}>;
 
-function okResponse(): { ok: boolean; status: number; arrayBuffer(): Promise<ArrayBuffer> } {
-  return { ok: true, status: 200, arrayBuffer: () => Promise.resolve(new ArrayBuffer(8)) };
+function okResponse(): {ok: boolean; status: number; arrayBuffer(): Promise<ArrayBuffer>} {
+  return {ok: true, status: 200, arrayBuffer: () => Promise.resolve(new ArrayBuffer(8))};
 }
 
 beforeEach(() => {
   contexts = [];
   fetchImpl = () => Promise.resolve(okResponse());
-  vi.stubGlobal('AudioContext', class { constructor() { const c = new FakeAudioContext(); contexts.push(c); return c as never; } });
+  vi.stubGlobal('AudioContext', class {
+    constructor() {
+      const c = new FakeAudioContext();
+      contexts.push(c);
+      return c as never;
+    }
+  });
   vi.stubGlobal('fetch', (url: string) => fetchImpl(url));
   vi.spyOn(console, 'warn').mockImplementation(() => {});
 });
@@ -121,7 +127,7 @@ describe('AudioManager — buffer loading retry', () => {
     fetchImpl = () => {
       attempts++;
       return attempts === 1
-        ? Promise.resolve({ ok: false, status: 404, arrayBuffer: () => Promise.resolve(new ArrayBuffer(0)) })
+        ? Promise.resolve({ok: false, status: 404, arrayBuffer: () => Promise.resolve(new ArrayBuffer(0))})
         : Promise.resolve(okResponse());
     };
 
@@ -147,7 +153,7 @@ describe('AudioManager — playSfx', () => {
     // A missing sound file must not surface as an unhandled rejection.
     expect(audio.playSfx('/sfx/absent.ogg')).toBeNull();
     await Promise.resolve();
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await new Promise(resolve => setTimeout(resolve, 0));
     expect(console.warn).toHaveBeenCalled();
   });
 
@@ -158,7 +164,7 @@ describe('AudioManager — playSfx', () => {
 
     const source = audio.playSfx('/sfx/hit.ogg', {
       volume: 0.5,
-      spatial: { x: 3, y: 4 },
+      spatial: {x: 3, y: 4},
     }) as unknown as FakeSource;
 
     expect(source).not.toBeNull();
@@ -208,7 +214,7 @@ describe('AudioManager — dispose', () => {
     expect(first.decodeCalls).toBe(1);
 
     audio.dispose();
-    audio.resume();               // revive with a fresh context
+    audio.resume(); // revive with a fresh context
     await audio.preload('/sfx/hit.ogg');
 
     expect(contexts.length).toBe(2);
@@ -252,7 +258,7 @@ describe('AudioManager — volume buses', () => {
 
 describe('AudioManager.spatialVolume', () => {
   it('is full volume inside refDistance and silent past maxDistance', () => {
-    const near = AudioManager.spatialVolume({ x: 0, y: 0, listenerX: 0, listenerY: 0 });
+    const near = AudioManager.spatialVolume({x: 0, y: 0, listenerX: 0, listenerY: 0});
     const far = AudioManager.spatialVolume({
       x: 100, y: 0, listenerX: 0, listenerY: 0, refDistance: 1, maxDistance: 10,
     });
@@ -276,7 +282,7 @@ function listenerBag() {
   return {
     target: {
       addEventListener(type: string, cb: EventListener) {
-        if (!map.has(type)) map.set(type, new Set());
+        if (!map.has(type)) {map.set(type, new Set());}
         map.get(type)!.add(cb);
       },
       removeEventListener(type: string, cb: EventListener) {
@@ -284,7 +290,7 @@ function listenerBag() {
       },
     } as unknown as EventTarget,
     fire(type: string) {
-      for (const cb of map.get(type) ?? []) cb({ type } as Event);
+      for (const cb of map.get(type) ?? []) {cb({type} as Event);}
     },
     count(type: string) { return map.get(type)?.size ?? 0; },
   };
@@ -314,7 +320,7 @@ describe('AudioManager — page lifecycle binding', () => {
   it('unlocks on the first gesture and then detaches', () => {
     const gestures = listenerBag();
     const audio = new AudioManager();
-    audio.bindPageLifecycle({ target: gestures.target, suspendWhileHidden: false });
+    audio.bindPageLifecycle({target: gestures.target, suspendWhileHidden: false});
 
     expect(gestures.count('pointerdown')).toBe(1);
     gestures.fire('pointerdown');
@@ -328,7 +334,7 @@ describe('AudioManager — page lifecycle binding', () => {
   it('accepts touchend as the unlocking gesture', () => {
     const gestures = listenerBag();
     const audio = new AudioManager();
-    audio.bindPageLifecycle({ target: gestures.target, suspendWhileHidden: false });
+    audio.bindPageLifecycle({target: gestures.target, suspendWhileHidden: false});
     gestures.fire('touchend');
     expect(contexts.length).toBe(1);
     audio.dispose();
@@ -336,7 +342,7 @@ describe('AudioManager — page lifecycle binding', () => {
 
   it('suspends while the page is hidden and resumes on return', () => {
     const docBag = listenerBag();
-    const hidden = { value: false };
+    const hidden = {value: false};
     vi.stubGlobal('document', {
       addEventListener: (t: string, cb: EventListener) => docBag.target.addEventListener(t, cb),
       removeEventListener: (t: string, cb: EventListener) => docBag.target.removeEventListener(t, cb),
@@ -345,7 +351,7 @@ describe('AudioManager — page lifecycle binding', () => {
 
     const audio = new AudioManager();
     audio.resume();
-    audio.bindPageLifecycle({ unlockOnGesture: false });
+    audio.bindPageLifecycle({unlockOnGesture: false});
     expect(latest().state).toBe('running');
 
     hidden.value = true;
@@ -366,7 +372,7 @@ describe('AudioManager — page lifecycle binding', () => {
       hidden: true,
     });
     const audio = new AudioManager();
-    audio.bindPageLifecycle({ unlockOnGesture: false });
+    audio.bindPageLifecycle({unlockOnGesture: false});
     docBag.fire('visibilitychange');
     expect(contexts.length).toBe(0);
     audio.dispose();
@@ -375,7 +381,7 @@ describe('AudioManager — page lifecycle binding', () => {
   it('the returned detach removes the gesture listeners', () => {
     const gestures = listenerBag();
     const audio = new AudioManager();
-    const detach = audio.bindPageLifecycle({ target: gestures.target, suspendWhileHidden: false });
+    const detach = audio.bindPageLifecycle({target: gestures.target, suspendWhileHidden: false});
     detach();
     gestures.fire('pointerdown');
     expect(contexts.length).toBe(0);
@@ -386,8 +392,8 @@ describe('AudioManager — page lifecycle binding', () => {
     const first = listenerBag();
     const second = listenerBag();
     const audio = new AudioManager();
-    audio.bindPageLifecycle({ target: first.target, suspendWhileHidden: false });
-    audio.bindPageLifecycle({ target: second.target, suspendWhileHidden: false });
+    audio.bindPageLifecycle({target: first.target, suspendWhileHidden: false});
+    audio.bindPageLifecycle({target: second.target, suspendWhileHidden: false});
 
     expect(first.count('pointerdown')).toBe(0);
     expect(second.count('pointerdown')).toBe(1);
@@ -397,7 +403,7 @@ describe('AudioManager — page lifecycle binding', () => {
   it('dispose() detaches the lifecycle listeners', () => {
     const gestures = listenerBag();
     const audio = new AudioManager();
-    audio.bindPageLifecycle({ target: gestures.target, suspendWhileHidden: false });
+    audio.bindPageLifecycle({target: gestures.target, suspendWhileHidden: false});
     audio.dispose();
     expect(gestures.count('pointerdown')).toBe(0);
   });
@@ -409,7 +415,7 @@ describe('AudioManager — page lifecycle binding', () => {
  */
 function deferredFetch() {
   const waiting = new Map<string, () => void>();
-  fetchImpl = (url: string) => new Promise((resolve) => {
+  fetchImpl = (url: string) => new Promise(resolve => {
     waiting.set(url, () => resolve(okResponse()));
   });
   return {
@@ -492,8 +498,8 @@ describe('AudioManager — bgm crossfade teardown', () => {
     const audio = new AudioManager();
     audio.resume();
     await audio.playBgm('/bgm/a.ogg', 1);
-    await audio.playBgm('/bgm/b.ogg', 1);   // b gets a fade-in gain
-    await audio.playBgm('/bgm/c.ogg', 1);   // b retires: fade-in must go too
+    await audio.playBgm('/bgm/b.ogg', 1); // b gets a fade-in gain
+    await audio.playBgm('/bgm/c.ogg', 1); // b retires: fade-in must go too
     vi.advanceTimersByTime(1200);
 
     const ctx = latest();
@@ -503,7 +509,7 @@ describe('AudioManager — bgm crossfade teardown', () => {
     // connected to the bus with nothing feeding it.
     expect(fadeInB.disconnectCount).toBeGreaterThan(0);
     expect(fadeOutB.disconnectCount).toBeGreaterThan(0);
-    expect(fadeInC.disconnectCount).toBe(0);   // c is playing
+    expect(fadeInC.disconnectCount).toBe(0); // c is playing
     audio.dispose();
   });
 
@@ -594,10 +600,10 @@ describe('AudioManager.spatialVolume — defaults', () => {
     // 1 and 10, matching `playSfx({ spatial })`. They were 2 and 12 here, so the
     // same options object produced two different falloff curves depending on
     // which path played the sound.
-    expect(AudioManager.spatialVolume({ x: 1, y: 0, listenerX: 0, listenerY: 0 })).toBe(1);
-    expect(AudioManager.spatialVolume({ x: 10, y: 0, listenerX: 0, listenerY: 0 })).toBe(0);
+    expect(AudioManager.spatialVolume({x: 1, y: 0, listenerX: 0, listenerY: 0})).toBe(1);
+    expect(AudioManager.spatialVolume({x: 10, y: 0, listenerX: 0, listenerY: 0})).toBe(0);
 
-    const half = AudioManager.spatialVolume({ x: 5.5, y: 0, listenerX: 0, listenerY: 0 });
+    const half = AudioManager.spatialVolume({x: 5.5, y: 0, listenerX: 0, listenerY: 0});
     expect(half).toBeCloseTo(0.5, 6);
   });
 });

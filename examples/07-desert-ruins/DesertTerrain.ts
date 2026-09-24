@@ -4,9 +4,9 @@
  * 每个格子分成两个三角形，高度用 sin/cos 叠加产生起伏。
  * 远处顶点加热浪扰动。
  */
-import { IsoObject, DrawContext } from '../../src/elements/IsoObject';
-import { AABB } from '../../src/math/depthSort';
-import { project } from '../../src/math/IsoProjection';
+import {IsoObject, DrawContext} from '../../src/elements/IsoObject';
+import {AABB} from '../../src/math/depthSort';
+import {project} from '../../src/math/IsoProjection';
 
 export class SandDune extends IsoObject {
   readonly cols: number;
@@ -24,7 +24,7 @@ export class SandDune extends IsoObject {
   }
 
   get aabb(): AABB {
-    return { minX: 0, minY: 0, maxX: this.cols, maxY: this.rows, baseZ: -4 };
+    return {minX: 0, minY: 0, maxX: this.cols, maxY: this.rows, baseZ: -4};
   }
 
   update(ts?: number): void {
@@ -42,12 +42,14 @@ export class SandDune extends IsoObject {
     );
   }
 
-  private _vertex(col: number, row: number, tileW: number, tileH: number, originX: number, originY: number): { sx: number; sy: number } {
+  private _vertex(
+    col: number, row: number, tileW: number, tileH: number, originX: number, originY: number
+  ): {sx: number; sy: number} {
     const h = this._height(col, row);
     // 热浪扰动：远处（row < 4）
     const heatX = row < 4 ? Math.sin(this._time * 2 + col * 0.5) * this.heatWaveStrength : 0;
     const p = project(col, row, h, tileW, tileH);
-    return { sx: originX + p.sx + heatX, sy: originY + p.sy };
+    return {sx: originX + p.sx + heatX, sy: originY + p.sy};
   }
 
   private _color(h: number): string {
@@ -60,13 +62,13 @@ export class SandDune extends IsoObject {
   }
 
   draw(dc: DrawContext): void {
-    const { ctx, tileW, tileH, originX, originY } = dc;
+    const {ctx, tileW, tileH, originX, originY} = dc;
 
     for (let row = 0; row < this.rows; row++) {
       for (let col = 0; col < this.cols; col++) {
-        const v00 = this._vertex(col,     row,     tileW, tileH, originX, originY);
-        const v10 = this._vertex(col + 1, row,     tileW, tileH, originX, originY);
-        const v01 = this._vertex(col,     row + 1, tileW, tileH, originX, originY);
+        const v00 = this._vertex(col, row, tileW, tileH, originX, originY);
+        const v10 = this._vertex(col + 1, row, tileW, tileH, originX, originY);
+        const v01 = this._vertex(col, row + 1, tileW, tileH, originX, originY);
         const v11 = this._vertex(col + 1, row + 1, tileW, tileH, originX, originY);
 
         const h00 = this._height(col, row);

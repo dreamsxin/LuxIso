@@ -1,9 +1,9 @@
-import { project } from '../../math/IsoProjection';
-import { AABB } from '../../math/depthSort';
-import { DrawContext } from '../IsoObject';
-import { Entity } from '../../ecs/Entity';
-import { HealthComponent } from '../../ecs/components/HealthComponent';
-import { shiftColor, lerpColor } from '../../math/color';
+import {project} from '../../math/IsoProjection';
+import {AABB} from '../../math/depthSort';
+import {DrawContext} from '../IsoObject';
+import {Entity} from '../../ecs/Entity';
+import {HealthComponent} from '../../ecs/components/HealthComponent';
+import {shiftColor, lerpColor} from '../../math/color';
 
 /** Low-poly hexagonal crystal cluster with HealthComponent. */
 export class Crystal extends Entity {
@@ -16,7 +16,7 @@ export class Crystal extends Entity {
     x: number,
     y: number,
     color = '#8060e0',
-    heightPx = 48,
+    heightPx = 48
   ) {
     super(id, x, y, 0);
     this.color = color;
@@ -24,10 +24,10 @@ export class Crystal extends Entity {
     this.heightPx = heightPx;
     // Crystal has a narrow base; use a small circular shadow
     this.shadowRadius = 0.22;
-    this.castsShadow  = true;
+    this.castsShadow = true;
   }
 
-  get propColor(): string   { return this.color; }
+  get propColor(): string { return this.color; }
   get propHeightPx(): number { return this.heightPx; }
 
   /**
@@ -63,9 +63,9 @@ export class Crystal extends Entity {
   }
 
   draw(dc: DrawContext): void {
-    const { ctx, tileW, tileH, originX, originY, omniLights } = dc;
-    const { x, y } = this.position;
-    const { sx, sy } = project(x, y, 0, tileW, tileH);
+    const {ctx, tileW, tileH, originX, originY, omniLights} = dc;
+    const {x, y} = this.position;
+    const {sx, sy} = project(x, y, 0, tileW, tileH);
     const cx = originX + sx;
     const cy = originY + sy;
     const h = this.heightPx;
@@ -133,7 +133,7 @@ export class Crystal extends Entity {
 
   private drawHealthBar(ctx: CanvasRenderingContext2D, x: number, y: number): void {
     const hp = this.getComponent(HealthComponent);
-    if (!hp || hp.isDead) return;
+    if (!hp || hp.isDead) {return;}
     const w = 36, h = 4;
     ctx.fillStyle = 'rgba(0,0,0,0.5)';
     ctx.fillRect(x - w / 2, y, w, h);
@@ -149,7 +149,7 @@ type Point = readonly [number, number];
 function fillPolygon(ctx: CanvasRenderingContext2D, points: readonly Point[], color: string): void {
   ctx.beginPath();
   ctx.moveTo(points[0][0], points[0][1]);
-  for (let i = 1; i < points.length; i++) ctx.lineTo(points[i][0], points[i][1]);
+  for (let i = 1; i < points.length; i++) {ctx.lineTo(points[i][0], points[i][1]);}
   ctx.closePath();
   ctx.fillStyle = color;
   ctx.fill();

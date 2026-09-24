@@ -1,8 +1,8 @@
-import { Camera } from './Camera';
-import { InputManager } from './InputManager';
-import { InputMap } from './InputMap';
-import type { IsoView } from '../math/IsoProjection';
-import { TileCollider } from '../physics/TileCollider';
+import {Camera} from './Camera';
+import {InputManager} from './InputManager';
+import {InputMap} from './InputMap';
+import type {IsoView} from '../math/IsoProjection';
+import {TileCollider} from '../physics/TileCollider';
 
 
 export interface ClickMoverOptions {
@@ -48,7 +48,7 @@ export class ClickMover {
   velY = 0;
 
 
-  private _target: { x: number; y: number } | null = null;
+  private _target: {x: number; y: number} | null = null;
   private _markerX = 0;
   private _markerY = 0;
   private _markerAlpha = 0;
@@ -60,10 +60,10 @@ export class ClickMover {
   readonly collider: TileCollider | null;
 
   constructor(opts: ClickMoverOptions) {
-    this.cols     = opts.cols;
-    this.rows     = opts.rows;
-    this.speed    = opts.speed;
-    this.radius   = opts.radius ?? 0.3;
+    this.cols = opts.cols;
+    this.rows = opts.rows;
+    this.speed = opts.speed;
+    this.radius = opts.radius ?? 0.3;
     this.collider = opts.collider ?? null;
   }
 
@@ -101,25 +101,25 @@ export class ClickMover {
      * rotation and the Y scale. Picking without it uses the un-viewed inverse,
      * and the click lands on a different tile than the one under the cursor.
      */
-    view?: IsoView,
+    view?: IsoView
   ): void {
     const kbAxis = map.axis('right', 'left', 'down', 'up');
-    const hasKb  = kbAxis.x !== 0 || kbAxis.y !== 0;
+    const hasKb = kbAxis.x !== 0 || kbAxis.y !== 0;
 
     if (input.pointer.pressed) {
       const world = camera.screenToWorld(
         input.pointer.x, input.pointer.y,
-        canvasW, canvasH, tileW, tileH, originX, originY, view,
+        canvasW, canvasH, tileW, tileH, originX, originY, view
       );
 
       const tx = Math.max(0.5, Math.min(this.cols - 0.5, world.x));
       const ty = Math.max(0.5, Math.min(this.rows - 0.5, world.y));
-      this._target = { x: tx, y: ty };
+      this._target = {x: tx, y: ty};
       this._markerX = tx; this._markerY = ty; this._markerAlpha = 1;
     }
 
-    if (hasKb) this._target = null;
-    if (this._markerAlpha > 0) this._markerAlpha = Math.max(0, this._markerAlpha - dt * 1.8);
+    if (hasKb) {this._target = null;}
+    if (this._markerAlpha > 0) {this._markerAlpha = Math.max(0, this._markerAlpha - dt * 1.8);}
 
     // Displacement for this frame. Scaling by dt is what keeps the entity's
     // ground speed independent of the refresh rate; the arrival threshold below
@@ -185,11 +185,11 @@ export class ClickMover {
     originY: number,
     ts: number,
     /** The scene's `view`. Omitting it puts the marker off the clicked tile. */
-    view?: IsoView,
+    view?: IsoView
   ): void {
-    if (this._markerAlpha < 0.01) return;
+    if (this._markerAlpha < 0.01) {return;}
     const screen = camera.worldToScreen(
-      this._markerX, this._markerY, 0, tileW, tileH, originX, originY, view,
+      this._markerX, this._markerY, 0, tileW, tileH, originX, originY, view
     );
 
     const a = this._markerAlpha;

@@ -31,7 +31,7 @@
  * synthetic mouse buttons `MouseLeft`, `MouseMiddle` and `MouseRight`. Touch is
  * not bindable — read `input.touches` and drive actions yourself.
  */
-import { InputManager } from './InputManager';
+import {InputManager} from './InputManager';
 
 type ActionCallback = () => void;
 
@@ -43,7 +43,7 @@ type ActionCallback = () => void;
  */
 export interface AxisSource {
   /** Current vector; components in [-1, 1]. */
-  readonly value: { x: number; y: number };
+  readonly value: {x: number; y: number};
   /** True while the source is producing input. Inactive sources are skipped. */
   readonly active: boolean;
 }
@@ -77,11 +77,11 @@ export class InputMap {
   define(action: string, keys: string[]): this {
     const previous = this._bindings.get(action);
     if (previous) {
-      for (const k of previous) this._input.unbindKey(k, action);
+      for (const k of previous) {this._input.unbindKey(k, action);}
     }
     this._bindings.set(action, new Set(keys));
     // Mirror into InputManager's action system for callback support
-    for (const k of keys) this._input.bindKey(k, action);
+    for (const k of keys) {this._input.bindKey(k, action);}
     return this;
   }
 
@@ -89,7 +89,7 @@ export class InputMap {
    * Add extra keys to an existing action without replacing current bindings.
    */
   addBinding(action: string, keys: string[]): this {
-    if (!this._bindings.has(action)) this._bindings.set(action, new Set());
+    if (!this._bindings.has(action)) {this._bindings.set(action, new Set());}
     const set = this._bindings.get(action)!;
     for (const k of keys) {
       set.add(k);
@@ -109,11 +109,11 @@ export class InputMap {
   /** Remove an action entirely, including any subscribed callbacks. */
   remove(action: string): void {
     const keys = this._bindings.get(action);
-    if (keys) for (const k of keys) this._input.unbindKey(k, action);
+    if (keys) {for (const k of keys) {this._input.unbindKey(k, action);}}
     this._bindings.delete(action);
     const unsubscribes = this._unsubscribes.get(action);
     if (unsubscribes) {
-      for (const off of unsubscribes) off();
+      for (const off of unsubscribes) {off();}
       this._unsubscribes.delete(action);
     }
   }
@@ -154,13 +154,13 @@ export class InputMap {
     positiveX: string,
     negativeX: string,
     positiveY: string,
-    negativeY: string,
-  ): { x: number; y: number } {
+    negativeY: string
+  ): {x: number; y: number} {
     let x = 0, y = 0;
-    if (this.isDown(positiveX)) x += 1;
-    if (this.isDown(negativeX)) x -= 1;
-    if (this.isDown(positiveY)) y += 1;
-    if (this.isDown(negativeY)) y -= 1;
+    if (this.isDown(positiveX)) {x += 1;}
+    if (this.isDown(negativeX)) {x -= 1;}
+    if (this.isDown(positiveY)) {y += 1;}
+    if (this.isDown(negativeY)) {y -= 1;}
 
     // Normalise the digital diagonal on its own, so adding an analog source
     // cannot change what the keyboard alone reports.
@@ -171,7 +171,7 @@ export class InputMap {
     }
 
     for (const source of this._axisSources) {
-      if (!source.active) continue;
+      if (!source.active) {continue;}
       x += source.value.x;
       y += source.value.y;
     }
@@ -181,7 +181,7 @@ export class InputMap {
       x /= length;
       y /= length;
     }
-    return { x, y };
+    return {x, y};
   }
 
   // ── Analog sources ─────────────────────────────────────────────────────────
@@ -212,13 +212,13 @@ export class InputMap {
    */
   on(action: string, cb: ActionCallback): () => void {
     const off = this._input.onAction(action, cb);
-    if (!this._unsubscribes.has(action)) this._unsubscribes.set(action, new Set());
+    if (!this._unsubscribes.has(action)) {this._unsubscribes.set(action, new Set());}
     const set = this._unsubscribes.get(action)!;
     // Track the detach function rather than the callback itself: the previous
     // version kept a set of callbacks that nothing ever read, so `remove()`
     // dropped that bookkeeping while leaving the listener live in InputManager.
     const wrapped = (): void => {
-      if (!set.delete(wrapped)) return;
+      if (!set.delete(wrapped)) {return;}
       off();
     };
     set.add(wrapped);

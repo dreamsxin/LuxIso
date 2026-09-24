@@ -24,7 +24,7 @@ export interface WaveDirectorSnapshot {
 
 function clampInt(value: unknown, fallback: number, min: number, max: number): number {
   const n = Number(value);
-  if (!Number.isFinite(n)) return fallback;
+  if (!Number.isFinite(n)) {return fallback;}
   return Math.max(min, Math.min(max, Math.floor(n)));
 }
 
@@ -56,7 +56,7 @@ export class WaveDirector {
   constructor(opts: WaveDirectorOptions = {}) {
     this._opts = opts;
     this._waves = Math.max(1, Math.floor(opts.waves ?? 3));
-    this._mobsPerWave = opts.mobsPerWave ?? ((wave) => 2 + wave);
+    this._mobsPerWave = opts.mobsPerWave ?? (wave => 2 + wave);
     this._intermission = Math.max(0, opts.intermission ?? 2.5);
   }
 
@@ -74,7 +74,7 @@ export class WaveDirector {
 
   /** Begin the run. Ignored once started. */
   start(): void {
-    if (this._phase !== 'ready') return;
+    if (this._phase !== 'ready') {return;}
     this._beginWave(1);
   }
 
@@ -84,13 +84,13 @@ export class WaveDirector {
    * modules settled on.
    */
   update(dt: number): void {
-    if (this.isOver || this._phase === 'ready') return;
-    if (!Number.isFinite(dt) || dt <= 0) return;
+    if (this.isOver || this._phase === 'ready') {return;}
+    if (!Number.isFinite(dt) || dt <= 0) {return;}
     this._elapsed += dt;
-    if (this._phase !== 'intermission') return;
+    if (this._phase !== 'intermission') {return;}
 
     this._countdown -= dt;
-    if (this._countdown > 0) return;
+    if (this._countdown > 0) {return;}
     // A long frame must not stretch the intermission: its overshoot is already
     // counted in `_elapsed`, so the leftover countdown is simply dropped and the
     // next wave begins in the same frame.
@@ -100,10 +100,10 @@ export class WaveDirector {
 
   /** Report one mob defeated. Ends the wave when the last one falls. */
   reportMobDefeated(): void {
-    if (this.isOver || this._alive === 0) return;
+    if (this.isOver || this._alive === 0) {return;}
     this._alive--;
     this._kills++;
-    if (this._alive > 0) return;
+    if (this._alive > 0) {return;}
 
     if (this._phase === 'boss') { this._setPhase('victory'); return; }
     if (this._wave >= this._waves) {
@@ -118,7 +118,7 @@ export class WaveDirector {
 
   /** Report the hero dead. Ends the run wherever it is. */
   reportHeroDefeated(): void {
-    if (this.isOver) return;
+    if (this.isOver) {return;}
     this._setPhase('defeat');
   }
 
@@ -153,12 +153,12 @@ export class WaveDirector {
     if (state.phase && PHASES.includes(state.phase)) {
       const previous = this._phase;
       this._phase = state.phase;
-      if (previous !== state.phase) this._opts.onPhase?.(state.phase, previous);
+      if (previous !== state.phase) {this._opts.onPhase?.(state.phase, previous);}
     }
     this._wave = clampInt(state.wave, this._wave, 0, this._waves);
     this._alive = clampInt(state.alive, this._alive, 0, Number.MAX_SAFE_INTEGER);
     this._kills = clampInt(state.kills, this._kills, 0, Number.MAX_SAFE_INTEGER);
-    if (Number.isFinite(state.elapsed as number)) this._elapsed = Math.max(0, state.elapsed as number);
+    if (Number.isFinite(state.elapsed as number)) {this._elapsed = Math.max(0, state.elapsed as number);}
     if (Number.isFinite(state.countdown as number)) {
       this._countdown = Math.max(0, Math.min(this._intermission, state.countdown as number));
     }
@@ -173,7 +173,7 @@ export class WaveDirector {
   }
 
   private _setPhase(phase: ArpgPhase): void {
-    if (phase === this._phase) return;
+    if (phase === this._phase) {return;}
     const previous = this._phase;
     this._phase = phase;
     this._opts.onPhase?.(phase, previous);

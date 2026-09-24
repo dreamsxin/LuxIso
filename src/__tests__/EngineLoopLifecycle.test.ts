@@ -1,6 +1,6 @@
-import { describe, it, expect, afterEach, vi } from 'vitest';
-import { Engine } from '../core/Engine';
-import { Scene } from '../core/Scene';
+import {describe, it, expect, afterEach, vi} from 'vitest';
+import {Engine} from '../core/Engine';
+import {Scene} from '../core/Scene';
 
 /**
  * The render loop's lifecycle, driven by a rAF the test controls.
@@ -29,7 +29,7 @@ function harness(): Harness {
     return id;
   };
   (globalThis as any).cancelAnimationFrame = (id: number): void => { pending.delete(id); };
-  (globalThis as any).window = { devicePixelRatio: 1, addEventListener: vi.fn(), removeEventListener: vi.fn() };
+  (globalThis as any).window = {devicePixelRatio: 1, addEventListener: vi.fn(), removeEventListener: vi.fn()};
 
   const ctx = new Proxy({}, {
     get: () => () => {},
@@ -38,12 +38,12 @@ function harness(): Harness {
   const canvas = {
     width: 800, height: 600, style: {} as Record<string, string>, parentElement: null,
     getContext: () => ctx,
-    getBoundingClientRect: () => ({ left: 0, top: 0, width: 800, height: 600 }),
+    getBoundingClientRect: () => ({left: 0, top: 0, width: 800, height: 600}),
     addEventListener: vi.fn(), removeEventListener: vi.fn(),
   } as unknown as HTMLCanvasElement;
 
-  const engine = new Engine({ canvas });
-  const scene = new Scene({ name: 's', tileW: 64, tileH: 32, cols: 4, rows: 4 });
+  const engine = new Engine({canvas});
+  const scene = new Scene({name: 's', tileW: 64, tileH: 32, cols: 4, rows: 4});
   vi.spyOn(scene, 'draw').mockImplementation(() => {});
   const fixed = vi.spyOn(scene, 'fixedUpdate');
   engine.setScene(scene);
@@ -54,7 +54,7 @@ function harness(): Harness {
     flush(ts: number): number {
       const batch = [...pending.values()];
       pending.clear();
-      for (const cb of batch) cb(ts);
+      for (const cb of batch) {cb(ts);}
       return batch.length;
     },
     fixedSteps: () => fixed.mock.calls.length,
@@ -73,7 +73,7 @@ describe('Engine — one rAF chain, always', () => {
     const h = harness();
     let restarted = false;
     h.engine.start(() => {
-      if (restarted) return;
+      if (restarted) {return;}
       restarted = true;
       // What a restart button does. `HudLayer`'s own docstring shows
       // `onClick: () => engine.stop()`, so engine control from a callback is the
@@ -129,20 +129,20 @@ describe('Engine — stop() is a pause, so it disarms the clock', () => {
 });
 
 describe('Engine — auto-pause', () => {
-  function fakeDocument(): { doc: any; fire(): void } {
+  function fakeDocument(): {doc: any; fire(): void} {
     let handler: (() => void) | null = null;
     const doc = {
       hidden: false,
       addEventListener: (_type: string, cb: () => void) => { handler = cb; },
       removeEventListener: () => { handler = null; },
     };
-    return { doc, fire: () => handler?.() };
+    return {doc, fire: () => handler?.()};
   }
 
   afterEach(() => { delete (globalThis as any).document; });
 
   it('resumes when pauseOnHide is switched off while already hidden', () => {
-    const { doc, fire } = fakeDocument();
+    const {doc, fire} = fakeDocument();
     (globalThis as any).document = doc;
     const h = harness();
     h.engine.start();

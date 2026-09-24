@@ -1,11 +1,11 @@
-import { describe, it, expect, vi, afterEach } from 'vitest';
-import { Engine } from '../core/Engine';
-import { SceneSerializer } from '../core/SceneSerializer';
-import { Entity } from '../ecs/Entity';
-import { Boulder } from '../elements/props/Boulder';
-import { IsoObject, type DrawContext } from '../elements/IsoObject';
-import { HealthComponent } from '../ecs/components/HealthComponent';
-import type { AABB } from '../math/depthSort';
+import {describe, it, expect, vi, afterEach} from 'vitest';
+import {Engine} from '../core/Engine';
+import {SceneSerializer} from '../core/SceneSerializer';
+import {Entity} from '../ecs/Entity';
+import {Boulder} from '../elements/props/Boulder';
+import {IsoObject, type DrawContext} from '../elements/IsoObject';
+import {HealthComponent} from '../ecs/components/HealthComponent';
+import type {AABB} from '../math/depthSort';
 
 /**
  * `health` on a JSON prop entry.
@@ -31,7 +31,7 @@ function makeCanvas(): HTMLCanvasElement {
 class BareProp extends IsoObject {
   constructor(id: string) { super(id, 1, 1, 0); }
   get aabb(): AABB {
-    return { minX: 1, minY: 1, maxX: 2, maxY: 2, baseZ: 0 };
+    return {minX: 1, minY: 1, maxX: 2, maxY: 2, baseZ: 0};
   }
   draw(_dc: DrawContext): void { /* not exercised */ }
 }
@@ -49,14 +49,14 @@ class SelfHealingProp extends Entity {
   }
 
   get aabb(): AABB {
-    return { minX: 2, minY: 2, maxX: 3, maxY: 3, baseZ: 0 };
+    return {minX: 2, minY: 2, maxX: 3, maxY: 3, baseZ: 0};
   }
   draw(_dc: DrawContext): void { /* not exercised */ }
 }
 
 function build(props: Array<Record<string, unknown>>) {
-  const engine = new Engine({ canvas: makeCanvas() });
-  return engine.buildScene({ cols: 8, rows: 8, props });
+  const engine = new Engine({canvas: makeCanvas()});
+  return engine.buildScene({cols: 8, rows: 8, props});
 }
 
 afterEach(() => {
@@ -67,8 +67,8 @@ afterEach(() => {
 
 describe('Engine — prop health', () => {
   it('adds a HealthComponent to an Entity that has none', () => {
-    Engine.registerProp('healer', (json) => new (class extends SelfHealingProp {})(json.id, 1));
-    Engine.registerProp('bare', (json) => {
+    Engine.registerProp('healer', json => new (class extends SelfHealingProp {})(json.id, 1));
+    Engine.registerProp('bare', json => {
       // An Entity without any component of its own.
       class Plain extends SelfHealingProp {}
       const prop = new Plain(json.id, 1);
@@ -76,7 +76,7 @@ describe('Engine — prop health', () => {
       return prop;
     });
 
-    const scene = build([{ id: 'p', type: 'bare', x: 1, y: 1, health: 45 }]);
+    const scene = build([{id: 'p', type: 'bare', x: 1, y: 1, health: 45}]);
     const prop = scene.getById('p') as SelfHealingProp;
     const health = prop.getComponent(HealthComponent);
     expect(health).toBeDefined();
@@ -85,9 +85,9 @@ describe('Engine — prop health', () => {
   });
 
   it('keeps a component the prop created itself, and its callbacks', () => {
-    Engine.registerProp('healer', (json) => new SelfHealingProp(json.id, 30, 12));
+    Engine.registerProp('healer', json => new SelfHealingProp(json.id, 30, 12));
 
-    const scene = build([{ id: 'h', type: 'healer', x: 2, y: 2, health: 40 }]);
+    const scene = build([{id: 'h', type: 'healer', x: 2, y: 2, health: 40}]);
     const prop = scene.getById('h') as SelfHealingProp;
 
     // Same instance the class cached — not a replacement.
@@ -101,8 +101,8 @@ describe('Engine — prop health', () => {
   });
 
   it('clamps current hp when the JSON maximum is lower', () => {
-    Engine.registerProp('healer', (json) => new SelfHealingProp(json.id, 100, 80));
-    const scene = build([{ id: 'h', type: 'healer', x: 2, y: 2, health: 25 }]);
+    Engine.registerProp('healer', json => new SelfHealingProp(json.id, 100, 80));
+    const scene = build([{id: 'h', type: 'healer', x: 2, y: 2, health: 25}]);
     const prop = scene.getById('h') as SelfHealingProp;
     expect(prop.own.maxHp).toBe(25);
     expect(prop.own.hp).toBe(25);
@@ -110,11 +110,11 @@ describe('Engine — prop health', () => {
 
   it('warns instead of throwing when the prop is not an Entity', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    Engine.registerProp('bare', (json) => new BareProp(json.id));
+    Engine.registerProp('bare', json => new BareProp(json.id));
 
     const scene = build([
-      { id: 'b', type: 'bare', x: 1, y: 1, health: 20 },
-      { id: 'b2', type: 'bare', x: 3, y: 3 },
+      {id: 'b', type: 'bare', x: 1, y: 1, health: 20},
+      {id: 'b2', type: 'bare', x: 3, y: 3},
     ]);
     // The bad entry no longer aborts the load: both props are present.
     expect(scene.getById('b')).toBeDefined();
@@ -124,12 +124,12 @@ describe('Engine — prop health', () => {
 
   it('rejects a non-positive or non-numeric health', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    Engine.registerProp('healer', (json) => new SelfHealingProp(json.id, 30, 30));
+    Engine.registerProp('healer', json => new SelfHealingProp(json.id, 30, 30));
 
     const scene = build([
-      { id: 'zero', type: 'healer', x: 2, y: 2, health: 0 },
-      { id: 'neg', type: 'healer', x: 2, y: 2, health: -5 },
-      { id: 'text', type: 'healer', x: 2, y: 2, health: 'lots' },
+      {id: 'zero', type: 'healer', x: 2, y: 2, health: 0},
+      {id: 'neg', type: 'healer', x: 2, y: 2, health: -5},
+      {id: 'text', type: 'healer', x: 2, y: 2, health: 'lots'},
     ]);
     for (const id of ['zero', 'neg', 'text']) {
       const prop = scene.getById(id) as SelfHealingProp;
@@ -142,16 +142,16 @@ describe('Engine — prop health', () => {
   });
 
   it('leaves a prop without a health field alone', () => {
-    Engine.registerProp('bare', (json) => new BareProp(json.id));
-    const scene = build([{ id: 'b', type: 'bare', x: 1, y: 1 }]);
+    Engine.registerProp('bare', json => new BareProp(json.id));
+    const scene = build([{id: 'b', type: 'bare', x: 1, y: 1}]);
     expect(scene.getById('b')).toBeInstanceOf(BareProp);
   });
 });
 
 describe('Engine — saved current hp', () => {
   it('restores a damaged prop without firing a death it already had', () => {
-    Engine.registerProp('healer', (json) => new SelfHealingProp(json.id, 50, 50));
-    const scene = build([{ id: 'h', type: 'healer', x: 2, y: 2, health: 50, hp: 3 }]);
+    Engine.registerProp('healer', json => new SelfHealingProp(json.id, 50, 50));
+    const scene = build([{id: 'h', type: 'healer', x: 2, y: 2, health: 50, hp: 3}]);
     const prop = scene.getById('h') as SelfHealingProp;
     expect(prop.own.hp).toBe(3);
     expect(prop.own.maxHp).toBe(50);
@@ -159,21 +159,21 @@ describe('Engine — saved current hp', () => {
   });
 
   it('restores hp on a component it had to create itself', () => {
-    Engine.registerProp('bare', (json) => {
+    Engine.registerProp('bare', json => {
       class Plain extends SelfHealingProp {}
       const prop = new Plain(json.id, 1);
       prop.removeComponent(HealthComponent);
       return prop;
     });
-    const scene = build([{ id: 'p', type: 'bare', x: 1, y: 1, health: 30, hp: 7 }]);
+    const scene = build([{id: 'p', type: 'bare', x: 1, y: 1, health: 30, hp: 7}]);
     const health = (scene.getById('p') as SelfHealingProp).getComponent(HealthComponent);
     expect(health!.hp).toBe(7);
     expect(health!.maxHp).toBe(30);
   });
 
   it('loads a prop that was already dead as dead, silently', () => {
-    Engine.registerProp('healer', (json) => new SelfHealingProp(json.id, 20, 20));
-    const scene = build([{ id: 'h', type: 'healer', x: 2, y: 2, health: 20, hp: 0 }]);
+    Engine.registerProp('healer', json => new SelfHealingProp(json.id, 20, 20));
+    const scene = build([{id: 'h', type: 'healer', x: 2, y: 2, health: 20, hp: 0}]);
     const prop = scene.getById('h') as SelfHealingProp;
     expect(prop.own.isDead).toBe(true);
     expect(prop.deaths).toBe(0);
@@ -181,11 +181,11 @@ describe('Engine — saved current hp', () => {
 
   it('clamps hp to the maximum and warns on a bad value', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    Engine.registerProp('healer', (json) => new SelfHealingProp(json.id, 20, 20));
+    Engine.registerProp('healer', json => new SelfHealingProp(json.id, 20, 20));
     const scene = build([
-      { id: 'over', type: 'healer', x: 2, y: 2, health: 20, hp: 500 },
-      { id: 'bad', type: 'healer', x: 2, y: 2, health: 20, hp: -4 },
-      { id: 'text', type: 'healer', x: 2, y: 2, health: 20, hp: 'half' },
+      {id: 'over', type: 'healer', x: 2, y: 2, health: 20, hp: 500},
+      {id: 'bad', type: 'healer', x: 2, y: 2, health: 20, hp: -4},
+      {id: 'text', type: 'healer', x: 2, y: 2, health: 20, hp: 'half'},
     ]);
     expect((scene.getById('over') as SelfHealingProp).own.hp).toBe(20);
     expect((scene.getById('bad') as SelfHealingProp).own.hp).toBe(20);
@@ -194,18 +194,18 @@ describe('Engine — saved current hp', () => {
   });
 
   it('ignores hp when there is no health field to size it against', () => {
-    Engine.registerProp('healer', (json) => new SelfHealingProp(json.id, 20, 20));
-    const scene = build([{ id: 'h', type: 'healer', x: 2, y: 2, hp: 5 }]);
+    Engine.registerProp('healer', json => new SelfHealingProp(json.id, 20, 20));
+    const scene = build([{id: 'h', type: 'healer', x: 2, y: 2, hp: 5}]);
     expect((scene.getById('h') as SelfHealingProp).own.hp).toBe(20);
   });
 
   it('survives a save and load round trip for a built-in prop', () => {
     // A checkpoint used to heal everything: `toJSON` wrote only the maximum, so a
     // boulder left at 12 of 50 came back at 50.
-    const engine = new Engine({ canvas: makeCanvas() });
+    const engine = new Engine({canvas: makeCanvas()});
     const scene = engine.buildScene({
       cols: 8, rows: 8,
-      props: [{ id: 'rock', type: 'boulder', x: 3, y: 3, health: 50 }],
+      props: [{id: 'rock', type: 'boulder', x: 3, y: 3, health: 50}],
     });
     const rock = scene.getById('rock') as Boulder;
     rock.getComponent(HealthComponent)!.takeDamage(38);
@@ -213,7 +213,7 @@ describe('Engine — saved current hp', () => {
 
     const saved = SceneSerializer.toJSON(scene);
     const entry = (saved.props as Array<Record<string, unknown>>).find(p => p.id === 'rock');
-    expect(entry).toMatchObject({ health: 50, hp: 12 });
+    expect(entry).toMatchObject({health: 50, hp: 12});
 
     const reloaded = engine.buildScene(saved);
     const restored = reloaded.getById('rock') as Boulder;
@@ -223,10 +223,10 @@ describe('Engine — saved current hp', () => {
   });
 
   it('omits hp for an undamaged prop, keeping the file shape unchanged', () => {
-    const engine = new Engine({ canvas: makeCanvas() });
+    const engine = new Engine({canvas: makeCanvas()});
     const scene = engine.buildScene({
       cols: 8, rows: 8,
-      props: [{ id: 'rock', type: 'boulder', x: 3, y: 3, health: 50 }],
+      props: [{id: 'rock', type: 'boulder', x: 3, y: 3, health: 50}],
     });
     const saved = SceneSerializer.toJSON(scene);
     const entry = (saved.props as Array<Record<string, unknown>>).find(p => p.id === 'rock')!;
@@ -237,10 +237,10 @@ describe('Engine — saved current hp', () => {
 
 describe('Engine.buildProps', () => {
   it('restores props without a Scene, in input order', () => {
-    Engine.registerProp('healer', (json) => new SelfHealingProp(json.id, 30, 30));
+    Engine.registerProp('healer', json => new SelfHealingProp(json.id, 30, 30));
     const props = Engine.buildProps([
-      { id: 'a', type: 'healer', x: 1, y: 1 },
-      { id: 'b', type: 'healer', x: 2, y: 2, health: 60, hp: 9 },
+      {id: 'a', type: 'healer', x: 1, y: 1},
+      {id: 'b', type: 'healer', x: 2, y: 2, health: 60, hp: 9},
     ]);
 
     expect(props.map(p => p.id)).toEqual(['a', 'b']);
@@ -251,10 +251,10 @@ describe('Engine.buildProps', () => {
 
   it('skips an unregistered type with a warning, keeping the rest', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    Engine.registerProp('healer', (json) => new SelfHealingProp(json.id, 10, 10));
+    Engine.registerProp('healer', json => new SelfHealingProp(json.id, 10, 10));
     const props = Engine.buildProps([
-      { id: 'ghost', type: 'not-registered', x: 0, y: 0 },
-      { id: 'real', type: 'healer', x: 1, y: 1 },
+      {id: 'ghost', type: 'not-registered', x: 0, y: 0},
+      {id: 'real', type: 'healer', x: 1, y: 1},
     ]);
 
     expect(props.map(p => p.id)).toEqual(['real']);
@@ -267,12 +267,12 @@ describe('Engine.buildProps', () => {
   });
 
   it('is the same path a full load takes', () => {
-    Engine.registerProp('healer', (json) => new SelfHealingProp(json.id, 30, 30));
-    const entries = [{ id: 'h', type: 'healer', x: 2, y: 2, health: 44, hp: 4 }];
+    Engine.registerProp('healer', json => new SelfHealingProp(json.id, 30, 30));
+    const entries = [{id: 'h', type: 'healer', x: 2, y: 2, health: 44, hp: 4}];
 
     const direct = Engine.buildProps(entries)[0] as SelfHealingProp;
-    const viaScene = new Engine({ canvas: makeCanvas() })
-      .buildScene({ cols: 8, rows: 8, props: entries })
+    const viaScene = new Engine({canvas: makeCanvas()})
+      .buildScene({cols: 8, rows: 8, props: entries})
       .getById('h') as SelfHealingProp;
 
     expect([direct.own.maxHp, direct.own.hp]).toEqual([44, 4]);

@@ -6,36 +6,36 @@ import {
   Engine, Scene, OmniLight, DirectionalLight,
   InputManager, InputMap, ClickMover, IsoObject, DrawContext,
 } from '../../src/index';
-import { AABB } from '../../src/math/depthSort';
-import { project } from '../../src/math/IsoProjection';
-import { RockLayer, VolcanoCone } from './VolcanoTerrain';
-import { LavaRiver } from './LavaRiver';
-import { SmokePlumeSystem, LavaCrack } from './VolcanoFX';
+import {AABB} from '../../src/math/depthSort';
+import {project} from '../../src/math/IsoProjection';
+import {RockLayer, VolcanoCone} from './VolcanoTerrain';
+import {LavaRiver} from './LavaRiver';
+import {SmokePlumeSystem, LavaCrack} from './VolcanoFX';
 
 // ── Canvas & Engine ───────────────────────────────────────────────────────────
 
 const canvas = document.getElementById('canvas') as HTMLCanvasElement;
-canvas.width  = Math.min(window.innerWidth - 24, 900);
+canvas.width = Math.min(window.innerWidth - 24, 900);
 canvas.height = Math.min(window.innerHeight - 120, 580);
 
-const engine = new Engine({ canvas });
+const engine = new Engine({canvas});
 engine.originX = canvas.width / 2;
 engine.originY = canvas.height * 0.38;
 
 // ── Scene ─────────────────────────────────────────────────────────────────────
 
 const COLS = 14, ROWS = 14;
-const scene = new Scene({ tileW: 64, tileH: 32, cols: COLS, rows: ROWS });
-scene.dynamicLighting  = true;
-scene.ambientColor     = '#3a1a0a';
+const scene = new Scene({tileW: 64, tileH: 32, cols: COLS, rows: ROWS});
+scene.dynamicLighting = true;
+scene.ambientColor = '#3a1a0a';
 scene.ambientIntensity = 0.3;
 engine.setScene(scene);
 
 // ── 光源 ──────────────────────────────────────────────────────────────────────
 
-scene.addLight(new DirectionalLight({ angle: 225, elevation: 25, color: '#ff6020', intensity: 0.7 }));
-scene.addLight(new OmniLight({ id: 'volcano-top', x: 7, y: 5, z: 60, color: '#ff8020', intensity: 0.8, radius: 400 }));
-scene.addLight(new OmniLight({ id: 'lava-center', x: 7, y: 8, z: 4,  color: '#ff2200', intensity: 0.5, radius: 300 }));
+scene.addLight(new DirectionalLight({angle: 225, elevation: 25, color: '#ff6020', intensity: 0.7}));
+scene.addLight(new OmniLight({id: 'volcano-top', x: 7, y: 5, z: 60, color: '#ff8020', intensity: 0.8, radius: 400}));
+scene.addLight(new OmniLight({id: 'lava-center', x: 7, y: 8, z: 4, color: '#ff2200', intensity: 0.5, radius: 300}));
 
 // ── 地形 ──────────────────────────────────────────────────────────────────────
 
@@ -55,9 +55,9 @@ scene.addObject(smoke);
 // ── 裂缝 ──────────────────────────────────────────────────────────────────────
 
 const crackDefs: Array<[string, number, number, number]> = [
-  ['crack-0', 3,  7,  0.2],
-  ['crack-1', 8,  9,  0.6],
-  ['crack-2', 11, 5,  0.85],
+  ['crack-0', 3, 7, 0.2],
+  ['crack-1', 8, 9, 0.6],
+  ['crack-2', 11, 5, 0.85],
 ];
 const cracks = crackDefs.map(([id, x, y, seed]) => {
   const c = new LavaCrack(id, x, y, seed);
@@ -89,12 +89,12 @@ class Hero extends IsoObject {
 
   get aabb(): AABB {
     const s = 0.4;
-    const { x, y, z } = this.position;
+    const {x, y, z} = this.position;
     return {
       minX: x - s, minY: y - s,
       maxX: x + s, maxY: y + s,
       baseZ: z,
-      maxZ: z + 2,  // 世界单位，立方体高度约 2 格
+      maxZ: z + 2, // 世界单位，立方体高度约 2 格
     };
   }
 
@@ -104,7 +104,7 @@ class Hero extends IsoObject {
 
   update(ts?: number): void {
     const now = ts ?? performance.now();
-    const dt  = this._lastTs === 0 ? 0.016 : Math.min((now - this._lastTs) / 1000, 0.1);
+    const dt = this._lastTs === 0 ? 0.016 : Math.min((now - this._lastTs) / 1000, 0.1);
     this._lastTs = now;
 
     this.position.x = Math.max(0.5, Math.min(COLS - 0.5, this.position.x + this.velX));
@@ -120,25 +120,25 @@ class Hero extends IsoObject {
   }
 
   draw(dc: DrawContext): void {
-    const { ctx, tileW, tileH, originX, originY } = dc;
-    const { x, y, z } = this.position;
-    const s = 0.4;  // XY 半边长（世界单位）
-    const h = 2.0;  // 立方体高度（世界单位，与 VolcanoCone layerH 同单位）
+    const {ctx, tileW, tileH, originX, originY} = dc;
+    const {x, y, z} = this.position;
+    const s = 0.4; // XY 半边长（世界单位）
+    const h = 2.0; // 立方体高度（世界单位，与 VolcanoCone layerH 同单位）
 
-    const tl  = project(x - s, y - s, z + h, tileW, tileH);
-    const tr  = project(x + s, y - s, z + h, tileW, tileH);
-    const br  = project(x + s, y + s, z + h, tileW, tileH);
-    const bl  = project(x - s, y + s, z + h, tileW, tileH);
-    const tlB = project(x - s, y - s, z,     tileW, tileH);
-    const trB = project(x + s, y - s, z,     tileW, tileH);
-    const brB = project(x + s, y + s, z,     tileW, tileH);
-    const blB = project(x - s, y + s, z,     tileW, tileH);
+    const tl = project(x - s, y - s, z + h, tileW, tileH);
+    const tr = project(x + s, y - s, z + h, tileW, tileH);
+    const br = project(x + s, y + s, z + h, tileW, tileH);
+    const bl = project(x - s, y + s, z + h, tileW, tileH);
+    const tlB = project(x - s, y - s, z, tileW, tileH);
+    const trB = project(x + s, y - s, z, tileW, tileH);
+    const brB = project(x + s, y + s, z, tileW, tileH);
+    const blB = project(x - s, y + s, z, tileW, tileH);
     const ox = originX, oy = originY;
 
     // 左侧面（较暗）
     ctx.beginPath();
-    ctx.moveTo(ox + tl.sx,  oy + tl.sy);
-    ctx.lineTo(ox + bl.sx,  oy + bl.sy);
+    ctx.moveTo(ox + tl.sx, oy + tl.sy);
+    ctx.lineTo(ox + bl.sx, oy + bl.sy);
     ctx.lineTo(ox + blB.sx, oy + blB.sy);
     ctx.lineTo(ox + tlB.sx, oy + tlB.sy);
     ctx.closePath();
@@ -147,8 +147,8 @@ class Hero extends IsoObject {
 
     // 右侧面（中亮）
     ctx.beginPath();
-    ctx.moveTo(ox + tr.sx,  oy + tr.sy);
-    ctx.lineTo(ox + br.sx,  oy + br.sy);
+    ctx.moveTo(ox + tr.sx, oy + tr.sy);
+    ctx.lineTo(ox + br.sx, oy + br.sy);
     ctx.lineTo(ox + brB.sx, oy + brB.sy);
     ctx.lineTo(ox + trB.sx, oy + trB.sy);
     ctx.closePath();
@@ -167,7 +167,7 @@ class Hero extends IsoObject {
 
     // 灼烧光晕
     if (this._burnGlow > 0.05) {
-      const { sx, sy } = project(x, y, z + h * 0.5, tileW, tileH);
+      const {sx, sy} = project(x, y, z + h * 0.5, tileW, tileH);
       const cx = ox + sx, cy = oy + sy;
       const glow = ctx.createRadialGradient(cx, cy, 0, cx, cy, tileW * 0.6);
       glow.addColorStop(0, `rgba(255,120,20,${(this._burnGlow * 0.6).toFixed(2)})`);
@@ -197,22 +197,22 @@ const platforms: Platform[] = [];
 class PlatformObj extends IsoObject {
   platforms: Platform[];
   constructor(p: Platform[]) { super('platforms', 0, 0, 0); this.platforms = p; this.castsShadow = false; }
-  get aabb(): AABB { return { minX: 0, minY: 0, maxX: COLS, maxY: ROWS, baseZ: 0, maxZ: 0.7 }; }
+  get aabb(): AABB { return {minX: 0, minY: 0, maxX: COLS, maxY: ROWS, baseZ: 0, maxZ: 0.7}; }
   draw(dc: DrawContext): void {
-    const { ctx, tileW, tileH, originX, originY } = dc;
+    const {ctx, tileW, tileH, originX, originY} = dc;
     for (const p of this.platforms) {
       const t = p.age / p.duration;
       const alpha = 1 - t;
       const wz = 0.4 + Math.sin(p.age * 4) * 0.05;
       const s = 0.85;
-      const tl  = project(p.x,     p.y,     wz + 0.2, tileW, tileH);
-      const tr  = project(p.x + s, p.y,     wz + 0.2, tileW, tileH);
-      const br  = project(p.x + s, p.y + s, wz + 0.2, tileW, tileH);
-      const bl  = project(p.x,     p.y + s, wz + 0.2, tileW, tileH);
-      const blB = project(p.x,     p.y + s, wz,       tileW, tileH);
-      const brB = project(p.x + s, p.y + s, wz,       tileW, tileH);
-      const trB = project(p.x + s, p.y,     wz,       tileW, tileH);
-      const tlB = project(p.x,     p.y,     wz,       tileW, tileH);
+      const tl = project(p.x, p.y, wz + 0.2, tileW, tileH);
+      const tr = project(p.x + s, p.y, wz + 0.2, tileW, tileH);
+      const br = project(p.x + s, p.y + s, wz + 0.2, tileW, tileH);
+      const bl = project(p.x, p.y + s, wz + 0.2, tileW, tileH);
+      const blB = project(p.x, p.y + s, wz, tileW, tileH);
+      const brB = project(p.x + s, p.y + s, wz, tileW, tileH);
+      const trB = project(p.x + s, p.y, wz, tileW, tileH);
+      const tlB = project(p.x, p.y, wz, tileW, tileH);
       const ox = originX, oy = originY;
 
       ctx.globalAlpha = alpha;
@@ -234,7 +234,7 @@ class PlatformObj extends IsoObject {
       ctx.fill();
 
       // 发光
-      const { sx, sy } = project(p.x + s / 2, p.y + s / 2, wz + 0.2, tileW, tileH);
+      const {sx, sy} = project(p.x + s / 2, p.y + s / 2, wz + 0.2, tileW, tileH);
       const glow = ctx.createRadialGradient(ox + sx, oy + sy, 0, ox + sx, oy + sy, tileW * 0.5);
       glow.addColorStop(0, `rgba(255,180,60,${(alpha * 0.5).toFixed(2)})`);
       glow.addColorStop(1, 'rgba(255,100,0,0)');
@@ -254,13 +254,13 @@ scene.addObject(platformObj);
 // ── 输入 ──────────────────────────────────────────────────────────────────────
 
 const input = new InputManager(canvas);
-const map   = new InputMap(input);
-map.define('up',    ['ArrowUp',    'KeyW']);
-map.define('down',  ['ArrowDown',  'KeyS']);
-map.define('left',  ['ArrowLeft',  'KeyA']);
+const map = new InputMap(input);
+map.define('up', ['ArrowUp', 'KeyW']);
+map.define('down', ['ArrowDown', 'KeyS']);
+map.define('left', ['ArrowLeft', 'KeyA']);
 map.define('right', ['ArrowRight', 'KeyD']);
 
-const mover = new ClickMover({ cols: COLS, rows: ROWS, speed: 0.08 });
+const mover = new ClickMover({cols: COLS, rows: ROWS, speed: 0.08});
 
 // ── 状态 ──────────────────────────────────────────────────────────────────────
 
@@ -275,16 +275,16 @@ function bindSlider(id: string, valId: string, cb: (v: number) => void): void {
   const vl = $<HTMLSpanElement>(valId);
   el.addEventListener('input', () => { const v = Number(el.value); vl.textContent = v.toFixed(1); cb(v); });
 }
-bindSlider('lava-speed',   'lava-speed-val',   v => { lavaRiver.waveSpeed = v; });
-bindSlider('smoke-density','smoke-density-val', v => { smoke.densityMult = v; });
+bindSlider('lava-speed', 'lava-speed-val', v => { lavaRiver.waveSpeed = v; });
+bindSlider('smoke-density', 'smoke-density-val', v => { smoke.densityMult = v; });
 
 // ── 渲染循环 ──────────────────────────────────────────────────────────────────
 
 engine.start(
   // postFrame — HUD
-  (ts) => {
+  ts => {
     const now = ts;
-    const dt  = lastTs === 0 ? 0.016 : Math.min((now - lastTs) / 1000, 0.1);
+    const dt = lastTs === 0 ? 0.016 : Math.min((now - lastTs) / 1000, 0.1);
     lastTs = now;
 
     // 输入移动（键盘 + 鼠标点击）
@@ -293,7 +293,7 @@ engine.start(
       scene.tileW, scene.tileH,
       engine.originX, engine.originY,
       canvas.width, canvas.height,
-      hero.position.x, hero.position.y,
+      hero.position.x, hero.position.y
     );
     hero.velX = mover.velX;
     hero.velY = mover.velY;
@@ -306,7 +306,7 @@ engine.start(
       if (crack.isBursting && crack.burstAge < 0.05) {
         const existing = platforms.find(p => Math.hypot(p.x - crack.position.x, p.y - crack.position.y) < 0.5);
         if (!existing) {
-          platforms.push({ x: crack.position.x - 0.4, y: crack.position.y - 0.4, age: 0, duration: 3 });
+          platforms.push({x: crack.position.x - 0.4, y: crack.position.y - 0.4, age: 0, duration: 3});
         }
       }
     }
@@ -314,7 +314,7 @@ engine.start(
     // 更新平台寿命
     for (let i = platforms.length - 1; i >= 0; i--) {
       platforms[i].age += dt;
-      if (platforms[i].age >= platforms[i].duration) platforms.splice(i, 1);
+      if (platforms[i].age >= platforms[i].duration) {platforms.splice(i, 1);}
     }
 
     // 检测熔岩伤害
@@ -368,16 +368,16 @@ engine.start(
     input.flush();
   },
   // preFrame — 背景
-  (_ts) => {
+  _ts => {
     const ctx = engine.ctx;
     const w = canvas.width, h = canvas.height;
 
     // 火山天空（深红到黑色渐变）
     const sky = ctx.createLinearGradient(0, 0, 0, h * 0.7);
-    sky.addColorStop(0,    '#000000');
-    sky.addColorStop(0.3,  '#0d0505');
+    sky.addColorStop(0, '#000000');
+    sky.addColorStop(0.3, '#0d0505');
     sky.addColorStop(0.65, '#2a0a04');
-    sky.addColorStop(1,    '#4a1a08');
+    sky.addColorStop(1, '#4a1a08');
     ctx.fillStyle = sky;
     ctx.fillRect(0, 0, w, h);
 
@@ -404,10 +404,10 @@ engine.start(
     // 熔岩天空辉光
     const glowX = w * 0.5, glowY = h * 0.55;
     const skyGlow = ctx.createRadialGradient(glowX, glowY, 0, glowX, glowY, w * 0.55);
-    skyGlow.addColorStop(0,   'rgba(180,50,10,0.18)');
+    skyGlow.addColorStop(0, 'rgba(180,50,10,0.18)');
     skyGlow.addColorStop(0.5, 'rgba(120,30,5,0.08)');
-    skyGlow.addColorStop(1,   'rgba(80,10,0,0)');
+    skyGlow.addColorStop(1, 'rgba(80,10,0,0)');
     ctx.fillStyle = skyGlow;
     ctx.fillRect(0, 0, w, h);
-  },
+  }
 );

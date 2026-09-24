@@ -1,9 +1,9 @@
 /**
  * EditorRenderer — drives the Engine to preview the current EditorState.
  */
-import { Engine } from '../core/Engine';
-import { project, unproject } from '../math/IsoProjection';
-import { EditorState, EditorObject } from './EditorState';
+import {Engine} from '../core/Engine';
+import {project, unproject} from '../math/IsoProjection';
+import {EditorState, EditorObject} from './EditorState';
 
 export class EditorRenderer {
   readonly engine: Engine;
@@ -11,10 +11,10 @@ export class EditorRenderer {
 
   private _pendingRebuild: number | null = null;
 
-  hoverWorld: { x: number; y: number } | null = null;
+  hoverWorld: {x: number; y: number} | null = null;
 
   constructor(canvas: HTMLCanvasElement, state: EditorState) {
-    this.engine = new Engine({ canvas });
+    this.engine = new Engine({canvas});
     this._state = state;
     this._updateOrigin();
     this._rebuild();
@@ -33,7 +33,7 @@ export class EditorRenderer {
    * free.
    */
   private _scheduleRebuild(): void {
-    if (this._pendingRebuild !== null) return;
+    if (this._pendingRebuild !== null) {return;}
     const run = (): void => {
       this._pendingRebuild = null;
       this._updateOrigin();
@@ -46,9 +46,9 @@ export class EditorRenderer {
 
   /** Apply any pending rebuild immediately. Useful before reading engine state. */
   flushRebuild(): void {
-    if (this._pendingRebuild === null) return;
-    if (typeof cancelAnimationFrame === 'function') cancelAnimationFrame(this._pendingRebuild);
-    else clearTimeout(this._pendingRebuild as unknown as ReturnType<typeof setTimeout>);
+    if (this._pendingRebuild === null) {return;}
+    if (typeof cancelAnimationFrame === 'function') {cancelAnimationFrame(this._pendingRebuild);}
+    else {clearTimeout(this._pendingRebuild as unknown as ReturnType<typeof setTimeout>);}
     this._pendingRebuild = null;
     this._updateOrigin();
     this._rebuild();
@@ -77,19 +77,19 @@ export class EditorRenderer {
         // Pass walkable grid so TileCollider is correctly built
         walkable: s.walkable,
       },
-      walls: s.walls.map(w => ({ ...w })),
-      lights: s.lights.map(l => ({ ...l })),
+      walls: s.walls.map(w => ({...w})),
+      lights: s.lights.map(l => ({...l})),
       characters: s.characters.map(c => ({
         id: c.id, x: c.x, y: c.y, z: c.z, radius: c.radius, color: c.color,
       })),
-      props: s.props.map(({ kind, ...prop }) => ({ ...prop, type: kind })),
+      props: s.props.map(({kind, ...prop}) => ({...prop, type: kind})),
     });
     this.engine.setScene(scene);
   }
 
   // ── Coordinate helpers ────────────────────────────────────────────────────
 
-  canvasToWorld(cx: number, cy: number): { x: number; y: number } {
+  canvasToWorld(cx: number, cy: number): {x: number; y: number} {
     const s = this._state.scene;
     const scene = this.engine.scene;
     if (scene) {
@@ -102,7 +102,7 @@ export class EditorRenderer {
         this.engine.canvas.width, this.engine.canvas.height,
         s.tileW, s.tileH,
         this.engine.originX, this.engine.originY,
-        scene.view,
+        scene.view
       );
     }
 
@@ -110,12 +110,12 @@ export class EditorRenderer {
     return unproject(cx - this.engine.originX, cy - this.engine.originY, s.tileW, s.tileH);
   }
 
-  snapToTile(wx: number, wy: number): { x: number; y: number } {
-    return { x: Math.floor(wx) + 0.5, y: Math.floor(wy) + 0.5 };
+  snapToTile(wx: number, wy: number): {x: number; y: number} {
+    return {x: Math.floor(wx) + 0.5, y: Math.floor(wy) + 0.5};
   }
 
-  snapToGrid(wx: number, wy: number): { x: number; y: number } {
-    return { x: Math.round(wx), y: Math.round(wy) };
+  snapToGrid(wx: number, wy: number): {x: number; y: number} {
+    return {x: Math.round(wx), y: Math.round(wy)};
   }
 
   // ── Start / stop ──────────────────────────────────────────────────────────
@@ -132,10 +132,10 @@ export class EditorRenderer {
 
   private _drawOverlay(): void {
     const ctx = this.engine.ctx;
-    const s   = this._state.scene;
-    const ox  = this.engine.originX;
-    const oy  = this.engine.originY;
-    const tw  = s.tileW, th = s.tileH;
+    const s = this._state.scene;
+    const ox = this.engine.originX;
+    const oy = this.engine.originY;
+    const tw = s.tileW, th = s.tileH;
 
     // ── Walkable / blocked tile overlay ──────────────────────────────────
     const isPaintTool = this._state.activeTool === 'walkable' || this._state.activeTool === 'blocked';
@@ -155,7 +155,7 @@ export class EditorRenderer {
     ctx.globalAlpha = 0.15;
     for (let row = 0; row <= s.rows; row++) {
       for (let col = 0; col <= s.cols; col++) {
-        const { sx, sy } = project(col, row, 0, tw, th);
+        const {sx, sy} = project(col, row, 0, tw, th);
         ctx.beginPath();
         ctx.arc(ox + sx, oy + sy, 1.5, 0, Math.PI * 2);
         ctx.fillStyle = '#88aaff';
@@ -166,11 +166,11 @@ export class EditorRenderer {
 
     // ── Hover tile ────────────────────────────────────────────────────────
     if (this.hoverWorld) {
-      const { x, y } = this.hoverWorld;
+      const {x, y} = this.hoverWorld;
       const col = Math.floor(x), row = Math.floor(y);
       if (col >= 0 && col < s.cols && row >= 0 && row < s.rows) {
         const tool = this._state.activeTool;
-        const color = tool === 'blocked'  ? 'rgba(220,60,60,0.42)'
+        const color = tool === 'blocked' ? 'rgba(220,60,60,0.42)'
                     : tool === 'walkable' ? 'rgba(60,220,100,0.30)'
                     : 'rgba(100,180,255,0.18)';
         this._drawTileHighlight(ctx, col, row, ox, oy, tw, th, color);
@@ -200,7 +200,7 @@ export class EditorRenderer {
 
     // ── OmniLight anchor dot ──────────────────────────────────────────────
     for (const l of s.lights) {
-      if (l.type !== 'omni') continue;
+      if (l.type !== 'omni') {continue;}
       const lz = l.z ?? 0;
       const lp = project(l.x, l.y, lz, tw, th);
       const lcx = ox + lp.sx, lcy = oy + lp.sy;
@@ -224,7 +224,7 @@ export class EditorRenderer {
 
     // ── DirectionalLight preview (anchor dot + direction arrow) ──────────
     for (const l of s.lights) {
-      if (l.type !== 'directional') continue;
+      if (l.type !== 'directional') {continue;}
       const angle = l.angle ?? 0;
       const lz = l.z ?? 0;
       // Anchor at the light's stored world position (l.x, l.y, lz)
@@ -269,11 +269,11 @@ export class EditorRenderer {
     if (this._state.selectedId) {
       const obj = this._state.getById(this._state.selectedId);
       if (obj) {
-        const x = (obj as EditorObject & { x?: number }).x;
-        const y = (obj as EditorObject & { y?: number }).y;
-        const z = (obj as EditorObject & { z?: number }).z ?? 0;
+        const x = (obj as EditorObject & {x?: number}).x;
+        const y = (obj as EditorObject & {y?: number}).y;
+        const z = (obj as EditorObject & {z?: number}).z ?? 0;
         if (x !== undefined && y !== undefined) {
-          const { sx, sy } = project(x, y, z, tw, th);
+          const {sx, sy} = project(x, y, z, tw, th);
           // Scale the highlight ring proportionally to tileW
           const ring = tw * 0.36;
           ctx.save();
@@ -290,7 +290,7 @@ export class EditorRenderer {
 
     // ── Drag object ghost position ────────────────────────────────────────
     if (this._state.dragId && this.hoverWorld) {
-      const { sx, sy } = project(this.hoverWorld.x, this.hoverWorld.y, 0, tw, th);
+      const {sx, sy} = project(this.hoverWorld.x, this.hoverWorld.y, 0, tw, th);
       ctx.save();
       ctx.strokeStyle = 'rgba(100,200,255,0.6)';
       ctx.lineWidth = 1.5;
@@ -306,9 +306,9 @@ export class EditorRenderer {
     ctx.font = '9px monospace';
     ctx.fillStyle = 'rgba(180,200,255,0.5)';
     for (const obj of this._state.allObjects()) {
-      const o = obj as EditorObject & { x?: number; y?: number; z?: number };
-      if (o.x === undefined) continue;
-      const { sx, sy } = project(o.x, o.y!, o.z ?? 0, tw, th);
+      const o = obj as EditorObject & {x?: number; y?: number; z?: number};
+      if (o.x === undefined) {continue;}
+      const {sx, sy} = project(o.x, o.y!, o.z ?? 0, tw, th);
       ctx.fillText(obj.id, ox + sx + 14, oy + sy - 4);
     }
     ctx.restore();
@@ -319,17 +319,17 @@ export class EditorRenderer {
     col: number, row: number,
     ox: number, oy: number,
     tileW: number, tileH: number,
-    color: string,
+    color: string
   ): void {
     // Use tile centre (col+0.5, row+0.5) so the diamond aligns with the
     // floor tile drawn by the engine and with snapToTile output.
-    const { sx, sy } = project(col + 0.5, row + 0.5, 0, tileW, tileH);
+    const {sx, sy} = project(col + 0.5, row + 0.5, 0, tileW, tileH);
     const hw = tileW / 2, hh = tileH / 2;
     const tx = ox + sx, ty = oy + sy;
     ctx.beginPath();
-    ctx.moveTo(tx,      ty - hh);
+    ctx.moveTo(tx, ty - hh);
     ctx.lineTo(tx + hw, ty);
-    ctx.lineTo(tx,      ty + hh);
+    ctx.lineTo(tx, ty + hh);
     ctx.lineTo(tx - hw, ty);
     ctx.closePath();
     ctx.fillStyle = color;

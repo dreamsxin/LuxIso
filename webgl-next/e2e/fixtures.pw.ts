@@ -1,9 +1,9 @@
-import { existsSync } from 'node:fs';
-import { writeFile } from 'node:fs/promises';
-import { relative } from 'node:path';
-import { expect, test } from '@playwright/test';
-import { PNG } from 'pngjs';
-import { PREVIEW_LIGHTING_FIXTURES } from '../src/testing/PreviewLightingFixtures';
+import {existsSync} from 'node:fs';
+import {writeFile} from 'node:fs/promises';
+import {relative} from 'node:path';
+import {expect, test} from '@playwright/test';
+import {PNG} from 'pngjs';
+import {PREVIEW_LIGHTING_FIXTURES} from '../src/testing/PreviewLightingFixtures';
 
 /**
  * Fixtures compared against a committed baseline with the 1.5% pixel-diff gate.
@@ -14,21 +14,21 @@ const PIXEL_GATED_FIXTURES = new Set(['day-ne', 'low-angle', 'night-lanterns']);
 
 test.describe('WebGL deterministic fixture matrix', () => {
   for (const fixture of PREVIEW_LIGHTING_FIXTURES) {
-    test(`${fixture.id} renders a stable candidate`, async ({ page }, testInfo) => {
+    test(`${fixture.id} renders a stable candidate`, async ({page}, testInfo) => {
       const runtimeErrors: string[] = [];
-      page.on('console', (message) => {
-        if (message.type() === 'error') runtimeErrors.push(message.text());
+      page.on('console', message => {
+        if (message.type() === 'error') {runtimeErrors.push(message.text());}
       });
-      page.on('pageerror', (error) => runtimeErrors.push(error.message));
+      page.on('pageerror', error => runtimeErrors.push(error.message));
 
-      await page.goto(`/webgl-next/?fixture=${fixture.id}`, { waitUntil: 'networkidle' });
+      await page.goto(`/webgl-next/?fixture=${fixture.id}`, {waitUntil: 'networkidle'});
       await expect(page).toHaveTitle('LuxIso WebGL Next');
       await expect(page.locator('#backend-status')).toContainText('就绪');
       await expect(page.locator('#fixture')).toHaveValue(fixture.id);
       await expect(page.locator('#orbit')).not.toBeChecked();
       await expect(page.locator('#ambient')).toHaveValue(String(fixture.ambient.intensity));
 
-      const enabledOmniLights = fixture.omniLights.filter((light) => light.enabled).length;
+      const enabledOmniLights = fixture.omniLights.filter(light => light.enabled).length;
       await expect.poll(() => page.locator('#lights').innerText()).toBe(String(enabledOmniLights));
 
       const canvas = page.locator('#webgl-canvas');
@@ -38,17 +38,17 @@ test.describe('WebGL deterministic fixture matrix', () => {
       // can happen BETWEEN the two screenshots below and the stability assertion
       // fails spuriously. The lifecycle spec already waits on the same counter.
       await expect(page.locator('#textures')).toHaveText('1');
-      const firstFrame = await canvas.screenshot({ animations: 'disabled' });
+      const firstFrame = await canvas.screenshot({animations: 'disabled'});
       const pixels = analyzePng(firstFrame);
       expect(pixels.width).toBeGreaterThan(900);
       expect(pixels.height).toBeGreaterThan(500);
       expect(pixels.uniqueColors).toBeGreaterThan(64);
       expect(pixels.luminanceDeviation).toBeGreaterThan(5);
 
-      await page.evaluate(() => new Promise<void>((resolve) => {
+      await page.evaluate(() => new Promise<void>(resolve => {
         requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
       }));
-      const secondFrame = await canvas.screenshot({ animations: 'disabled' });
+      const secondFrame = await canvas.screenshot({animations: 'disabled'});
       expect(secondFrame.equals(firstFrame)).toBe(true);
 
       // `-viewport` in the name on purpose. This is a `#viewport` capture — the

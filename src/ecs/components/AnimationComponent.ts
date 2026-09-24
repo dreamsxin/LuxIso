@@ -1,8 +1,8 @@
-import { Component } from '../Component';
-import { IsoObject } from '../../elements/IsoObject';
-import { SpriteSheet } from '../../animation/SpriteSheet';
-import { AnimationController } from '../../animation/AnimationController';
-import { FrameClock } from '../../time/FrameClock';
+import {Component} from '../Component';
+import {IsoObject} from '../../elements/IsoObject';
+import {SpriteSheet} from '../../animation/SpriteSheet';
+import {AnimationController} from '../../animation/AnimationController';
+import {FrameClock} from '../../time/FrameClock';
 
 export interface AnimationOptions {
   spriteSheet: SpriteSheet;
@@ -56,7 +56,7 @@ export class AnimationComponent implements Component {
   }
 
   update(ts?: number): void {
-    if (!this._owner) return;
+    if (!this._owner) {return;}
 
     const now = ts ?? performance.now();
     // The clock's `null` baseline is what makes a timestamp of 0 an ordinary

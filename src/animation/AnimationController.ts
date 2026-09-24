@@ -1,4 +1,4 @@
-import { SpriteSheet, AnimationClip } from './SpriteSheet';
+import {SpriteSheet, AnimationClip} from './SpriteSheet';
 
 /**
  * 8-direction enum for isometric characters.
@@ -33,7 +33,7 @@ export class AnimationController {
     // Validate clip exists; fall back to first clip if not found
     this.clip = sheet.hasClip(initialClip)
       ? sheet.getClip(initialClip)
-      : sheet.clips.values().next().value ?? { name: initialClip, frames: [], fps: 1 };
+      : sheet.clips.values().next().value ?? {name: initialClip, frames: [], fps: 1};
   }
 
   /**
@@ -46,7 +46,7 @@ export class AnimationController {
       console.warn(`AnimationController: clip "${name}" not found on sheet "${this.sheet.url}"`);
       return false;
     }
-    if (this.clip.name === name) return true;
+    if (this.clip.name === name) {return true;}
     this.clip = this.sheet.getClip(name);
     this.elapsed = 0;
     this._frame = 0;
@@ -75,18 +75,18 @@ export class AnimationController {
     this._forceOnce = true;
     this._onComplete = () => {
       onComplete?.();
-      if (returnTo && this.sheet.hasClip(returnTo)) this.play(returnTo);
+      if (returnTo && this.sheet.hasClip(returnTo)) {this.play(returnTo);}
     };
     return true;
   }
 
   /** Advance animation by `dt` seconds (call once per frame). */
   update(dt: number): void {
-    if (this._done) return;
+    if (this._done) {return;}
     this.elapsed += dt;
     const frameDuration = 1 / this.clip.fps;
     const totalFrames = this.clip.frames.length;
-    if (totalFrames === 0) return;
+    if (totalFrames === 0) {return;}
     const totalDuration = frameDuration * totalFrames;
 
     const shouldLoop = this._forceOnce ? false : (this.clip.loop ?? true);
@@ -126,16 +126,16 @@ export class AnimationController {
    * Handles 8 directions with 45° sectors.
    */
   static directionFrom(dx: number, dy: number): Direction {
-    if (Math.abs(dx) < 0.001 && Math.abs(dy) < 0.001) return 'S';
+    if (Math.abs(dx) < 0.001 && Math.abs(dy) < 0.001) {return 'S';}
     const angle = Math.atan2(dy, dx) * (180 / Math.PI);
     const a = ((angle + 360) % 360);
-    if (a < 22.5 || a >= 337.5) return 'E';
-    if (a < 67.5)  return 'SE';
-    if (a < 112.5) return 'S';
-    if (a < 157.5) return 'SW';
-    if (a < 202.5) return 'W';
-    if (a < 247.5) return 'NW';
-    if (a < 292.5) return 'N';
+    if (a < 22.5 || a >= 337.5) {return 'E';}
+    if (a < 67.5) {return 'SE';}
+    if (a < 112.5) {return 'S';}
+    if (a < 157.5) {return 'SW';}
+    if (a < 202.5) {return 'W';}
+    if (a < 247.5) {return 'NW';}
+    if (a < 292.5) {return 'N';}
     return 'NE';
   }
 }

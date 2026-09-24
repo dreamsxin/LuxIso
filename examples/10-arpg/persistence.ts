@@ -11,9 +11,9 @@
  * already understands; `hp` is written only for a damaged unit so an untouched
  * save keeps its shape.
  */
-import { Engine, SceneSerializer } from '../../src/index';
-import type { TileCollider } from '../../src/index';
-import { Combatant } from './Combatant';
+import {Engine, SceneSerializer} from '../../src/index';
+import type {TileCollider} from '../../src/index';
+import {Combatant} from './Combatant';
 
 /** The `type` discriminator written into scene JSON. */
 export const COMBATANT_TYPE = 'combatant';
@@ -29,14 +29,14 @@ function number(value: unknown, fallback: number): number {
 }
 
 export function registerCombatantPersistence(opts: CombatantPersistenceOptions = {}): void {
-  SceneSerializer.register(Combatant, (unit) => ({
+  SceneSerializer.register(Combatant, unit => ({
     type: COMBATANT_TYPE,
     faction: unit.faction,
     health: unit.health.maxHp,
-    ...(unit.health.hp < unit.health.maxHp ? { hp: unit.health.hp } : {}),
+    ...(unit.health.hp < unit.health.maxHp ? {hp: unit.health.hp} : {}),
     damage: unit.damage,
-    ...(unit.bonusDamage > 0 ? { bonusDamage: unit.bonusDamage } : {}),
-    ...(unit.xpValue > 0 ? { xpValue: unit.xpValue } : {}),
+    ...(unit.bonusDamage > 0 ? {bonusDamage: unit.bonusDamage} : {}),
+    ...(unit.xpValue > 0 ? {xpValue: unit.xpValue} : {}),
     attackRange: unit.attackRange,
     attackInterval: unit.attackInterval,
     speed: unit.movement.speed,
@@ -44,7 +44,7 @@ export function registerCombatantPersistence(opts: CombatantPersistenceOptions =
     color: unit.color,
   }));
 
-  Engine.registerProp(COMBATANT_TYPE, (json) => {
+  Engine.registerProp(COMBATANT_TYPE, json => {
     const unit = new Combatant(
       String(json.id),
       number(json.x, 0),
@@ -60,13 +60,17 @@ export function registerCombatantPersistence(opts: CombatantPersistenceOptions =
         color: typeof json.color === 'string' ? json.color : undefined,
         collider: opts.collider ?? null,
         xpValue: number(json.xpValue, 0),
-      },
+      }
     );
     // Mutable, so it cannot go through the constructor options. Restored rather
     // than re-derived from the level: `health` above already carries the
     // maximum-hp half of the same bonus, and deriving one while loading the
     // other would be two sources of truth for one level-up.
-    unit.bonusDamage = number(json.bonusDamage, 0);
+    //
+    // Clamped like every other field the constructor guards: a negative bonus
+    // would make `attackDamage` negative, and `takeDamage` floors that at 0, so
+    // a hand-edited save could leave the hero unable to hurt anything.
+    unit.bonusDamage = Math.max(0, number(json.bonusDamage, 0));
     return unit;
   });
 }

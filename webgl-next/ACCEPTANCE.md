@@ -98,6 +98,23 @@ measures a prop's silhouette straight out of the `RenderSnapshot`. A doubled
 radius is a doubled silhouette there, exactly, with no threshold and no browser.
 Only `Boulder` is covered so far.
 
+Draw *order* is the same kind of blind spot, and for a worse reason: the baselines
+are minted from whatever the build does, so an ordering defect gets baked into
+them and the gate then agrees with it. That is exactly what happened to
+particles — the extractor deferred them past every object, the baselines recorded
+it, and the 2,500-pixel budget had nothing to say. `src/__tests__/ParticleDrawOrderParity.test.ts`
+now holds both backends to the same answer from opposite sides: `topoSort` order
+on the Canvas2D side, vertex submission order read back out of the arena via the
+encoded pick ID on the GL side. No browser, no threshold.
+
+The fix turned out to move no pixels at all: baselines regenerated on 2026-09-23
+came back byte-identical to the committed ones. The reason is worse than the
+defect was. A fixture URL skips `scene.fixedUpdate` entirely
+(`webgl-next/main.ts:400`) so that captures are deterministic, which also means
+no emitter ever ticks — **every gated fixture contains zero particles**. The
+budget was never going to catch this, at any threshold. Anything particle-shaped
+has to be tested below the browser.
+
 
 2,500 is a ratchet, set above the current known-good delta and only ever
 tightened. Once `webgl-baselines` regenerates the three PNGs that delta drops to
@@ -163,6 +180,43 @@ Targets on the agreed reference machine:
 
 Budgets are regression gates, not reasons to weaken correctness. Record the
 machine, browser, resolution, DPR, scene seed, and commit with every benchmark.
+
+### Instrumentation status (2026-09-23)
+
+Two of the seven rows can be measured today. The rest are targets without a
+meter, which is worth stating plainly: a budget nobody can read is not a gate.
+
+- **Draw calls** — `RenderStats.drawCalls` counts `drawArrays` calls in JS. It
+  used to include the ID-buffer pass, which re-draws the sorted scene, the halos
+  and the debug range every frame, so the figure ran roughly double what this row
+  means. Picking now reports separately as `pickingDrawCalls`. Caveat: a segment
+  whose texture has not resolved yet is skipped at draw time, so the count can
+  under-report during texture loads.
+- **Context restore** — asserted in `webgl-next/e2e/lifecycle.pw.ts`, the only
+  timing assertion in the repo.
+- **CPU extraction + sorting** — now covered, as of 2026-09-23.
+  `SceneExtractor.extractStats` splits the pass into `cullMs` / `sortMs` /
+  `buildMs` plus the counts each phase worked on, and
+  `src/__tests__/ExtractionScale.test.ts` drives it deterministically without a
+  browser. First reading on the 100x100 / 200-prop workload:
+  `total=4.56ms cull=0.12 sort=0.14 build=4.30`, `segments=4`,
+  `vertices=16803` of which 11,094 are floor. Two consequences: vertex writing is
+  94% of the cost while sorting is noise, and the figure already exceeds the 4 ms
+  row above with only 49 props surviving culling — a twentieth of the 1,000
+  visible objects this budget names. The reference workload has never been run.
+- **GPU render passes** — no instrumentation exists.
+  `EXT_disjoint_timer_query_webgl2` is never requested.
+- **Per-frame JS allocation**, **runtime GPU memory** — no instrumentation.
+- **Frame rate p95** — only means are computed, in two places that disagree:
+  `DebugRenderer` averages `1000/dt` over a 30-frame window (which a burst of
+  fast frames pulls upward), the preview counts frames in a 500 ms window. No
+  percentiles anywhere, and `FrameClock.sample` clamps long frames to `maxDt`,
+  which discards exactly the tail a p95 is for.
+
+So "optimization only after pass-level profiling" (ROADMAP, Work Order 6) is not
+yet satisfiable for the extraction and GPU rows. Atlas and batching work should
+start by making those two measurable, in a deterministic harness, so the before
+and after are comparable.
 
 ## Browser Matrix
 

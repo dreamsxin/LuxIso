@@ -1,4 +1,4 @@
-import type { HudLayer } from '../../../src/core/HudLayer';
+import type {HudLayer} from '../../../src/core/HudLayer';
 
 export interface HudOverlayOptions {
   /**
@@ -54,15 +54,15 @@ export class HudOverlayRenderer {
   constructor(
     private readonly _canvas: HTMLCanvasElement,
     private readonly _hud: HudLayer,
-    opts: HudOverlayOptions = {},
+    opts: HudOverlayOptions = {}
   ) {
     const context = _canvas.getContext('2d');
-    if (!context) throw new Error('Canvas 2D is required for the HUD overlay.');
+    if (!context) {throw new Error('Canvas 2D is required for the HUD overlay.');}
     this._context = context;
     this._maxPixelRatio = Math.max(1, opts.maxPixelRatio ?? 2);
     this._paint = opts.paint;
 
-    if (_canvas.style) _canvas.style.pointerEvents = 'none';
+    if (_canvas.style) {_canvas.style.pointerEvents = 'none';}
     // A getter, not a value: the ratio changes when the window moves between
     // displays, and `HudLayer.draw` reads it on every frame.
     this._hud.pixelRatio = () => this._pixelRatio;
@@ -81,7 +81,7 @@ export class HudOverlayRenderer {
    */
   render(): void {
     const rect = this._canvas.getBoundingClientRect();
-    if (rect.width <= 0 || rect.height <= 0) return;
+    if (rect.width <= 0 || rect.height <= 0) {return;}
 
     const dpr = typeof window === 'undefined'
       ? 1
@@ -102,7 +102,7 @@ export class HudOverlayRenderer {
     ctx.clearRect(0, 0, width, height);
     this._hud.draw(ctx, rect.width, rect.height);
 
-    if (!this._paint) return;
+    if (!this._paint) {return;}
     // Same logical-pixel space the HUD just drew in, and isolated with
     // save/restore so a careless painter cannot leak state into the next frame.
     ctx.save();

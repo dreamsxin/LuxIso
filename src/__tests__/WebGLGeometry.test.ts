@@ -1,12 +1,12 @@
-import { describe, expect, it } from 'vitest';
-import { RENDER_VERTEX_FLOATS } from '../../webgl-next/src/contracts/RenderSnapshot';
+import {describe, expect, it} from 'vitest';
+import {RENDER_VERTEX_FLOATS} from '../../webgl-next/src/contracts/RenderSnapshot';
 import {
   decodePickId,
   encodePickId,
   GeometryBuilder,
 } from '../../webgl-next/src/extraction/GeometryBuilder';
-import { projectIso } from '../../webgl-next/src/extraction/projection';
-import { project } from '../math/IsoProjection';
+import {projectIso} from '../../webgl-next/src/extraction/projection';
+import {project} from '../math/IsoProjection';
 
 describe('WebGL Next geometry contracts', () => {
   it('projects identically to the Canvas2D path, in pixels', () => {
@@ -24,8 +24,8 @@ describe('WebGL Next geometry contracts', () => {
   });
 
   it('subtracts z from the screen Y directly', () => {
-    expect(projectIso(2, 1, 0, 64, 32)).toEqual({ x: 32, y: 48 });
-    expect(projectIso(2, 1, 32, 64, 32)).toEqual({ x: 32, y: 16 });
+    expect(projectIso(2, 1, 0, 64, 32)).toEqual({x: 32, y: 48});
+    expect(projectIso(2, 1, 32, 64, 32)).toEqual({x: 32, y: 16});
   });
 
 
@@ -35,7 +35,7 @@ describe('WebGL Next geometry contracts', () => {
       expect(decodePickId(
         Math.round(encoded[0] * 255),
         Math.round(encoded[1] * 255),
-        Math.round(encoded[2] * 255),
+        Math.round(encoded[2] * 255)
       )).toBe(id);
     }
   });
@@ -54,9 +54,9 @@ describe('WebGL Next geometry contracts', () => {
       }, 8);
     }
     const opaque = builder.range(opaqueStart);
-    const geometry = builder.geometry(floor, { first: floor.count, count: 0 }, opaque);
+    const geometry = builder.geometry(floor, {first: floor.count, count: 0}, opaque);
 
-    expect(floor).toEqual({ first: 0, count: 6 });
+    expect(floor).toEqual({first: 0, count: 6});
     expect(opaque.first).toBe(6);
     expect(geometry.vertexCount).toBe(6 + 220 * 8 * 3);
     expect(geometry.data.length).toBeGreaterThanOrEqual(geometry.vertexCount * RENDER_VERTEX_FLOATS);

@@ -1,8 +1,8 @@
-import { describe, it, expect, vi } from 'vitest';
-import { TimerComponent } from '../ecs/components/TimerComponent';
-import { TweenComponent, Easing } from '../ecs/components/TweenComponent';
-import { TriggerZoneComponent } from '../ecs/components/TriggerZoneComponent';
-import { IsoObject } from '../elements/IsoObject';
+import {describe, it, expect, vi} from 'vitest';
+import {TimerComponent} from '../ecs/components/TimerComponent';
+import {TweenComponent, Easing} from '../ecs/components/TweenComponent';
+import {TriggerZoneComponent} from '../ecs/components/TriggerZoneComponent';
+import {IsoObject} from '../elements/IsoObject';
 
 // ── TimerComponent ────────────────────────────────────────────────────────────
 
@@ -15,7 +15,7 @@ describe('TimerComponent', () => {
 
   it('fires onTick after duration', () => {
     const fn = vi.fn();
-    const t = new TimerComponent({ duration: 0.5, onTick: fn });
+    const t = new TimerComponent({duration: 0.5, onTick: fn});
     advanceTimer(t, 0.6);
     expect(fn).toHaveBeenCalledOnce();
     expect(t.isDone).toBe(true);
@@ -23,7 +23,7 @@ describe('TimerComponent', () => {
 
   it('does not fire before duration', () => {
     const fn = vi.fn();
-    const t = new TimerComponent({ duration: 1, onTick: fn });
+    const t = new TimerComponent({duration: 1, onTick: fn});
     advanceTimer(t, 0.4);
     expect(fn).not.toHaveBeenCalled();
     expect(t.isDone).toBe(false);
@@ -31,7 +31,7 @@ describe('TimerComponent', () => {
 
   it('repeats when repeat=true', () => {
     const fn = vi.fn();
-    const t = new TimerComponent({ duration: 0.3, repeat: true, onTick: fn });
+    const t = new TimerComponent({duration: 0.3, repeat: true, onTick: fn});
     advanceTimer(t, 1.0);
     expect(fn.mock.calls.length).toBeGreaterThanOrEqual(3);
     expect(t.isDone).toBe(false);
@@ -39,7 +39,7 @@ describe('TimerComponent', () => {
 
   it('pause stops ticking', () => {
     const fn = vi.fn();
-    const t = new TimerComponent({ duration: 0.5, onTick: fn });
+    const t = new TimerComponent({duration: 0.5, onTick: fn});
     t.pause();
     advanceTimer(t, 1.0);
     expect(fn).not.toHaveBeenCalled();
@@ -47,7 +47,7 @@ describe('TimerComponent', () => {
 
   it('restart resets elapsed', () => {
     const fn = vi.fn();
-    const t = new TimerComponent({ duration: 0.5, onTick: fn });
+    const t = new TimerComponent({duration: 0.5, onTick: fn});
     advanceTimer(t, 0.6);
     expect(fn).toHaveBeenCalledOnce();
     t.restart();
@@ -61,7 +61,12 @@ describe('TimerComponent', () => {
 
 describe('TweenComponent', () => {
   function makeOwner(x = 0, y = 0, z = 0): IsoObject {
-    return { id: 'e', position: { x, y, z }, aabb: { minX: 0, minY: 0, maxX: 1, maxY: 1, baseZ: 0 }, draw: () => {} } as unknown as IsoObject;
+    return {
+      id: 'e',
+      position: {x, y, z},
+      aabb: {minX: 0, minY: 0, maxX: 1, maxY: 1, baseZ: 0},
+      draw: () => {},
+    } as unknown as IsoObject;
   }
 
   function advanceTween(tween: TweenComponent, totalSeconds: number, step = 0.05): void {
@@ -73,7 +78,7 @@ describe('TweenComponent', () => {
   it('animates position.z from 0 to 48', () => {
     const owner = makeOwner(0, 0, 0);
     const tw = new TweenComponent({
-      targets: [{ prop: 'z', from: 0, to: 48 }],
+      targets: [{prop: 'z', from: 0, to: 48}],
       duration: 0.5,
     });
     tw.onAttach(owner);
@@ -85,7 +90,7 @@ describe('TweenComponent', () => {
   it('snaps to final value on completion', () => {
     const owner = makeOwner(0, 0, 0);
     const tw = new TweenComponent({
-      targets: [{ prop: 'x', from: 0, to: 5 }],
+      targets: [{prop: 'x', from: 0, to: 5}],
       duration: 0.3,
     });
     tw.onAttach(owner);
@@ -98,7 +103,7 @@ describe('TweenComponent', () => {
     const fn = vi.fn();
     const owner = makeOwner();
     const tw = new TweenComponent({
-      targets: [{ prop: 'y', from: 0, to: 1 }],
+      targets: [{prop: 'y', from: 0, to: 1}],
       duration: 0.2,
       onComplete: fn,
     });
@@ -108,10 +113,10 @@ describe('TweenComponent', () => {
   });
 
   it('easeOut reaches target faster than linear at midpoint', () => {
-    const ownerLinear  = makeOwner();
+    const ownerLinear = makeOwner();
     const ownerEaseOut = makeOwner();
-    const twL = new TweenComponent({ targets: [{ prop: 'x', from: 0, to: 10 }], duration: 1, easing: Easing.linear });
-    const twE = new TweenComponent({ targets: [{ prop: 'x', from: 0, to: 10 }], duration: 1, easing: Easing.easeOut });
+    const twL = new TweenComponent({targets: [{prop: 'x', from: 0, to: 10}], duration: 1, easing: Easing.linear});
+    const twE = new TweenComponent({targets: [{prop: 'x', from: 0, to: 10}], duration: 1, easing: Easing.easeOut});
     twL.onAttach(ownerLinear);
     twE.onAttach(ownerEaseOut);
     // Advance to 50% of duration
@@ -123,7 +128,7 @@ describe('TweenComponent', () => {
   it('yoyo reverses direction', () => {
     const owner = makeOwner();
     const tw = new TweenComponent({
-      targets: [{ prop: 'z', from: 0, to: 10 }],
+      targets: [{prop: 'z', from: 0, to: 10}],
       duration: 0.2,
       yoyo: true,
       repeat: 1,
@@ -143,14 +148,19 @@ describe('TweenComponent', () => {
 
 describe('TriggerZoneComponent', () => {
   function makeObj(id: string, x: number, y: number): IsoObject {
-    return { id, position: { x, y, z: 0 }, aabb: { minX: 0, minY: 0, maxX: 1, maxY: 1, baseZ: 0 }, draw: () => {} } as unknown as IsoObject;
+    return {
+      id,
+      position: {x, y, z: 0},
+      aabb: {minX: 0, minY: 0, maxX: 1, maxY: 1, baseZ: 0},
+      draw: () => {},
+    } as unknown as IsoObject;
   }
 
   it('fires onEnter when target enters zone', () => {
-    const owner  = makeObj('zone', 5, 5);
+    const owner = makeObj('zone', 5, 5);
     const target = makeObj('player', 10, 10);
     const onEnter = vi.fn();
-    const tz = new TriggerZoneComponent({ radius: 1, targets: [target], onEnter });
+    const tz = new TriggerZoneComponent({radius: 1, targets: [target], onEnter});
     tz.onAttach(owner);
 
     tz.update();
@@ -163,10 +173,10 @@ describe('TriggerZoneComponent', () => {
   });
 
   it('fires onExit when target leaves zone', () => {
-    const owner  = makeObj('zone', 5, 5);
+    const owner = makeObj('zone', 5, 5);
     const target = makeObj('player', 5.3, 5.3);
     const onExit = vi.fn();
-    const tz = new TriggerZoneComponent({ radius: 1, targets: [target], onExit });
+    const tz = new TriggerZoneComponent({radius: 1, targets: [target], onExit});
     tz.onAttach(owner);
 
     tz.update(); // player inside
@@ -176,9 +186,9 @@ describe('TriggerZoneComponent', () => {
   });
 
   it('contains() reflects current state', () => {
-    const owner  = makeObj('zone', 0, 0);
+    const owner = makeObj('zone', 0, 0);
     const target = makeObj('t', 0.5, 0);
-    const tz = new TriggerZoneComponent({ radius: 1, targets: [target] });
+    const tz = new TriggerZoneComponent({radius: 1, targets: [target]});
     tz.onAttach(owner);
     tz.update();
     expect(tz.contains('t')).toBe(true);

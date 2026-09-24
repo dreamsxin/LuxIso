@@ -1,7 +1,7 @@
-import { describe, it, expect } from 'vitest';
-import type { Component } from '../ecs/Component';
-import type { IsoObject } from '../elements/IsoObject';
-import { Crystal } from '../elements/props/Crystal';
+import {describe, it, expect} from 'vitest';
+import type {Component} from '../ecs/Component';
+import type {IsoObject} from '../elements/IsoObject';
+import {Crystal} from '../elements/props/Crystal';
 
 class LifecycleComponent implements Component {
   attachedTo: IsoObject | null = null;

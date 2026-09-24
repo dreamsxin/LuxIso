@@ -1,17 +1,17 @@
-import { describe, it, expect, vi, beforeAll } from 'vitest';
-import { Scene } from '../core/Scene';
-import { Floor } from '../elements/Floor';
-import { Wall } from '../elements/Wall';
-import { Character } from '../elements/Character';
-import { Crystal } from '../elements/props/Crystal';
-import { OmniLight } from '../lighting/OmniLight';
-import { DirectionalLight } from '../lighting/DirectionalLight';
-import { TileCollider } from '../physics/TileCollider';
-import { SceneRenderer } from '../core/SceneRenderer';
-import { LightmapCache } from '../core/LightmapCache';
-import { IsoObject } from '../elements/IsoObject';
-import type { DrawContext } from '../elements/IsoObject';
-import type { AABB } from '../math/depthSort';
+import {describe, it, expect, vi, beforeAll} from 'vitest';
+import {Scene} from '../core/Scene';
+import {Floor} from '../elements/Floor';
+import {Wall} from '../elements/Wall';
+import {Character} from '../elements/Character';
+import {Crystal} from '../elements/props/Crystal';
+import {OmniLight} from '../lighting/OmniLight';
+import {DirectionalLight} from '../lighting/DirectionalLight';
+import {TileCollider} from '../physics/TileCollider';
+import {SceneRenderer} from '../core/SceneRenderer';
+import {LightmapCache} from '../core/LightmapCache';
+import {IsoObject} from '../elements/IsoObject';
+import type {DrawContext} from '../elements/IsoObject';
+import type {AABB} from '../math/depthSort';
 
 /**
  * Integration tests for the Scene.draw() render pipeline.
@@ -27,7 +27,7 @@ import type { AABB } from '../math/depthSort';
 // ── OffscreenCanvas stub (used by LightmapCache) ────────────────────────────
 beforeAll(() => {
   if (typeof OffscreenCanvas === 'undefined') {
-    (globalThis as unknown as { OffscreenCanvas: unknown }).OffscreenCanvas = class {
+    (globalThis as unknown as {OffscreenCanvas: unknown}).OffscreenCanvas = class {
       width: number;
       height: number;
       private _ctx: unknown;
@@ -36,7 +36,7 @@ beforeAll(() => {
         this.height = h;
       }
       getContext() {
-        if (!this._ctx) this._ctx = makeCtx();
+        if (!this._ctx) {this._ctx = makeCtx();}
         return this._ctx;
       }
     };
@@ -62,13 +62,13 @@ function makeCtx() {
     lineTo: vi.fn(),
     closePath: vi.fn(),
     clip: vi.fn(),
-    createRadialGradient: vi.fn(() => ({ addColorStop: vi.fn() })),
-    createLinearGradient: vi.fn(() => ({ addColorStop: vi.fn() })),
+    createRadialGradient: vi.fn(() => ({addColorStop: vi.fn()})),
+    createLinearGradient: vi.fn(() => ({addColorStop: vi.fn()})),
     setLineDash: vi.fn(),
     strokeRect: vi.fn(),
     fillText: vi.fn(),
-    measureText: vi.fn(() => ({ width: 0 })),
-    getTransform: vi.fn(() => ({ a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 })),
+    measureText: vi.fn(() => ({width: 0})),
+    getTransform: vi.fn(() => ({a: 1, b: 0, c: 0, d: 1, e: 0, f: 0})),
     globalCompositeOperation: 'source-over',
     globalAlpha: 1,
     fillStyle: '',
@@ -79,8 +79,8 @@ function makeCtx() {
 
 function makeCanvas() {
   const ctx = makeCtx() as unknown as CanvasRenderingContext2D;
-  const canvas = { width: 640, height: 480 } as unknown as HTMLCanvasElement;
-  return { canvas, ctx };
+  const canvas = {width: 640, height: 480} as unknown as HTMLCanvasElement;
+  return {canvas, ctx};
 }
 
 function makeCtxOnly() {
@@ -107,14 +107,14 @@ class DrawProbe extends IsoObject {
 }
 
 function buildScene(): Scene {
-  const scene = new Scene({ cols: 6, rows: 6, tileW: 64, tileH: 32 });
-  scene.addObject(new Floor({ id: 'floor', cols: 6, rows: 6 }));
-  scene.addLight(new OmniLight({ x: 3, y: 3, z: 80, color: '#ffd080', intensity: 1, radius: 300 }));
-  scene.addLight(new DirectionalLight({ angle: Math.PI / 4, elevation: Math.PI / 4, color: '#c0d8ff', intensity: 0.3 }));
-  const wall = new Wall({ id: 'wall', x: 1, y: 1, endX: 4, endY: 1, height: 64 });
+  const scene = new Scene({cols: 6, rows: 6, tileW: 64, tileH: 32});
+  scene.addObject(new Floor({id: 'floor', cols: 6, rows: 6}));
+  scene.addLight(new OmniLight({x: 3, y: 3, z: 80, color: '#ffd080', intensity: 1, radius: 300}));
+  scene.addLight(new DirectionalLight({angle: Math.PI / 4, elevation: Math.PI / 4, color: '#c0d8ff', intensity: 0.3}));
+  const wall = new Wall({id: 'wall', x: 1, y: 1, endX: 4, endY: 1, height: 64});
   wall.castsShadow = true;
   scene.addObject(wall);
-  scene.addObject(new Character({ id: 'player', x: 3, y: 3, z: 0, radius: 22 }));
+  scene.addObject(new Character({id: 'player', x: 3, y: 3, z: 0, radius: 22}));
   const crystal = new Crystal('gem', 2, 2, '#8060e0', 48);
   scene.addObject(crystal);
   scene.collider = new TileCollider(6, 6);
@@ -124,13 +124,13 @@ function buildScene(): Scene {
 describe('Scene.draw - render pipeline integration', () => {
   it('executes the full draw path without throwing', () => {
     const scene = buildScene();
-    const { ctx } = makeCanvas();
+    const {ctx} = makeCanvas();
     expect(() => scene.draw(ctx, 640, 480, 320, 240)).not.toThrow();
   });
 
   it('blits the floor lightmap and draws scene objects', () => {
     const scene = buildScene();
-    const { ctx } = makeCanvas();
+    const {ctx} = makeCanvas();
     scene.draw(ctx, 640, 480, 320, 240);
     // Floor is baked into the offscreen lightmap then blitted via drawImage,
     // and objects (wall/character/crystal) issue fill() calls.
@@ -140,7 +140,7 @@ describe('Scene.draw - render pipeline integration', () => {
 
   it('renders a light halo for each omni light (radial gradient)', () => {
     const scene = buildScene();
-    const { ctx } = makeCanvas();
+    const {ctx} = makeCanvas();
     scene.draw(ctx, 640, 480, 320, 240);
     // drawLightHalo creates a radial gradient + a white core dot -> at least
     // 2 createRadialGradient calls per omni light (we have 1 omni light).
@@ -152,14 +152,14 @@ describe('Scene.draw - render pipeline integration', () => {
     // ignored the view, and the halo was misplaced under rotation. The draw
     // path must still complete under a non-default view.
     const scene = buildScene();
-    scene.view = { rotation: 90, elevation: 1.0 };
-    const { ctx } = makeCanvas();
+    scene.view = {rotation: 90, elevation: 1.0};
+    const {ctx} = makeCanvas();
     expect(() => scene.draw(ctx, 640, 480, 320, 240)).not.toThrow();
   });
 
   it('respects object visibility (invisible objects are skipped)', () => {
     const scene = buildScene();
-    const { ctx } = makeCanvas();
+    const {ctx} = makeCanvas();
     scene.draw(ctx, 640, 480, 320, 240);
     const fillsWithAllVisible = (ctx.fill as ReturnType<typeof vi.fn>).mock.calls.length;
 
@@ -177,7 +177,7 @@ describe('Scene.draw - render pipeline integration', () => {
 
   it('caches the sort and only re-sorts when positions change', () => {
     const scene = buildScene();
-    const { ctx } = makeCanvas();
+    const {ctx} = makeCanvas();
     // First draw sorts; second draw with no movement reuses the cache.
     scene.draw(ctx, 640, 480, 320, 240);
     expect(() => scene.draw(ctx, 640, 480, 320, 240)).not.toThrow();
@@ -244,8 +244,8 @@ describe('Scene.draw - render pipeline integration', () => {
     // re-bake so the ground shadow follows the object. We assert the draw
     // completes across the move and that fill is invoked again (re-bake path).
     const scene = buildScene();
-    const wall = scene.getById('wall')!;  // castsShadow=true
-    const { ctx } = makeCanvas();
+    const wall = scene.getById('wall')!; // castsShadow=true
+    const {ctx} = makeCanvas();
     scene.draw(ctx, 640, 480, 320, 240);
     const fillsBefore = (ctx.fill as ReturnType<typeof vi.fn>).mock.calls.length;
     // Move the shadow-casting wall and redraw (lights/camera unchanged).
@@ -265,8 +265,8 @@ describe('Scene.draw - render pipeline integration', () => {
     // This is a smoke test that the multiply code path doesn't throw; the
     // blend-mode assertion is exercised indirectly via no-throw + fill called.
     const scene = buildScene();
-    scene.ambientIntensity = 0.02;  // near-dark -> tiles should be near-black
-    const { ctx } = makeCanvas();
+    scene.ambientIntensity = 0.02; // near-dark -> tiles should be near-black
+    const {ctx} = makeCanvas();
     expect(() => scene.draw(ctx, 640, 480, 320, 240)).not.toThrow();
     expect(ctx.fill).toHaveBeenCalled();
   });

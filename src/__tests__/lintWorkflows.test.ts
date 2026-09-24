@@ -1,8 +1,8 @@
-import { describe, it, expect } from 'vitest';
-import { readFileSync, readdirSync } from 'node:fs';
-import { join } from 'node:path';
+import {describe, it, expect} from 'vitest';
+import {readFileSync, readdirSync} from 'node:fs';
+import {join} from 'node:path';
 // @ts-expect-error - plain .mjs build script, no type declarations
-import { lintWorkflow } from '../../scripts/lint-workflows.mjs';
+import {lintWorkflow} from '../../scripts/lint-workflows.mjs';
 
 /**
  * The `webgl-baselines` workflow was undispatchable for several commits because
@@ -12,7 +12,7 @@ import { lintWorkflow } from '../../scripts/lint-workflows.mjs';
  * stay clean.
  */
 
-interface Finding { line: number; rule: string; message: string }
+interface Finding {line: number; rule: string; message: string}
 
 const lint = lintWorkflow as (text: string) => Finding[];
 

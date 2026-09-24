@@ -1,5 +1,5 @@
-import { IsoVec3 } from '../math/IsoProjection';
-import { BaseLight } from './BaseLight';
+import {IsoVec3} from '../math/IsoProjection';
+import {BaseLight} from './BaseLight';
 
 export interface OmniLightOptions {
   id?: string;
@@ -38,7 +38,7 @@ export class OmniLight extends BaseLight {
   constructor(opts: OmniLightOptions) {
     super(opts.color ?? '#ffffff', opts.intensity ?? 1);
     this.id = opts.id;
-    this.position = { x: opts.x, y: opts.y, z: opts.z };
+    this.position = {x: opts.x, y: opts.y, z: opts.z};
     this.radius = opts.radius ?? 320;
     this.isGlobal = opts.isGlobal ?? false;
     this.falloff = opts.falloff ?? 'linear';
@@ -49,7 +49,7 @@ export class OmniLight extends BaseLight {
    * Global lights ignore distance and return intensity directly.
    */
   illuminateAt(sx: number, sy: number, lsx: number, lsy: number): number {
-    if (this.isGlobal) return this.intensity;
+    if (this.isGlobal) {return this.intensity;}
     const dist = Math.hypot(sx - lsx, sy - lsy);
     const t = Math.max(0, 1 - dist / this.radius);
     const falloff = this.falloff === 'quadratic' ? t * t : t;

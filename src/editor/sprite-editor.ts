@@ -8,31 +8,31 @@
  *   4. Preview all 8 directions live on the canvas grid
  *   5. Export the SpriteSheet JSON config
  */
-import { SpriteSheet } from '../animation/SpriteSheet';
-import { DirectionalAnimator } from '../animation/DirectionalAnimator';
-import { Direction } from '../animation/AnimationController';
-import { AssetLoader } from '../core/AssetLoader';
+import {SpriteSheet} from '../animation/SpriteSheet';
+import {DirectionalAnimator} from '../animation/DirectionalAnimator';
+import {Direction} from '../animation/AnimationController';
+import {AssetLoader} from '../core/AssetLoader';
 
 // ── DOM refs ──────────────────────────────────────────────────────────────────
 
-const uploadInput    = document.getElementById('upload-img')       as HTMLInputElement;
-const urlInput       = document.getElementById('img-url')          as HTMLInputElement;
-const loadUrlBtn     = document.getElementById('btn-load-url')     as HTMLButtonElement;
-const frameWInput    = document.getElementById('frame-w')          as HTMLInputElement;
-const frameHInput    = document.getElementById('frame-h')          as HTMLInputElement;
-const scaleInput     = document.getElementById('sprite-scale')     as HTMLInputElement;
-const anchorYInput   = document.getElementById('anchor-y')         as HTMLInputElement;
-const actionsList    = document.getElementById('actions-list')     as HTMLElement;
-const addActionBtn   = document.getElementById('btn-add-action')   as HTMLButtonElement;
-const exportBtn      = document.getElementById('btn-export-sprite')as HTMLButtonElement;
-const copyJsonBtn    = document.getElementById('btn-copy-json')    as HTMLButtonElement;
-const jsonOut        = document.getElementById('sprite-json')      as HTMLTextAreaElement;
-const previewGrid    = document.getElementById('preview-grid')     as HTMLElement;
-const sheetPreview   = document.getElementById('sheet-preview')    as HTMLCanvasElement;
-const sheetCtx       = sheetPreview.getContext('2d')!;
-const activeActionSel= document.getElementById('active-action')    as HTMLSelectElement;
-const playBtn        = document.getElementById('btn-play')         as HTMLButtonElement;
-const frameInfo      = document.getElementById('frame-info')       as HTMLElement;
+const uploadInput = document.getElementById('upload-img') as HTMLInputElement;
+const urlInput = document.getElementById('img-url') as HTMLInputElement;
+const loadUrlBtn = document.getElementById('btn-load-url') as HTMLButtonElement;
+const frameWInput = document.getElementById('frame-w') as HTMLInputElement;
+const frameHInput = document.getElementById('frame-h') as HTMLInputElement;
+const scaleInput = document.getElementById('sprite-scale') as HTMLInputElement;
+const anchorYInput = document.getElementById('anchor-y') as HTMLInputElement;
+const actionsList = document.getElementById('actions-list') as HTMLElement;
+const addActionBtn = document.getElementById('btn-add-action') as HTMLButtonElement;
+const exportBtn = document.getElementById('btn-export-sprite') as HTMLButtonElement;
+const copyJsonBtn = document.getElementById('btn-copy-json') as HTMLButtonElement;
+const jsonOut = document.getElementById('sprite-json') as HTMLTextAreaElement;
+const previewGrid = document.getElementById('preview-grid') as HTMLElement;
+const sheetPreview = document.getElementById('sheet-preview') as HTMLCanvasElement;
+const sheetCtx = sheetPreview.getContext('2d')!;
+const activeActionSel = document.getElementById('active-action') as HTMLSelectElement;
+const playBtn = document.getElementById('btn-play') as HTMLButtonElement;
+const frameInfo = document.getElementById('frame-info') as HTMLElement;
 
 // ── State ─────────────────────────────────────────────────────────────────────
 
@@ -50,14 +50,14 @@ let imageUrl = '';
 let frameW = 64, frameH = 64, drawScale = 2, anchorY = 1;
 let selectedFrameCol = -1, selectedFrameRow = -1;
 let actions: ActionDef[] = [
-  { id: 1, name: 'idle', rowStart: 0, frameCount: 4, fps: 6,  loop: true },
-  { id: 2, name: 'walk', rowStart: 8, frameCount: 8, fps: 12, loop: true },
+  {id: 1, name: 'idle', rowStart: 0, frameCount: 4, fps: 6, loop: true},
+  {id: 2, name: 'walk', rowStart: 8, frameCount: 8, fps: 12, loop: true},
 ];
 let nextId = 3;
 
 let sheet: SpriteSheet | null = null;
 // Map dir → { canvas, ctx, animator }
-interface DirCell { canvas: HTMLCanvasElement; ctx: CanvasRenderingContext2D; anim: DirectionalAnimator }
+interface DirCell {canvas: HTMLCanvasElement; ctx: CanvasRenderingContext2D; anim: DirectionalAnimator}
 let dirCells: Map<Direction, DirCell> = new Map();
 
 let activeAction = 'idle';
@@ -75,26 +75,26 @@ const DIR_LABELS: Record<Direction, string> = {
 
 uploadInput.addEventListener('change', () => {
   const file = uploadInput.files?.[0];
-  if (!file) return;
+  if (!file) {return;}
   const reader = new FileReader();
-  reader.onload = (e) => loadImageFromUrl(e.target!.result as string);
+  reader.onload = e => loadImageFromUrl(e.target!.result as string);
   reader.readAsDataURL(file);
 });
 
 loadUrlBtn.addEventListener('click', () => {
   const url = urlInput.value.trim();
-  if (url) loadImageFromUrl(url);
+  if (url) {loadImageFromUrl(url);}
 });
 
-urlInput.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') { const url = urlInput.value.trim(); if (url) loadImageFromUrl(url); }
+urlInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter') { const url = urlInput.value.trim(); if (url) {loadImageFromUrl(url);} }
 });
 
 function loadImageFromUrl(url: string): void {
   const img = new Image();
   img.crossOrigin = 'anonymous';
   img.onload = () => {
-    imageEl  = img;
+    imageEl = img;
     imageUrl = url;
     // Register into AssetLoader cache so sheet.image works without fetch
     AssetLoader.register(url, img);
@@ -111,7 +111,7 @@ const PREVIEW_MAX_W = 600, PREVIEW_MAX_H = 400;
 
 function drawSheetPreview(): void {
   if (!imageEl) {
-    sheetPreview.width  = 400;
+    sheetPreview.width = 400;
     sheetPreview.height = 200;
     sheetCtx.clearRect(0, 0, 400, 200);
     sheetCtx.fillStyle = '#1a1a28';
@@ -125,7 +125,7 @@ function drawSheetPreview(): void {
   }
 
   const scale = Math.min(PREVIEW_MAX_W / imageEl.width, PREVIEW_MAX_H / imageEl.height, 1);
-  sheetPreview.width  = Math.round(imageEl.width  * scale);
+  sheetPreview.width = Math.round(imageEl.width * scale);
   sheetPreview.height = Math.round(imageEl.height * scale);
   sheetCtx.imageSmoothingEnabled = false;
   sheetCtx.clearRect(0, 0, sheetPreview.width, sheetPreview.height);
@@ -167,11 +167,11 @@ function drawSheetPreview(): void {
   }
 }
 
-sheetPreview.addEventListener('click', (e) => {
-  if (!imageEl) return;
+sheetPreview.addEventListener('click', e => {
+  if (!imageEl) {return;}
   const rect = sheetPreview.getBoundingClientRect();
-  const px = (e.clientX - rect.left) * (sheetPreview.width  / rect.width);
-  const py = (e.clientY - rect.top)  * (sheetPreview.height / rect.height);
+  const px = (e.clientX - rect.left) * (sheetPreview.width / rect.width);
+  const py = (e.clientY - rect.top) * (sheetPreview.height / rect.height);
   const scale = sheetPreview.width / imageEl.width;
   const gw = frameW * scale, gh = frameH * scale;
   selectedFrameCol = Math.floor(px / gw);
@@ -196,9 +196,9 @@ sheetPreview.addEventListener('click', (e) => {
 
 [frameWInput, frameHInput, scaleInput].forEach(el => {
   el.addEventListener('input', () => {
-    frameW     = Math.max(1, parseInt(frameWInput.value) || 64);
-    frameH     = Math.max(1, parseInt(frameHInput.value) || 64);
-    drawScale  = Math.max(0.1, parseFloat(scaleInput.value) || 1);
+    frameW = Math.max(1, parseInt(frameWInput.value, 10) || 64);
+    frameH = Math.max(1, parseInt(frameHInput.value, 10) || 64);
+    drawScale = Math.max(0.1, parseFloat(scaleInput.value) || 1);
     drawSheetPreview();
     rebuildSheet();
   });
@@ -233,16 +233,16 @@ function renderActionsList(): void {
       rebuildSheet();
     });
     q<HTMLInputElement>('a-row').addEventListener('input', e => {
-      a.rowStart   = Math.max(0, parseInt((e.target as HTMLInputElement).value) || 0);
+      a.rowStart = Math.max(0, parseInt((e.target as HTMLInputElement).value, 10) || 0);
       drawSheetPreview();
       rebuildSheet();
     });
     q<HTMLInputElement>('a-count').addEventListener('input', e => {
-      a.frameCount = Math.max(1, parseInt((e.target as HTMLInputElement).value) || 1);
+      a.frameCount = Math.max(1, parseInt((e.target as HTMLInputElement).value, 10) || 1);
       rebuildSheet();
     });
     q<HTMLInputElement>('a-fps').addEventListener('input', e => {
-      a.fps = Math.max(1, parseInt((e.target as HTMLInputElement).value) || 12);
+      a.fps = Math.max(1, parseInt((e.target as HTMLInputElement).value, 10) || 12);
       rebuildSheet();
     });
     q<HTMLInputElement>('a-loop').addEventListener('change', e => {
@@ -276,12 +276,12 @@ function syncActiveActionSel(): void {
 }
 
 function escHtml(s: string): string {
-  return s.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+  return s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
 }
 
 addActionBtn.addEventListener('click', () => {
   const n = nextId++;
-  actions.push({ id: n, name: `action${n}`, rowStart: 0, frameCount: 4, fps: 8, loop: true });
+  actions.push({id: n, name: `action${n}`, rowStart: 0, frameCount: 4, fps: 8, loop: true});
   renderActionsList();
   drawSheetPreview();
   rebuildSheet();
@@ -289,19 +289,19 @@ addActionBtn.addEventListener('click', () => {
 
 activeActionSel.addEventListener('change', () => {
   activeAction = activeActionSel.value;
-  dirCells.forEach(({ anim }) => anim.setAction(activeAction));
+  dirCells.forEach(({anim}) => anim.setAction(activeAction));
 });
 
 // ── Sheet rebuild ─────────────────────────────────────────────────────────────
 
 function rebuildSheet(): void {
-  if (!imageEl || actions.length === 0) return;
+  if (!imageEl || actions.length === 0) {return;}
 
   sheet = DirectionalAnimator.buildSheet(
     imageUrl, frameW, frameH,
-    actions.map(a => ({ name: a.name, rowStart: a.rowStart, frameCount: a.frameCount, fps: a.fps, loop: a.loop })),
+    actions.map(a => ({name: a.name, rowStart: a.rowStart, frameCount: a.frameCount, fps: a.fps, loop: a.loop})),
     drawScale,
-    anchorY,
+    anchorY
   );
 
   // Rebuild preview cells & animators
@@ -317,7 +317,7 @@ function buildPreviewGrid(): void {
   previewGrid.innerHTML = '';
   dirCells = new Map();
 
-  if (!sheet) return;
+  if (!sheet) {return;}
 
   const cw = Math.min(Math.round(frameW * drawScale), CELL_MAX);
   const ch = Math.min(Math.round(frameH * drawScale), CELL_MAX);
@@ -331,20 +331,20 @@ function buildPreviewGrid(): void {
     label.textContent = DIR_LABELS[dir];
 
     const canvas = document.createElement('canvas');
-    canvas.width  = cw;
+    canvas.width = cw;
     canvas.height = ch;
-    canvas.style.width  = `${cw}px`;
+    canvas.style.width = `${cw}px`;
     canvas.style.height = `${ch}px`;
     canvas.style.imageRendering = 'pixelated';
 
     const ctx = canvas.getContext('2d')!;
-    const anim = new DirectionalAnimator(sheet!, { initialAction: activeAction, initialDirection: dir });
+    const anim = new DirectionalAnimator(sheet!, {initialAction: activeAction, initialDirection: dir});
 
     cell.appendChild(label);
     cell.appendChild(canvas);
     previewGrid.appendChild(cell);
 
-    dirCells.set(dir, { canvas, ctx, anim });
+    dirCells.set(dir, {canvas, ctx, anim});
   });
 }
 
@@ -354,22 +354,22 @@ function tick(ts: number): void {
   const dt = Math.min((ts - lastTs) / 1000, 0.1);
   lastTs = ts;
 
-  dirCells.forEach(({ canvas, ctx, anim }, _dir) => {
+  dirCells.forEach(({canvas, ctx, anim}, _dir) => {
     anim.update(dt);
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     const result = anim.currentFrame();
-    if (!result) return;
-    const { frame, image } = result;
+    if (!result) {return;}
+    const {frame, image} = result;
 
     // Scale to fit cell canvas, preserving aspect
-    const scaleX = canvas.width  / frame.w;
+    const scaleX = canvas.width / frame.w;
     const scaleY = canvas.height / frame.h;
     const s = Math.min(scaleX, scaleY);
     const dw = frame.w * s;
     const dh = frame.h * s;
-    const dx = (canvas.width  - dw) / 2;
+    const dx = (canvas.width - dw) / 2;
     const dy = (canvas.height - dh) / 2;
 
     ctx.imageSmoothingEnabled = false;
@@ -395,26 +395,28 @@ function tick(ts: number): void {
     ctx.fillText(anim.clipName, 3, canvas.height - 3);
   });
 
-  if (playing) rafId = requestAnimationFrame(tick);
+  if (playing) {rafId = requestAnimationFrame(tick);}
 }
 
 function startPlay(): void {
-  if (playing) return;
+  if (playing) {return;}
   playing = true;
-  lastTs  = performance.now();
+  lastTs = performance.now();
   playBtn.textContent = '⏸ Pause';
   rafId = requestAnimationFrame(tick);
 }
 
 function stopPlay(): void {
-  if (!playing) return;
+  if (!playing) {return;}
   playing = false;
   cancelAnimationFrame(rafId);
   rafId = 0;
   playBtn.textContent = '▶ Play';
 }
 
-playBtn.addEventListener('click', () => { playing ? stopPlay() : startPlay(); });
+playBtn.addEventListener('click', () => {
+  if (playing) { stopPlay(); } else { startPlay(); }
+});
 
 // ── Export ────────────────────────────────────────────────────────────────────
 
@@ -438,7 +440,10 @@ exportBtn.addEventListener('click', () => {
 copyJsonBtn.addEventListener('click', () => {
   if (!jsonOut.value) { alert('Click "Export JSON" first.'); return; }
   navigator.clipboard.writeText(jsonOut.value)
-    .then(() => { copyJsonBtn.textContent = '✓ Copied!'; setTimeout(() => { copyJsonBtn.textContent = 'Copy to Clipboard'; }, 1500); })
+    .then(() => {
+      copyJsonBtn.textContent = '✓ Copied!';
+      setTimeout(() => { copyJsonBtn.textContent = 'Copy to Clipboard'; }, 1500);
+    })
     .catch(() => { jsonOut.select(); document.execCommand('copy'); });
 });
 
@@ -450,12 +455,12 @@ importBtn?.addEventListener('click', () => {
     const cfg = JSON.parse(jsonOut.value);
     if (cfg.frameW) { frameW = cfg.frameW; frameWInput.value = String(frameW); }
     if (cfg.frameH) { frameH = cfg.frameH; frameHInput.value = String(frameH); }
-    if (cfg.scale)  { drawScale = cfg.scale; scaleInput.value = String(drawScale); }
+    if (cfg.scale) { drawScale = cfg.scale; scaleInput.value = String(drawScale); }
     if (cfg.anchorY !== undefined) { anchorY = cfg.anchorY; anchorYInput.value = String(anchorY); }
     if (Array.isArray(cfg.actions)) {
-      actions = cfg.actions.map((a: Omit<ActionDef, 'id'>) => ({ ...a, id: nextId++ }));
+      actions = cfg.actions.map((a: Omit<ActionDef, 'id'>) => ({...a, id: nextId++}));
     }
-    if (cfg.url && !cfg.url.startsWith('(')) loadImageFromUrl(cfg.url);
+    if (cfg.url && !cfg.url.startsWith('(')) {loadImageFromUrl(cfg.url);}
     renderActionsList();
     drawSheetPreview();
     rebuildSheet();
@@ -465,5 +470,5 @@ importBtn?.addEventListener('click', () => {
 // ── Init ──────────────────────────────────────────────────────────────────────
 
 renderActionsList();
-drawSheetPreview();    // Show placeholder
+drawSheetPreview(); // Show placeholder
 startPlay();

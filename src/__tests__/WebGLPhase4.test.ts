@@ -1,15 +1,15 @@
-import { describe, expect, it } from 'vitest';
-import { ParticleBlend, ParticleSystem } from '../animation/ParticleSystem';
-import { SpriteSheet } from '../animation/SpriteSheet';
-import { AssetLoader } from '../core/AssetLoader';
-import { Scene } from '../core/Scene';
-import { Character } from '../elements/Character';
-import { Floor } from '../elements/Floor';
-import { FloatingText } from '../elements/props/FloatingText';
-import { TileCollider } from '../physics/TileCollider';
-import { RENDER_VERTEX_FLOATS } from '../../webgl-next/src/contracts/RenderSnapshot';
-import { SceneExtractor } from '../../webgl-next/src/extraction/SceneExtractor';
-import { renderPointToScreen } from '../../webgl-next/src/overlays/cameraTransform';
+import {describe, expect, it} from 'vitest';
+import {ParticleBlend, ParticleSystem} from '../animation/ParticleSystem';
+import {SpriteSheet} from '../animation/SpriteSheet';
+import {AssetLoader} from '../core/AssetLoader';
+import {Scene} from '../core/Scene';
+import {Character} from '../elements/Character';
+import {Floor} from '../elements/Floor';
+import {FloatingText} from '../elements/props/FloatingText';
+import {TileCollider} from '../physics/TileCollider';
+import {RENDER_VERTEX_FLOATS} from '../../webgl-next/src/contracts/RenderSnapshot';
+import {SceneExtractor} from '../../webgl-next/src/extraction/SceneExtractor';
+import {renderPointToScreen} from '../../webgl-next/src/overlays/cameraTransform';
 
 describe('WebGL Next Phase 4 extraction', () => {
   it('exposes allocation-free particle render state with blend and lifecycle values', () => {
@@ -28,21 +28,21 @@ describe('WebGL Next Phase 4 extraction', () => {
       shape: 'square',
     });
 
-    const states: Array<{ blend: ParticleBlend; shape: string; alpha: number }> = [];
-    system.forEachParticle((particle) => states.push({
+    const states: Array<{blend: ParticleBlend; shape: string; alpha: number}> = [];
+    system.forEachParticle(particle => states.push({
       blend: particle.blend,
       shape: particle.shape,
       alpha: particle.alpha,
     }));
 
     expect(system.particleCount).toBe(1);
-    expect(states).toEqual([{ blend: ParticleBlend.ADD, shape: 'square', alpha: 0.8 }]);
+    expect(states).toEqual([{blend: ParticleBlend.ADD, shape: 'square', alpha: 0.8}]);
   });
 
   it('extracts particles, labels, minimap, collision, and selection debug data', () => {
-    const scene = new Scene({ cols: 4, rows: 4 });
-    scene.addObject(new Floor({ id: 'floor', cols: 4, rows: 4 }));
-    const character = new Character({ id: 'hero', x: 1.5, y: 1.5 });
+    const scene = new Scene({cols: 4, rows: 4});
+    scene.addObject(new Floor({id: 'floor', cols: 4, rows: 4}));
+    const character = new Character({id: 'hero', x: 1.5, y: 1.5});
     scene.addObject(character);
     const particles = new ParticleSystem('fx', 2, 2, 0);
     particles.spawn({
@@ -51,7 +51,7 @@ describe('WebGL Next Phase 4 extraction', () => {
       life: 1, size: 2, color: '#ffaa00', blend: ParticleBlend.ADD,
     });
     scene.addObject(particles);
-    scene.addObject(new FloatingText({ id: 'label', x: 1.5, y: 1.5, z: 32, text: '42' }));
+    scene.addObject(new FloatingText({id: 'label', x: 1.5, y: 1.5, z: 32, text: '42'}));
     scene.collider = new TileCollider(4, 4);
     scene.collider.setWalkable(2, 2, false);
 
@@ -66,9 +66,9 @@ describe('WebGL Next Phase 4 extraction', () => {
     expect(snapshot.textOverlays).toHaveLength(1);
     expect(snapshot.textOverlays[0].text).toBe('42');
     expect(snapshot.minimap.walkable[2 * 4 + 2]).toBe(0);
-    expect(snapshot.minimap.items.map((item) => item.id)).toEqual(['hero']);
+    expect(snapshot.minimap.items.map(item => item.id)).toEqual(['hero']);
     expect(snapshot.geometry.debug.count).toBeGreaterThan(0);
-    expect(snapshot.geometry.segments.some((segment) => segment.blend === 'add')).toBe(true);
+    expect(snapshot.geometry.segments.some(segment => segment.blend === 'add')).toBe(true);
     expect([...snapshot.pickLookup.values()]).toContain('fx');
   });
 
@@ -80,26 +80,26 @@ describe('WebGL Next Phase 4 extraction', () => {
     } as HTMLImageElement);
     const sheet = new SpriteSheet({
       url,
-      clips: [{ name: 'idle', fps: 4, frames: [{ x: 16, y: 0, w: 16, h: 32 }] }],
+      clips: [{name: 'idle', fps: 4, frames: [{x: 16, y: 0, w: 16, h: 32}]}],
     });
-    const scene = new Scene({ cols: 2, rows: 2 });
-    scene.addObject(new Floor({ id: 'floor', cols: 2, rows: 2 }));
-    const character = new Character({ id: 'sprite', x: 1, y: 1 });
+    const scene = new Scene({cols: 2, rows: 2});
+    scene.addObject(new Floor({id: 'floor', cols: 2, rows: 2}));
+    const character = new Character({id: 'sprite', x: 1, y: 1});
     character.setSpriteSheet(sheet);
     scene.addObject(character);
     const snapshot = new SceneExtractor().extract(scene, {
       viewportWidth: 400,
       viewportHeight: 300,
     });
-    const textureSegment = snapshot.geometry.segments.find((segment) => segment.textureUrl === url);
+    const textureSegment = snapshot.geometry.segments.find(segment => segment.textureUrl === url);
 
     expect(textureSegment?.count).toBe(6);
     expect(snapshot.geometry.data[textureSegment!.first * RENDER_VERTEX_FLOATS + 16]).toBe(1);
   });
 
   it('culls a large floor to the visible camera region', () => {
-    const scene = new Scene({ cols: 100, rows: 100 });
-    scene.addObject(new Floor({ id: 'large-floor', cols: 100, rows: 100 }));
+    const scene = new Scene({cols: 100, rows: 100});
+    scene.addObject(new Floor({id: 'large-floor', cols: 100, rows: 100}));
     scene.camera.x = 50;
     scene.camera.y = 50;
     const snapshot = new SceneExtractor().extract(scene, {
@@ -114,11 +114,11 @@ describe('WebGL Next Phase 4 extraction', () => {
   });
 
   it('keeps DOM overlay coordinates aligned with the WebGL camera transform', () => {
-    const scene = new Scene({ tileW: 64, tileH: 32 });
+    const scene = new Scene({tileW: 64, tileH: 32});
     scene.camera.x = 2;
     scene.camera.y = 1;
     scene.camera.zoom = 1.5;
-    scene.view = { rotation: 90, elevation: 0.75 };
+    scene.view = {rotation: 90, elevation: 0.75};
     const snapshot = new SceneExtractor().extract(scene, {
       viewportWidth: 800,
       viewportHeight: 600,

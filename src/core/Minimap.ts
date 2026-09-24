@@ -1,7 +1,7 @@
-import { Scene } from './Scene';
-import { TileCollider } from '../physics/TileCollider';
-import { Character } from '../elements/Character';
-import { IsoObject } from '../elements/IsoObject';
+import {Scene} from './Scene';
+import {TileCollider} from '../physics/TileCollider';
+import {Character} from '../elements/Character';
+import {IsoObject} from '../elements/IsoObject';
 
 export interface MinimapStyle {
   /** Background fill. Default '#1a1a2e'. */
@@ -37,31 +37,31 @@ export interface MinimapStyle {
  */
 export class Minimap {
   private _scene: Scene;
-  private _cols:  number;
-  private _rows:  number;
+  private _cols: number;
+  private _rows: number;
   private _style: Required<MinimapStyle>;
 
   private _offscreen: OffscreenCanvas | null = null;
-  private _offCtx:    OffscreenCanvasRenderingContext2D | null = null;
+  private _offCtx: OffscreenCanvasRenderingContext2D | null = null;
 
   /** Pixel size of each tile cell on the minimap. Computed from draw() size. */
   private _cellW = 0;
   private _cellH = 0;
 
-  constructor(scene: Scene, opts: { cols: number; rows: number; style?: MinimapStyle } = { cols: 10, rows: 10 }) {
+  constructor(scene: Scene, opts: {cols: number; rows: number; style?: MinimapStyle} = {cols: 10, rows: 10}) {
     this._scene = scene;
-    this._cols  = opts.cols;
-    this._rows  = opts.rows;
+    this._cols = opts.cols;
+    this._rows = opts.rows;
     this._style = {
-      bg:          opts.style?.bg          ?? '#1a1a2e',
-      walkable:    opts.style?.walkable    ?? '#2a3a4a',
-      blocked:     opts.style?.blocked     ?? '#0a0a14',
-      grid:        opts.style?.grid        ?? 'rgba(255,255,255,0.06)',
+      bg: opts.style?.bg ?? '#1a1a2e',
+      walkable: opts.style?.walkable ?? '#2a3a4a',
+      blocked: opts.style?.blocked ?? '#0a0a14',
+      grid: opts.style?.grid ?? 'rgba(255,255,255,0.06)',
       playerColor: opts.style?.playerColor ?? '#5590cc',
       objectColor: opts.style?.objectColor ?? '#cc8855',
-      border:      opts.style?.border      ?? 'rgba(255,255,255,0.25)',
-      radius:      opts.style?.radius      ?? 6,
-      alpha:       opts.style?.alpha       ?? 1.0,
+      border: opts.style?.border ?? 'rgba(255,255,255,0.25)',
+      radius: opts.style?.radius ?? 6,
+      alpha: opts.style?.alpha ?? 1.0,
     };
   }
 
@@ -82,7 +82,7 @@ export class Minimap {
     if (this._offscreen) {
       ctx.save();
       ctx.globalAlpha = this._style.alpha;
-      
+
       // Rounded-rect clip on main canvas
       this._roundRect(ctx, x, y, w, h, this._style.radius);
       ctx.clip();
@@ -90,10 +90,10 @@ export class Minimap {
 
       // Border
       ctx.strokeStyle = this._style.border;
-      ctx.lineWidth   = 1.5;
+      ctx.lineWidth = 1.5;
       this._roundRect(ctx, x, y, w, h, this._style.radius);
       ctx.stroke();
-      
+
       ctx.restore();
     }
   }
@@ -111,15 +111,15 @@ export class Minimap {
   private _ensureOffscreen(w: number, h: number): void {
     if (!this._offscreen || this._offscreen.width !== w || this._offscreen.height !== h) {
       this._offscreen = new OffscreenCanvas(w, h);
-      this._offCtx    = this._offscreen.getContext('2d') as OffscreenCanvasRenderingContext2D;
-      this._cellW     = w / this._cols;
-      this._cellH     = h / this._rows;
+      this._offCtx = this._offscreen.getContext('2d') as OffscreenCanvasRenderingContext2D;
+      this._cellW = w / this._cols;
+      this._cellH = h / this._rows;
     }
   }
 
   private _render(w: number, h: number): void {
     const ctx = this._offCtx;
-    if (!ctx) return;
+    if (!ctx) {return;}
 
     const cw = this._cellW;
     const ch = this._cellH;
@@ -140,7 +140,7 @@ export class Minimap {
 
     // Grid lines
     ctx.strokeStyle = this._style.grid;
-    ctx.lineWidth   = 0.5;
+    ctx.lineWidth = 0.5;
     for (let c = 1; c < this._cols; c++) {
       ctx.beginPath(); ctx.moveTo(c * cw, 0); ctx.lineTo(c * cw, h); ctx.stroke();
     }
@@ -154,7 +154,7 @@ export class Minimap {
       const px = obj.position.x * cw;
       const py = obj.position.y * ch;
       const isChar = obj instanceof Character;
-      const dotR   = isChar ? Math.max(3, cw * 0.35) : Math.max(2, cw * 0.22);
+      const dotR = isChar ? Math.max(3, cw * 0.35) : Math.max(2, cw * 0.22);
 
       ctx.beginPath();
       ctx.arc(px, py, dotR, 0, Math.PI * 2);
@@ -166,7 +166,7 @@ export class Minimap {
         ctx.beginPath();
         ctx.arc(px, py, dotR + 1.5, 0, Math.PI * 2);
         ctx.strokeStyle = `${this._style.playerColor}88`;
-        ctx.lineWidth   = 1;
+        ctx.lineWidth = 1;
         ctx.stroke();
       }
     }
@@ -180,18 +180,18 @@ export class Minimap {
     ctx: CanvasRenderingContext2D,
     x: number, y: number,
     w: number, h: number,
-    r: number,
+    r: number
   ): void {
     ctx.beginPath();
     ctx.moveTo(x + r, y);
     ctx.lineTo(x + w - r, y);
-    ctx.arcTo(x + w, y,     x + w, y + r,     r);
+    ctx.arcTo(x + w, y, x + w, y + r, r);
     ctx.lineTo(x + w, y + h - r);
     ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
     ctx.lineTo(x + r, y + h);
-    ctx.arcTo(x,     y + h, x,     y + h - r, r);
-    ctx.lineTo(x,     y + r);
-    ctx.arcTo(x,     y,     x + r, y,         r);
+    ctx.arcTo(x, y + h, x, y + h - r, r);
+    ctx.lineTo(x, y + r);
+    ctx.arcTo(x, y, x + r, y, r);
     ctx.closePath();
   }
 }

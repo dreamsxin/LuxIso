@@ -1,12 +1,12 @@
-import { project } from '../math/IsoProjection';
-import { AABB } from '../math/depthSort';
-import { DrawContext } from './IsoObject';
-import { SpriteSheet } from '../animation/SpriteSheet';
-import { AnimationController } from '../animation/AnimationController';
-import { shiftColor } from '../math/color';
-import { Entity } from '../ecs/Entity';
-import { AnimationComponent } from '../ecs/components/AnimationComponent';
-import { MovementComponent } from '../ecs/components/MovementComponent';
+import {project} from '../math/IsoProjection';
+import {AABB} from '../math/depthSort';
+import {DrawContext} from './IsoObject';
+import {SpriteSheet} from '../animation/SpriteSheet';
+import {AnimationController} from '../animation/AnimationController';
+import {shiftColor} from '../math/color';
+import {Entity} from '../ecs/Entity';
+import {AnimationComponent} from '../ecs/components/AnimationComponent';
+import {MovementComponent} from '../ecs/components/MovementComponent';
 
 export interface CharacterOptions {
   id: string;
@@ -24,7 +24,7 @@ export interface CharacterOptions {
 
 /**
  * Character — a specialized Entity for controllable or NPC characters.
- * 
+ *
  * Unlike v1, movement logic is now delegated to MovementComponent.
  * Character focus is on:
  * - Visuals (Sprite animation or sphere fallback)
@@ -79,8 +79,8 @@ export class Character extends Entity {
    * Switch to named animation clip.
    */
   playAnimation(name: string): void {
-    if (!this._anim) return;
-    if (!this._anim.controller.spriteSheet.hasClip(name)) return;
+    if (!this._anim) {return;}
+    if (!this._anim.controller.spriteSheet.hasClip(name)) {return;}
     this._anim.play(name);
   }
 
@@ -95,7 +95,7 @@ export class Character extends Entity {
    */
   get isMoving(): boolean {
     const mv = this.getComponent(MovementComponent);
-    if (mv?.isMoving) return true;
+    if (mv?.isMoving) {return true;}
     return this._moved;
   }
 
@@ -133,10 +133,10 @@ export class Character extends Entity {
    */
   get drawnHeightPx(): number {
     const anim = this.anim;
-    if (!anim?.spriteSheet.image) return this.radius;
+    if (!anim?.spriteSheet.image) {return this.radius;}
     const sheet = anim.spriteSheet;
     const frame = anim.currentClip.frames[anim.frameIndex];
-    if (!frame) return this.radius;
+    if (!frame) {return this.radius;}
     return frame.h * sheet.scale * sheet.anchorY;
   }
 
@@ -155,7 +155,7 @@ export class Character extends Entity {
     // A sprite-animated character driven that way never played its walk clip.
     this._moved = Math.hypot(
       this.position.x - this._prevX,
-      this.position.y - this._prevY,
+      this.position.y - this._prevY
     ) > 0.001;
     this._prevX = this.position.x;
     this._prevY = this.position.y;
@@ -164,13 +164,13 @@ export class Character extends Entity {
     if (this._anim) {
       const moving = this.isMoving;
       const ctrl = this._anim.controller;
-      
+
       if (moving) {
         if (ctrl.currentClip.name !== 'walk' && ctrl.spriteSheet.hasClip('walk')) {
           ctrl.play('walk');
         }
       } else if (ctrl.currentClip.name === 'walk') {
-        if (ctrl.spriteSheet.hasClip('idle')) ctrl.play('idle');
+        if (ctrl.spriteSheet.hasClip('idle')) {ctrl.play('idle');}
       }
     }
   }
@@ -179,10 +179,10 @@ export class Character extends Entity {
   // ── Draw ──────────────────────────────────────────────────────────────────
 
   draw(dc: DrawContext): void {
-    const { ctx, tileW, tileH, originX, originY, omniLights } = dc;
-    const { x, y, z } = this.position;
+    const {ctx, tileW, tileH, originX, originY, omniLights} = dc;
+    const {x, y, z} = this.position;
 
-    const { sx, sy } = project(x, y, z, tileW, tileH);
+    const {sx, sy} = project(x, y, z, tileW, tileH);
     const bx = originX + sx;
     const by = originY + sy;
 
@@ -227,7 +227,7 @@ export class Character extends Entity {
     gx: number, gy: number,
     bx: number, by: number,
     lx: number, ly: number,
-    elevation: number,
+    elevation: number
   ): void {
     const dx = bx - lx;
     const dy = by - ly;
@@ -260,7 +260,7 @@ export class Character extends Entity {
   private drawSphere(
     ctx: CanvasRenderingContext2D,
     bx: number, by: number,
-    lx: number, ly: number,
+    lx: number, ly: number
   ): void {
     const dx = lx - bx;
     const dy = ly - by;
@@ -268,15 +268,15 @@ export class Character extends Entity {
     const hx = bx + (dx / len) * this.radius * 0.38;
     const hy = by + (dy / len) * this.radius * 0.38;
 
-    const dark   = shiftColor(this.color, -80);
-    const mid    = this.color;
+    const dark = shiftColor(this.color, -80);
+    const mid = this.color;
     const bright = shiftColor(this.color, 100);
 
     const base = ctx.createRadialGradient(hx, hy, this.radius * 0.05, bx, by, this.radius);
-    base.addColorStop(0,    bright);
+    base.addColorStop(0, bright);
     base.addColorStop(0.35, mid);
-    base.addColorStop(0.8,  dark);
-    base.addColorStop(1,    '#050505');
+    base.addColorStop(0.8, dark);
+    base.addColorStop(1, '#050505');
 
     ctx.beginPath();
     ctx.arc(bx, by, this.radius, 0, Math.PI * 2);

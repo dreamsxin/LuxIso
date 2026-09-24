@@ -1,8 +1,8 @@
-import { Entity } from '../../ecs/Entity';
-import { AABB } from '../../math/depthSort';
-import { project } from '../../math/IsoProjection';
-import { hexToRgba, shiftColor } from '../../math/color';
-import { DrawContext } from '../IsoObject';
+import {Entity} from '../../ecs/Entity';
+import {AABB} from '../../math/depthSort';
+import {project} from '../../math/IsoProjection';
+import {hexToRgba, shiftColor} from '../../math/color';
+import {DrawContext} from '../IsoObject';
 
 export interface LanternOptions {
   id: string;
@@ -64,7 +64,7 @@ export class Lantern extends Entity {
 
 
   draw(dc: DrawContext): void {
-    const { ctx, tileW, tileH, originX, originY } = dc;
+    const {ctx, tileW, tileH, originX, originY} = dc;
     const projected = project(this.position.x, this.position.y, 0, tileW, tileH);
     const cx = originX + projected.sx;
     const cy = originY + projected.sy;
@@ -91,7 +91,10 @@ export class Lantern extends Entity {
     ctx.fill();
 
     ctx.fillStyle = this._postColor;
-    ctx.fillRect(cx - Math.max(1.5, tileW * 0.025), lampY + bodyH * 0.5, Math.max(3, tileW * 0.05), height - bodyH * 0.35);
+    ctx.fillRect(
+      cx - Math.max(1.5, tileW * 0.025), lampY + bodyH * 0.5,
+      Math.max(3, tileW * 0.05), height - bodyH * 0.35
+    );
 
     ctx.beginPath();
     ctx.moveTo(cx, lampY - bodyH * 0.72);

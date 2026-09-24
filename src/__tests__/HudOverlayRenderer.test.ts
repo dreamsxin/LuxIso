@@ -1,6 +1,6 @@
-import { describe, it, expect, afterEach, vi } from 'vitest';
-import { HudOverlayRenderer } from '../../webgl-next/src/overlays/HudOverlayRenderer';
-import { HudLayer } from '../core/HudLayer';
+import {describe, it, expect, afterEach, vi} from 'vitest';
+import {HudOverlayRenderer} from '../../webgl-next/src/overlays/HudOverlayRenderer';
+import {HudLayer} from '../core/HudLayer';
 
 /**
  * The WebGL2 path had no UI layer: `HudLayer` is Canvas2D and the preview page
@@ -14,13 +14,13 @@ interface FakeCanvas {
   width: number;
   height: number;
   style: Record<string, string>;
-  rect: { width: number; height: number };
+  rect: {width: number; height: number};
   calls: unknown[][];
 }
 
-function canvas(w = 800, h = 600): { el: HTMLCanvasElement; state: FakeCanvas } {
+function canvas(w = 800, h = 600): {el: HTMLCanvasElement; state: FakeCanvas} {
   const calls: unknown[][] = [];
-  const state: FakeCanvas = { width: 0, height: 0, style: {}, rect: { width: w, height: h }, calls };
+  const state: FakeCanvas = {width: 0, height: 0, style: {}, rect: {width: w, height: h}, calls};
   const ctx = new Proxy({}, {
     get: (_t, prop) => (...args: unknown[]) => { calls.push([prop, ...args]); },
     set: (_t, prop, value) => { calls.push(['set', prop, value]); return true; },
@@ -33,27 +33,27 @@ function canvas(w = 800, h = 600): { el: HTMLCanvasElement; state: FakeCanvas } 
     set height(v: number) { state.height = v; },
     style: state.style,
     getContext: () => ctx,
-    getBoundingClientRect: () => ({ width: state.rect.width, height: state.rect.height }),
+    getBoundingClientRect: () => ({width: state.rect.width, height: state.rect.height}),
   } as unknown as HTMLCanvasElement;
 
-  return { el, state };
+  return {el, state};
 }
 
 function setDpr(value: number | undefined): void {
-  (globalThis as any).window = { devicePixelRatio: value };
+  (globalThis as any).window = {devicePixelRatio: value};
 }
 
 afterEach(() => { delete (globalThis as any).window; });
 
 function hudWithBar(): HudLayer {
   const hud = new HudLayer();
-  hud.addBar({ id: 'hp', x: 16, y: 16, w: 160, h: 14, value: 0.5, color: '#e04040' });
+  hud.addBar({id: 'hp', x: 16, y: 16, w: 160, h: 14, value: 0.5, color: '#e04040'});
   return hud;
 }
 
 describe('HudOverlayRenderer', () => {
   it('never intercepts pointer events', () => {
-    const { el, state } = canvas();
+    const {el, state} = canvas();
     new HudOverlayRenderer(el, new HudLayer());
     // A canvas covering the viewport would otherwise swallow every tap before
     // the GL canvas — and HUD input comes from InputManager, not from here.
@@ -62,7 +62,7 @@ describe('HudOverlayRenderer', () => {
 
   it('sizes the backing store by the device pixel ratio', () => {
     setDpr(2);
-    const { el, state } = canvas(400, 300);
+    const {el, state} = canvas(400, 300);
     const overlay = new HudOverlayRenderer(el, hudWithBar());
     overlay.render();
 
@@ -73,20 +73,20 @@ describe('HudOverlayRenderer', () => {
 
   it('clamps the ratio to maxPixelRatio, default 2', () => {
     setDpr(3);
-    const { el } = canvas(100, 100);
+    const {el} = canvas(100, 100);
     expect(new HudOverlayRenderer(el, new HudLayer()).pixelRatio).toBe(1);
 
     const capped = new HudOverlayRenderer(canvas(100, 100).el, new HudLayer());
     capped.render();
     expect(capped.pixelRatio).toBe(2);
 
-    const raised = new HudOverlayRenderer(canvas(100, 100).el, new HudLayer(), { maxPixelRatio: 3 });
+    const raised = new HudOverlayRenderer(canvas(100, 100).el, new HudLayer(), {maxPixelRatio: 3});
     raised.render();
     expect(raised.pixelRatio).toBe(3);
   });
 
   it('falls back to ratio 1 without a window', () => {
-    const { el, state } = canvas(200, 100);
+    const {el, state} = canvas(200, 100);
     const overlay = new HudOverlayRenderer(el, hudWithBar());
     expect(() => overlay.render()).not.toThrow();
     expect(state.width).toBe(200);
@@ -95,7 +95,7 @@ describe('HudOverlayRenderer', () => {
 
   it('hands the ratio to the HudLayer so widgets are not drawn at 1/dpr', () => {
     setDpr(2);
-    const { el, state } = canvas(400, 300);
+    const {el, state} = canvas(400, 300);
     const hud = hudWithBar();
     new HudOverlayRenderer(el, hud).render();
 
@@ -104,7 +104,7 @@ describe('HudOverlayRenderer', () => {
 
   it('clears in device pixels before drawing', () => {
     setDpr(2);
-    const { el, state } = canvas(400, 300);
+    const {el, state} = canvas(400, 300);
     new HudOverlayRenderer(el, hudWithBar()).render();
 
     const clear = state.calls.findIndex(c => c[0] === 'clearRect');
@@ -115,7 +115,7 @@ describe('HudOverlayRenderer', () => {
 
   it('draws the HUD widgets', () => {
     setDpr(1);
-    const { el, state } = canvas(400, 300);
+    const {el, state} = canvas(400, 300);
     new HudOverlayRenderer(el, hudWithBar()).render();
 
     const fills = state.calls.filter(c => c[0] === 'fillRect');
@@ -125,7 +125,7 @@ describe('HudOverlayRenderer', () => {
 
   it('skips a canvas that has no layout size yet', () => {
     setDpr(1);
-    const { el, state } = canvas(0, 0);
+    const {el, state} = canvas(0, 0);
     new HudOverlayRenderer(el, hudWithBar()).render();
     expect(state.calls.length).toBe(0);
     expect(state.width).toBe(0);
@@ -133,12 +133,12 @@ describe('HudOverlayRenderer', () => {
 
   it('resizes when the CSS box changes', () => {
     setDpr(1);
-    const { el, state } = canvas(400, 300);
+    const {el, state} = canvas(400, 300);
     const overlay = new HudOverlayRenderer(el, new HudLayer());
     overlay.render();
     expect(state.width).toBe(400);
 
-    state.rect = { width: 640, height: 480 };
+    state.rect = {width: 640, height: 480};
     overlay.render();
     expect(state.width).toBe(640);
     expect(state.height).toBe(480);
@@ -146,7 +146,7 @@ describe('HudOverlayRenderer', () => {
 
   it('dispose clears the canvas and drops HUD press state', () => {
     setDpr(1);
-    const { el, state } = canvas(400, 300);
+    const {el, state} = canvas(400, 300);
     const hud = hudWithBar();
     const reset = vi.spyOn(hud, 'resetInput');
     const overlay = new HudOverlayRenderer(el, hud);
@@ -159,7 +159,7 @@ describe('HudOverlayRenderer', () => {
   });
 
   it('throws a clear error when 2D is unavailable', () => {
-    const el = { getContext: () => null, style: {} } as unknown as HTMLCanvasElement;
+    const el = {getContext: () => null, style: {}} as unknown as HTMLCanvasElement;
     expect(() => new HudOverlayRenderer(el, new HudLayer())).toThrow(/Canvas 2D/);
   });
 });
@@ -167,11 +167,11 @@ describe('HudOverlayRenderer', () => {
 describe('HudOverlayRenderer — paint hook', () => {
   it('paints after the HUD, in logical pixels, and isolates the state', () => {
     setDpr(2);
-    const { el, state } = canvas(400, 300);
+    const {el, state} = canvas(400, 300);
     const paint = vi.fn((ctx: CanvasRenderingContext2D, _w: number, _h: number) => {
       ctx.fillRect(1, 2, 3, 4);
     });
-    new HudOverlayRenderer(el, hudWithBar(), { paint }).render();
+    new HudOverlayRenderer(el, hudWithBar(), {paint}).render();
 
     expect(paint).toHaveBeenCalledTimes(1);
     // Called with the CSS box, not the backing store.
@@ -189,15 +189,15 @@ describe('HudOverlayRenderer — paint hook', () => {
 
   it('does not paint when the canvas has no layout size', () => {
     setDpr(1);
-    const { el } = canvas(0, 0);
+    const {el} = canvas(0, 0);
     const paint = vi.fn();
-    new HudOverlayRenderer(el, hudWithBar(), { paint }).render();
+    new HudOverlayRenderer(el, hudWithBar(), {paint}).render();
     expect(paint).not.toHaveBeenCalled();
   });
 
   it('is optional', () => {
     setDpr(1);
-    const { el } = canvas(400, 300);
+    const {el} = canvas(400, 300);
     expect(() => new HudOverlayRenderer(el, hudWithBar()).render()).not.toThrow();
   });
 });

@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { InputManager, type InputManagerOptions } from '../core/InputManager';
+import {describe, it, expect, beforeEach, afterEach, vi} from 'vitest';
+import {InputManager, type InputManagerOptions} from '../core/InputManager';
 
 /**
  * InputManager tests.
@@ -19,16 +19,19 @@ interface Harness {
   setHidden(hidden: boolean): void;
 }
 
+/** A listener as the stub sees it: invoked with a hand-built event object. */
+type StubListener = (ev: Record<string, unknown>) => void;
+
 function makeHarness(opts?: InputManagerOptions): Harness {
   const bag = () => {
-    const map: Record<string, Function[]> = {};
+    const map: Record<string, StubListener[]> = {};
     return {
-      addEventListener(type: string, cb: Function) {
+      addEventListener(type: string, cb: StubListener) {
         (map[type] ??= []).push(cb);
       },
       removeEventListener: vi.fn(),
       fire(ev: Record<string, unknown>) {
-        for (const cb of map[ev.type as string] ?? []) cb(ev);
+        for (const cb of map[ev.type as string] ?? []) {cb(ev);}
       },
     };
   };
@@ -39,32 +42,32 @@ function makeHarness(opts?: InputManagerOptions): Harness {
 
   const canvas = {
     ...canvasBag,
-    getBoundingClientRect: () => ({ left: 0, top: 0, width: 800, height: 600 }),
+    getBoundingClientRect: () => ({left: 0, top: 0, width: 800, height: 600}),
     width: 800,
     height: 600,
   } as unknown as HTMLCanvasElement;
 
   (globalThis as any).window = windowBag;
-  (globalThis as any).document = { ...documentBag, hidden: false };
+  (globalThis as any).document = {...documentBag, hidden: false};
 
   const input = new InputManager(canvas, opts);
   return {
     input,
     canvas,
-    fireCanvas: (ev) => canvasBag.fire(ev),
-    fireWindow: (ev) => windowBag.fire(ev),
-    fireDocument: (ev) => documentBag.fire(ev),
-    setHidden: (hidden) => { (globalThis as any).document.hidden = hidden; },
+    fireCanvas: ev => canvasBag.fire(ev),
+    fireWindow: ev => windowBag.fire(ev),
+    fireDocument: ev => documentBag.fire(ev),
+    setHidden: hidden => { (globalThis as any).document.hidden = hidden; },
   };
 }
 
 /** One entry for a `TouchEvent.changedTouches` list. */
 function touch(id: number, x: number, y: number): unknown {
-  return { identifier: id, clientX: x, clientY: y };
+  return {identifier: id, clientX: x, clientY: y};
 }
 
 function touchEvent(type: string, changed: unknown[]): Record<string, unknown> {
-  return { type, changedTouches: changed, touches: [], preventDefault: vi.fn() };
+  return {type, changedTouches: changed, touches: [], preventDefault: vi.fn()};
 }
 
 describe('InputManager — keyboard and actions', () => {
@@ -73,7 +76,7 @@ describe('InputManager — keyboard and actions', () => {
   afterEach(() => { h.input.destroy(); });
 
   it('tracks keyboard state', () => {
-    h.fireWindow({ type: 'keydown', key: 'a', code: 'KeyA' });
+    h.fireWindow({type: 'keydown', key: 'a', code: 'KeyA'});
     expect(h.input.isDown('a')).toBe(true);
     expect(h.input.isDown('KeyA')).toBe(true);
     expect(h.input.wasPressed('a')).toBe(true);
@@ -82,7 +85,7 @@ describe('InputManager — keyboard and actions', () => {
     expect(h.input.isDown('a')).toBe(true);
     expect(h.input.wasPressed('a')).toBe(false);
 
-    h.fireWindow({ type: 'keyup', key: 'a', code: 'KeyA' });
+    h.fireWindow({type: 'keyup', key: 'a', code: 'KeyA'});
     expect(h.input.isDown('a')).toBe(false);
     expect(h.input.wasReleased('a')).toBe(true);
   });
@@ -92,7 +95,7 @@ describe('InputManager — keyboard and actions', () => {
     const callback = vi.fn();
     h.input.onAction('jump', callback);
 
-    h.fireWindow({ type: 'keydown', key: ' ', code: 'Space' });
+    h.fireWindow({type: 'keydown', key: ' ', code: 'Space'});
     expect(h.input.isAction('jump')).toBe(true);
     expect(h.input.wasAction('jump')).toBe(true);
 
@@ -108,11 +111,11 @@ describe('InputManager — mouse', () => {
   afterEach(() => { h.input.destroy(); });
 
   it('tracks pointer state', () => {
-    h.fireCanvas({ type: 'mousemove', clientX: 100, clientY: 100 });
+    h.fireCanvas({type: 'mousemove', clientX: 100, clientY: 100});
     expect(h.input.pointerX).toBe(100);
     expect(h.input.pointerY).toBe(100);
 
-    h.fireCanvas({ type: 'mousedown', clientX: 50, clientY: 50, button: 0 });
+    h.fireCanvas({type: 'mousedown', clientX: 50, clientY: 50, button: 0});
     expect(h.input.pointer.down).toBe(true);
     expect(h.input.pointer.pressed).toBe(true);
 
@@ -120,15 +123,15 @@ describe('InputManager — mouse', () => {
     expect(h.input.pointer.down).toBe(true);
     expect(h.input.pointer.pressed).toBe(false);
 
-    h.fireWindow({ type: 'mouseup', button: 0 });
+    h.fireWindow({type: 'mouseup', button: 0});
     expect(h.input.pointer.down).toBe(false);
     expect(h.input.pointer.released).toBe(true);
   });
 
   it('releases a drag that ends outside the canvas', () => {
-    h.fireCanvas({ type: 'mousedown', clientX: 10, clientY: 10, button: 0 });
+    h.fireCanvas({type: 'mousedown', clientX: 10, clientY: 10, button: 0});
     // The canvas never sees this one; window does.
-    h.fireWindow({ type: 'mouseup', button: 0 });
+    h.fireWindow({type: 'mouseup', button: 0});
     expect(h.input.pointer.down).toBe(false);
   });
 
@@ -137,19 +140,19 @@ describe('InputManager — mouse', () => {
     const fired = vi.fn();
     h.input.onAction('attack', fired);
 
-    h.fireCanvas({ type: 'mousedown', clientX: 1, clientY: 1, button: 0 });
+    h.fireCanvas({type: 'mousedown', clientX: 1, clientY: 1, button: 0});
     expect(h.input.isDown('MouseLeft')).toBe(true);
     expect(h.input.wasAction('attack')).toBe(true);
     h.input.flush();
     expect(fired).toHaveBeenCalledTimes(1);
 
-    h.fireWindow({ type: 'mouseup', button: 0 });
+    h.fireWindow({type: 'mouseup', button: 0});
     expect(h.input.isDown('MouseLeft')).toBe(false);
     expect(h.input.wasReleased('MouseLeft')).toBe(true);
   });
 
   it('distinguishes the right button from the left', () => {
-    h.fireCanvas({ type: 'mousedown', clientX: 1, clientY: 1, button: 2 });
+    h.fireCanvas({type: 'mousedown', clientX: 1, clientY: 1, button: 2});
     expect(h.input.isDown('MouseRight')).toBe(true);
     expect(h.input.isDown('MouseLeft')).toBe(false);
   });
@@ -220,8 +223,8 @@ describe('InputManager — multi-touch', () => {
     h.fireCanvas(touchEvent('touchstart', [touch(7, 10, 10), touch(9, 20, 20)]));
     h.fireCanvas(touchEvent('touchmove', [touch(9, 300, 400)]));
 
-    expect(h.input.getTouch(7)).toEqual({ id: 7, x: 10, y: 10 });
-    expect(h.input.getTouch(9)).toEqual({ id: 9, x: 300, y: 400 });
+    expect(h.input.getTouch(7)).toEqual({id: 7, x: 10, y: 10});
+    expect(h.input.getTouch(9)).toEqual({id: 9, x: 300, y: 400});
     expect(h.input.getTouch(42)).toBeNull();
   });
 
@@ -246,13 +249,13 @@ describe('InputManager — focus loss', () => {
   afterEach(() => { h.input.destroy(); });
 
   it('releases held keys on blur', () => {
-    h.fireWindow({ type: 'keydown', key: 'w', code: 'KeyW' });
+    h.fireWindow({type: 'keydown', key: 'w', code: 'KeyW'});
     h.input.flush();
     expect(h.input.isDown('w')).toBe(true);
 
     // Alt-tabbing never delivers keyup, so without this the character would
     // keep walking after the player came back.
-    h.fireWindow({ type: 'blur' });
+    h.fireWindow({type: 'blur'});
     expect(h.input.isDown('w')).toBe(false);
     expect(h.input.isDown('KeyW')).toBe(false);
     expect(h.input.wasReleased('w')).toBe(true);
@@ -263,27 +266,27 @@ describe('InputManager — focus loss', () => {
     h.fireCanvas(touchEvent('touchstart', [touch(2, 20, 20)]));
     h.input.flush();
 
-    h.fireWindow({ type: 'blur' });
+    h.fireWindow({type: 'blur'});
     expect(h.input.touchCount).toBe(0);
     expect(h.input.pointer.down).toBe(false);
     expect(h.input.pointer.released).toBe(true);
   });
 
   it('releases everything when the tab is hidden', () => {
-    h.fireWindow({ type: 'keydown', key: 'a', code: 'KeyA' });
+    h.fireWindow({type: 'keydown', key: 'a', code: 'KeyA'});
     h.input.flush();
 
     h.setHidden(true);
-    h.fireDocument({ type: 'visibilitychange' });
+    h.fireDocument({type: 'visibilitychange'});
     expect(h.input.isDown('a')).toBe(false);
   });
 
   it('does nothing when visibilitychange reports the tab as visible', () => {
-    h.fireWindow({ type: 'keydown', key: 'a', code: 'KeyA' });
+    h.fireWindow({type: 'keydown', key: 'a', code: 'KeyA'});
     h.input.flush();
 
     h.setHidden(false);
-    h.fireDocument({ type: 'visibilitychange' });
+    h.fireDocument({type: 'visibilitychange'});
     expect(h.input.isDown('a')).toBe(true);
   });
 });
@@ -293,11 +296,11 @@ describe('InputManager — high-DPI coordinates', () => {
     // Engine.resize() at ratio 2 leaves an 800-wide backing store in a 400-wide
     // CSS box. Without dividing the ratio out, a tap at CSS (100, 50) would be
     // reported as (200, 100) and every HUD hit box would miss.
-    const h = makeHarness({ pixelRatio: 2 });
+    const h = makeHarness({pixelRatio: 2});
     (h.canvas as any).width = 1600;
     (h.canvas as any).height = 1200;
 
-    h.fireCanvas({ type: 'mousemove', clientX: 100, clientY: 50 });
+    h.fireCanvas({type: 'mousemove', clientX: 100, clientY: 50});
     expect(h.input.pointerX).toBe(100);
     expect(h.input.pointerY).toBe(50);
     h.input.destroy();
@@ -305,16 +308,16 @@ describe('InputManager — high-DPI coordinates', () => {
 
   it('re-reads a ratio supplied as a function', () => {
     let ratio = 1;
-    const h = makeHarness({ pixelRatio: () => ratio });
+    const h = makeHarness({pixelRatio: () => ratio});
     (h.canvas as any).width = 1600;
     (h.canvas as any).height = 1200;
 
-    h.fireCanvas({ type: 'mousemove', clientX: 100, clientY: 100 });
+    h.fireCanvas({type: 'mousemove', clientX: 100, clientY: 100});
     expect(h.input.pointerX).toBe(200);
 
     // Dragging the window onto a retina display changes the ratio mid-session.
     ratio = 2;
-    h.fireCanvas({ type: 'mousemove', clientX: 100, clientY: 100 });
+    h.fireCanvas({type: 'mousemove', clientX: 100, clientY: 100});
     expect(h.input.pointerX).toBe(100);
     h.input.destroy();
   });
@@ -322,14 +325,14 @@ describe('InputManager — high-DPI coordinates', () => {
   it('still corrects for a CSS-stretched canvas at ratio 1', () => {
     const h = makeHarness();
     (h.canvas as any).width = 1600;
-    h.fireCanvas({ type: 'mousemove', clientX: 100, clientY: 0 });
+    h.fireCanvas({type: 'mousemove', clientX: 100, clientY: 0});
     expect(h.input.pointerX).toBe(200);
     h.input.destroy();
   });
 
   it('treats a zero ratio as 1 rather than dividing by zero', () => {
-    const h = makeHarness({ pixelRatio: 0 });
-    h.fireCanvas({ type: 'mousemove', clientX: 100, clientY: 50 });
+    const h = makeHarness({pixelRatio: 0});
+    h.fireCanvas({type: 'mousemove', clientX: 100, clientY: 50});
     expect(h.input.pointerX).toBe(100);
     h.input.destroy();
   });
@@ -346,7 +349,7 @@ describe('InputManager — touch default prevention', () => {
   });
 
   it('leaves them alone when opted out', () => {
-    const h = makeHarness({ preventTouchDefault: false });
+    const h = makeHarness({preventTouchDefault: false});
     const ev = touchEvent('touchmove', [touch(1, 10, 10)]);
     h.fireCanvas(ev);
     expect(ev.preventDefault).not.toHaveBeenCalled();
@@ -357,7 +360,7 @@ describe('InputManager — touch default prevention', () => {
 describe('InputManager — destroy', () => {
   it('clears held keys so isDown returns false after destroy', () => {
     const h = makeHarness();
-    h.fireWindow({ type: 'keydown', key: 'w', code: 'KeyW' });
+    h.fireWindow({type: 'keydown', key: 'w', code: 'KeyW'});
     expect(h.input.isDown('w')).toBe(true);
 
     h.input.destroy();
@@ -367,7 +370,7 @@ describe('InputManager — destroy', () => {
 
   it('resets the pointer to its zero state', () => {
     const h = makeHarness();
-    h.fireCanvas({ type: 'mousedown', clientX: 50, clientY: 50, button: 0 });
+    h.fireCanvas({type: 'mousedown', clientX: 50, clientY: 50, button: 0});
     expect(h.input.pointer.down).toBe(true);
 
     h.input.destroy();
@@ -392,7 +395,7 @@ describe('InputManager — destroy', () => {
     h.input.bindKey('Space', 'jump');
     const callback = vi.fn();
     h.input.onAction('jump', callback);
-    h.fireWindow({ type: 'keydown', key: ' ', code: 'Space' });
+    h.fireWindow({type: 'keydown', key: ' ', code: 'Space'});
 
     h.input.destroy();
     // flush after destroy must not fire the callback — the binding is gone.
@@ -405,13 +408,13 @@ describe('InputManager — multi-button pointer.down', () => {
   it('keeps pointer.down while another mouse button is still held', () => {
     const h = makeHarness();
     // Left down, then right down.
-    h.fireCanvas({ type: 'mousedown', clientX: 1, clientY: 1, button: 0 });
-    h.fireCanvas({ type: 'mousedown', clientX: 1, clientY: 1, button: 2 });
+    h.fireCanvas({type: 'mousedown', clientX: 1, clientY: 1, button: 0});
+    h.fireCanvas({type: 'mousedown', clientX: 1, clientY: 1, button: 2});
     expect(h.input.pointer.down).toBe(true);
     h.input.flush();
 
     // Release the right button. Left is still held, so pointer.down stays.
-    h.fireWindow({ type: 'mouseup', button: 2 });
+    h.fireWindow({type: 'mouseup', button: 2});
     expect(h.input.isDown('MouseRight')).toBe(false);
     expect(h.input.isDown('MouseLeft')).toBe(true);
     expect(h.input.pointer.down).toBe(true);
@@ -420,12 +423,12 @@ describe('InputManager — multi-button pointer.down', () => {
 
   it('clears pointer.down when the last button goes up', () => {
     const h = makeHarness();
-    h.fireCanvas({ type: 'mousedown', clientX: 1, clientY: 1, button: 0 });
-    h.fireCanvas({ type: 'mousedown', clientX: 1, clientY: 1, button: 2 });
+    h.fireCanvas({type: 'mousedown', clientX: 1, clientY: 1, button: 0});
+    h.fireCanvas({type: 'mousedown', clientX: 1, clientY: 1, button: 2});
     h.input.flush();
 
-    h.fireWindow({ type: 'mouseup', button: 2 });
-    h.fireWindow({ type: 'mouseup', button: 0 });
+    h.fireWindow({type: 'mouseup', button: 2});
+    h.fireWindow({type: 'mouseup', button: 0});
     expect(h.input.pointer.down).toBe(false);
     expect(h.input.pointer.released).toBe(true);
   });

@@ -25,20 +25,20 @@
  *   const { frame, image } = anim.currentFrame();
  *   ctx.drawImage(image, frame.x, frame.y, frame.w, frame.h, ...);
  */
-import { SpriteSheet, AnimationClip, FrameRect } from './SpriteSheet';
-import { Direction } from './AnimationController';
+import {SpriteSheet, AnimationClip, FrameRect} from './SpriteSheet';
+import {Direction} from './AnimationController';
 
 export type ActionName = string;
 
 /** Fallback chains: for each direction, ordered list of directions to try. */
 const FALLBACK: Record<Direction, Direction[]> = {
-  S:  ['S'],
+  S: ['S'],
   SE: ['SE', 'S', 'E'],
-  E:  ['E', 'SE', 'S'],
+  E: ['E', 'SE', 'S'],
   NE: ['NE', 'E', 'SE', 'S'],
-  N:  ['N', 'NE', 'NW', 'E', 'W', 'S'],
+  N: ['N', 'NE', 'NW', 'E', 'W', 'S'],
   NW: ['NW', 'W', 'SW', 'S'],
-  W:  ['W', 'SW', 'S'],
+  W: ['W', 'SW', 'S'],
   SW: ['SW', 'S', 'W'],
 };
 
@@ -56,8 +56,8 @@ export class DirectionalAnimator {
   private _clip: AnimationClip | null = null;
 
   private _elapsed = 0;
-  private _frame   = 0;
-  private _done    = false;
+  private _frame = 0;
+  private _done = false;
   private _onComplete: (() => void) | null = null;
   /**
    * Set by `playOnce`, which must not loop even when the resolved clip is
@@ -68,18 +68,18 @@ export class DirectionalAnimator {
   private _forceOnce = false;
 
   constructor(sheet: SpriteSheet, opts: DirectionalAnimatorOptions = {}) {
-    this._sheet     = sheet;
-    this._action    = opts.initialAction    ?? 'idle';
+    this._sheet = sheet;
+    this._action = opts.initialAction ?? 'idle';
     this._direction = opts.initialDirection ?? 'S';
     this._resolveClip();
   }
 
   // ── Public API ─────────────────────────────────────────────────────────────
 
-  get action(): ActionName    { return this._action; }
-  get direction(): Direction  { return this._direction; }
-  get frameIndex(): number    { return this._frame; }
-  get done(): boolean         { return this._done; }
+  get action(): ActionName { return this._action; }
+  get direction(): Direction { return this._direction; }
+  get frameIndex(): number { return this._frame; }
+  get done(): boolean { return this._done; }
   get spriteSheet(): SpriteSheet { return this._sheet; }
 
   /** Current clip name (resolved with fallback). */
@@ -95,7 +95,7 @@ export class DirectionalAnimator {
     this._onComplete = onComplete ?? null;
     this._forceOnce = false;
     this._resolveClip();
-    if (this._clip?.name !== prev) this._resetPlayback();
+    if (this._clip?.name !== prev) {this._resetPlayback();}
   }
 
   /**
@@ -103,11 +103,11 @@ export class DirectionalAnimator {
    * Resets playback only if the resolved clip changes.
    */
   setDirection(dir: Direction): void {
-    if (dir === this._direction) return;
+    if (dir === this._direction) {return;}
     const prev = this._clip?.name;
     this._direction = dir;
     this._resolveClip();
-    if (this._clip?.name !== prev) this._resetPlayback();
+    if (this._clip?.name !== prev) {this._resetPlayback();}
   }
 
   /**
@@ -116,12 +116,12 @@ export class DirectionalAnimator {
    */
   set(action: ActionName, dir: Direction, onComplete?: () => void): void {
     const prev = this._clip?.name;
-    this._action    = action;
+    this._action = action;
     this._direction = dir;
     this._onComplete = onComplete ?? null;
     this._forceOnce = false;
     this._resolveClip();
-    if (this._clip?.name !== prev) this._resetPlayback();
+    if (this._clip?.name !== prev) {this._resetPlayback();}
   }
 
   /**
@@ -145,15 +145,15 @@ export class DirectionalAnimator {
 
   /** Advance animation by `dt` seconds. */
   update(dt: number): void {
-    if (!this._clip || this._done) return;
+    if (!this._clip || this._done) {return;}
     this._elapsed += dt;
 
     const fps = this._clip.fps;
     const totalFrames = this._clip.frames.length;
-    if (totalFrames === 0 || fps <= 0) return;
+    if (totalFrames === 0 || fps <= 0) {return;}
 
-    const frameDur   = 1 / fps;
-    const totalDur   = frameDur * totalFrames;
+    const frameDur = 1 / fps;
+    const totalDur = frameDur * totalFrames;
     const shouldLoop = this._forceOnce ? false : (this._clip.loop ?? true);
 
     if (shouldLoop) {
@@ -177,10 +177,10 @@ export class DirectionalAnimator {
    * Returns the current frame rect and the loaded image.
    * Returns null if the sheet image is not yet loaded.
    */
-  currentFrame(): { frame: FrameRect; image: HTMLImageElement } | null {
+  currentFrame(): {frame: FrameRect; image: HTMLImageElement} | null {
     const img = this._sheet.image;
-    if (!img || !this._clip || this._clip.frames.length === 0) return null;
-    return { frame: this._clip.frames[this._frame], image: img };
+    if (!img || !this._clip || this._clip.frames.length === 0) {return null;}
+    return {frame: this._clip.frames[this._frame], image: img};
   }
 
   // ── Clip resolution ────────────────────────────────────────────────────────
@@ -213,8 +213,8 @@ export class DirectionalAnimator {
 
   private _resetPlayback(): void {
     this._elapsed = 0;
-    this._frame   = 0;
-    this._done    = false;
+    this._frame = 0;
+    this._done = false;
   }
 
   // ── Static helpers ─────────────────────────────────────────────────────────
@@ -267,7 +267,7 @@ export class DirectionalAnimator {
       loop?: boolean;
     }>,
     scale = 1,
-    anchorY = 1,
+    anchorY = 1
   ): SpriteSheet {
     const DIRS: Direction[] = ['S', 'SW', 'W', 'NW', 'N', 'NE', 'E', 'SE'];
     const clips = [];
@@ -275,21 +275,21 @@ export class DirectionalAnimator {
     for (const action of actions) {
       for (let di = 0; di < DIRS.length; di++) {
         const row = action.rowStart + di;
-        const frames = Array.from({ length: action.frameCount }, (_, col) => ({
+        const frames = Array.from({length: action.frameCount}, (_, col) => ({
           x: col * frameW,
           y: row * frameH,
           w: frameW,
           h: frameH,
         }));
         clips.push({
-          name:  `${action.name}_${DIRS[di]}`,
+          name: `${action.name}_${DIRS[di]}`,
           frames,
-          fps:   action.fps,
-          loop:  action.loop ?? true,
+          fps: action.fps,
+          loop: action.loop ?? true,
         });
       }
     }
 
-    return new SpriteSheet({ url, clips, scale, anchorY });
+    return new SpriteSheet({url, clips, scale, anchorY});
   }
 }

@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { AssetLoader } from '../core/AssetLoader';
+import {describe, it, expect, beforeEach, afterEach, vi} from 'vitest';
+import {AssetLoader} from '../core/AssetLoader';
 
 /**
  * AssetLoader was at 20% statements / 0% branches. The `unload()` contract in
@@ -24,17 +24,17 @@ class FakeImage {
   /** Resolve the oldest outstanding load. */
   static settleNext(ok = true): void {
     const img = FakeImage.pending.shift();
-    if (!img) throw new Error('FakeImage: nothing pending');
-    if (ok) img.onload?.();
-    else img.onerror?.();
+    if (!img) {throw new Error('FakeImage: nothing pending');}
+    if (ok) {img.onload?.();}
+    else {img.onerror?.();}
   }
 
   static settleFor(url: string, ok = true): void {
-    const index = FakeImage.pending.findIndex((i) => i.src === url);
-    if (index < 0) throw new Error(`FakeImage: no pending load for ${url}`);
+    const index = FakeImage.pending.findIndex(i => i.src === url);
+    if (index < 0) {throw new Error(`FakeImage: no pending load for ${url}`);}
     const [img] = FakeImage.pending.splice(index, 1);
-    if (ok) img.onload?.();
-    else img.onerror?.();
+    if (ok) {img.onload?.();}
+    else {img.onerror?.();}
   }
 }
 

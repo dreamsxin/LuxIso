@@ -1,14 +1,14 @@
-import { describe, it, expect, expectTypeOf, vi } from 'vitest';
-import { EventBus, globalBus } from '../ecs/EventBus';
-import type { DamageEvent } from '../ecs/EventBus';
+import {describe, it, expect, expectTypeOf, vi} from 'vitest';
+import {EventBus, globalBus} from '../ecs/EventBus';
+import type {DamageEvent} from '../ecs/EventBus';
 
 describe('EventBus — on / emit / off', () => {
   it('calls handler on emit', () => {
     const bus = new EventBus();
     const fn = vi.fn();
     bus.on('test', fn);
-    bus.emit('test', { value: 42 });
-    expect(fn).toHaveBeenCalledWith({ value: 42 });
+    bus.emit('test', {value: 42});
+    expect(fn).toHaveBeenCalledWith({value: 42});
   });
 
   it('unsubscribe stops calls', () => {
@@ -63,7 +63,7 @@ describe('globalBus', () => {
   });
 
   it('infers built-in payloads from the event name', () => {
-    const unsubscribe = globalBus.on('damage', (payload) => {
+    const unsubscribe = globalBus.on('damage', payload => {
       expectTypeOf(payload).toEqualTypeOf<DamageEvent>();
     });
     unsubscribe();
@@ -72,26 +72,29 @@ describe('globalBus', () => {
 
 describe('EventBus event maps', () => {
   interface GameEvents {
-    score: { value: number; source: string };
-    pause: { paused: boolean };
+    score: {value: number; source: string};
+    pause: {paused: boolean};
   }
 
   it('supports custom typed events', () => {
     const bus = new EventBus<GameEvents>();
     const scores: number[] = [];
-    bus.on('score', ({ value }) => scores.push(value));
-    bus.emit('score', { value: 25, source: 'chest' });
+    bus.on('score', ({value}) => scores.push(value));
+    bus.emit('score', {value: 25, source: 'chest'});
     expect(scores).toEqual([25]);
   });
 
   it('rejects unknown event names and invalid payloads at compile time', () => {
     const bus = new EventBus<GameEvents>();
-    if (false) {
+    // Never invoked: the assertions are the compile errors themselves, which
+    // `tsc` reports at build time. `void` keeps the closure unreachable at
+    // runtime without an `if (false)` constant condition.
+    void (() => {
       // @ts-expect-error unknown event name
       bus.emit('missing', {});
       // @ts-expect-error score.value must be a number
-      bus.emit('score', { value: '25', source: 'chest' });
-    }
+      bus.emit('score', {value: '25', source: 'chest'});
+    });
     expect(bus.listenerCount('score')).toBe(0);
   });
 });

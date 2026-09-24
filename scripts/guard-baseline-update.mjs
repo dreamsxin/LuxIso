@@ -18,11 +18,11 @@
  *
  *   LUXISO_ALLOW_LOCAL_BASELINES=1 npm run test:webgl:update
  */
-if (process.env.CI) process.exit(0);
+if (process.env.CI) {process.exit(0);}
 if (process.env.LUXISO_ALLOW_LOCAL_BASELINES === '1') {
   console.warn(
     'test:webgl:update: LUXISO_ALLOW_LOCAL_BASELINES=1 — writing baselines on ' +
-    `${process.platform}. Do NOT commit them; the gate expects CI captures.`,
+    `${process.platform}. Do NOT commit them; the gate expects CI captures.`
   );
   process.exit(0);
 }
@@ -48,6 +48,6 @@ console.error(
     '',
     '  LUXISO_ALLOW_LOCAL_BASELINES=1 npm run test:webgl:update',
     '',
-  ].join('\n'),
+  ].join('\n')
 );
 process.exit(1);

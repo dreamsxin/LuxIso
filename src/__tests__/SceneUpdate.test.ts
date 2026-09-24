@@ -1,9 +1,9 @@
-import { describe, it, expect, vi } from 'vitest';
-import { Scene } from '../core/Scene';
-import { System } from '../ecs/System';
-import { Entity } from '../ecs/Entity';
-import { IsoObject, type DrawContext } from '../elements/IsoObject';
-import type { AABB } from '../math/depthSort';
+import {describe, it, expect, vi} from 'vitest';
+import {Scene} from '../core/Scene';
+import {System} from '../ecs/System';
+import {Entity} from '../ecs/Entity';
+import {IsoObject, type DrawContext} from '../elements/IsoObject';
+import type {AABB} from '../math/depthSort';
 
 /**
  * Scene.update() tests.
@@ -17,7 +17,7 @@ class Probe extends IsoObject {
   updates: Array<number | undefined> = [];
   constructor(id: string, x = 1, y = 1) { super(id, x, y, 0); }
   get aabb(): AABB {
-    return { minX: this.position.x, maxX: this.position.x, minY: this.position.y, maxY: this.position.y, baseZ: 0 };
+    return {minX: this.position.x, maxX: this.position.x, minY: this.position.y, maxY: this.position.y, baseZ: 0};
   }
   draw(_dc: DrawContext): void {}
   update(ts?: number): void { this.updates.push(ts); }
@@ -33,7 +33,7 @@ class Recorder extends System {
 }
 
 function scene(): Scene {
-  return new Scene({ tileW: 64, tileH: 32, cols: 8, rows: 8 });
+  return new Scene({tileW: 64, tileH: 32, cols: 8, rows: 8});
 }
 
 describe('Scene.update — frame delta', () => {
@@ -141,7 +141,7 @@ describe('Scene.update — objects', () => {
 describe('Scene — view transition', () => {
   it('applies immediately at duration 0', () => {
     const s = scene();
-    s.transitionView({ rotation: 0.5, elevation: 0.8 }, 0);
+    s.transitionView({rotation: 0.5, elevation: 0.8}, 0);
     expect(s.view.rotation).toBeCloseTo(0.5, 6);
     expect(s.view.elevation).toBeCloseTo(0.8, 6);
   });
@@ -149,7 +149,7 @@ describe('Scene — view transition', () => {
   it('eases toward the target and lands exactly on it', () => {
     const s = scene();
     const from = s.view.rotation;
-    s.transitionView({ rotation: 1 }, 0.2);
+    s.transitionView({rotation: 1}, 0.2);
 
     s.update(0);
     s.update(50);
@@ -157,14 +157,14 @@ describe('Scene — view transition', () => {
     expect(mid).toBeGreaterThan(from);
     expect(mid).toBeLessThan(1);
 
-    for (let t = 100; t <= 400; t += 50) s.update(t);
+    for (let t = 100; t <= 400; t += 50) {s.update(t);}
     expect(s.view.rotation).toBe(1);
   });
 
   it('keeps unspecified axes at their current value', () => {
     const s = scene();
     const elevation = s.view.elevation;
-    s.transitionView({ rotation: 0.3 }, 0);
+    s.transitionView({rotation: 0.3}, 0);
     expect(s.view.elevation).toBeCloseTo(elevation, 6);
   });
 });

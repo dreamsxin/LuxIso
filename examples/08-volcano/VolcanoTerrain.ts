@@ -1,9 +1,9 @@
 /**
  * VolcanoTerrain  暗红色岩层地面 + 火山锥
  */
-import { IsoObject, DrawContext } from '../../src/elements/IsoObject';
-import { AABB } from '../../src/math/depthSort';
-import { project, drawIsoCube } from '../../src/math/IsoProjection';
+import {IsoObject, DrawContext} from '../../src/elements/IsoObject';
+import {AABB} from '../../src/math/depthSort';
+import {project, drawIsoCube} from '../../src/math/IsoProjection';
 
 //  岩层地面 ─
 
@@ -16,11 +16,11 @@ export class RockLayer extends IsoObject {
     this.cols = cols;
     this.rows = rows;
     this.castsShadow = false;
-    this.isGroundLayer = true;   // full-map terrain → drawn above floor, below topoSort
+    this.isGroundLayer = true; // full-map terrain → drawn above floor, below topoSort
   }
 
   get aabb(): AABB {
-    return { minX: 0, minY: 0, maxX: this.cols, maxY: this.rows, baseZ: 0, maxZ: 0.9 };
+    return {minX: 0, minY: 0, maxX: this.cols, maxY: this.rows, baseZ: 0, maxZ: 0.9};
   }
 
   private _height(col: number, row: number): number {
@@ -41,12 +41,12 @@ export class RockLayer extends IsoObject {
   }
 
   draw(dc: DrawContext): void {
-    const { ctx, tileW, tileH, originX, originY } = dc;
+    const {ctx, tileW, tileH, originX, originY} = dc;
     for (let row = 0; row < this.rows; row++) {
       for (let col = 0; col < this.cols; col++) {
         const h = Math.max(0, this._height(col, row));
-        const top   = this._color(h, false);
-        const left  = this._color(h, true);
+        const top = this._color(h, false);
+        const left = this._color(h, true);
         const right = this._color(h, false);
         drawIsoCube(ctx, originX, originY, tileW, tileH,
           col, row, 0, 1, 1, h + 0.05,
@@ -56,7 +56,7 @@ export class RockLayer extends IsoObject {
   }
 }
 
-//  火山锥 
+//  火山锥
 
 export class VolcanoCone extends IsoObject {
   constructor(id: string, x: number, y: number) {
@@ -67,27 +67,31 @@ export class VolcanoCone extends IsoObject {
 
   get aabb(): AABB {
     // 8 layers × layerH(0.55) = 4.4 world-Z units tall
-    return { minX: this.position.x - 1, minY: this.position.y - 1, maxX: this.position.x + 4, maxY: this.position.y + 4, baseZ: 0, maxZ: 4.4 };
+    return {
+      minX: this.position.x - 1, minY: this.position.y - 1,
+      maxX: this.position.x + 4, maxY: this.position.y + 4,
+      baseZ: 0, maxZ: 4.4,
+    };
   }
 
   draw(dc: DrawContext): void {
-    const { ctx, tileW, tileH, originX, originY } = dc;
-    const { x, y } = this.position;
+    const {ctx, tileW, tileH, originX, originY} = dc;
+    const {x, y} = this.position;
     const layers = 8;
     const baseSize = 3.0;
     const shrink = 0.3;
     const layerH = 0.55;
 
     for (let i = 0; i < layers; i++) {
-      const size   = baseSize - i * shrink;
+      const size = baseSize - i * shrink;
       const offset = i * shrink * 0.5;
-      const zBase  = i * layerH;
-      const t      = i / (layers - 1);
+      const zBase = i * layerH;
+      const t = i / (layers - 1);
       const r = Math.round(0x4a + t * (0x8a - 0x4a));
       const g = Math.round(0x1a + t * (0x2a - 0x1a));
       const b = Math.round(0x08 + t * (0x10 - 0x08));
-      const topC   = `rgb(${r},${g},${b})`;
-      const leftC  = `rgb(${Math.round(r * 0.6)},${Math.round(g * 0.6)},${Math.round(b * 0.6)})`;
+      const topC = `rgb(${r},${g},${b})`;
+      const leftC = `rgb(${Math.round(r * 0.6)},${Math.round(g * 0.6)},${Math.round(b * 0.6)})`;
       const rightC = `rgb(${Math.round(r * 0.75)},${Math.round(g * 0.75)},${Math.round(b * 0.75)})`;
       drawIsoCube(ctx, originX, originY, tileW, tileH,
         x + offset, y + offset, zBase, size, size, layerH,
@@ -97,12 +101,12 @@ export class VolcanoCone extends IsoObject {
     // 顶部橙红发光
     const topZ = layers * layerH;
     const topOffset = (layers - 1) * shrink * 0.5 + shrink * 0.5;
-    const { sx, sy } = project(x + topOffset + 0.5, y + topOffset + 0.5, topZ, tileW, tileH);
+    const {sx, sy} = project(x + topOffset + 0.5, y + topOffset + 0.5, topZ, tileW, tileH);
     const cx = originX + sx, cy = originY + sy;
     const glow = ctx.createRadialGradient(cx, cy, 0, cx, cy, tileW * 0.8);
-    glow.addColorStop(0,   'rgba(255,120,20,0.7)');
+    glow.addColorStop(0, 'rgba(255,120,20,0.7)');
     glow.addColorStop(0.4, 'rgba(200,60,10,0.3)');
-    glow.addColorStop(1,   'rgba(150,30,0,0)');
+    glow.addColorStop(1, 'rgba(150,30,0,0)');
     ctx.beginPath();
     ctx.arc(cx, cy, tileW * 0.8, 0, Math.PI * 2);
     ctx.fillStyle = glow;

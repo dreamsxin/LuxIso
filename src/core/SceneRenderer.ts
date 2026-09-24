@@ -1,13 +1,13 @@
-import type { Scene } from './Scene';
-import { LightmapCache } from './LightmapCache';
-import { Floor } from '../elements/Floor';
-import type { IsoObject, DrawContext } from '../elements/IsoObject';
-import { OmniLight } from '../lighting/OmniLight';
-import { DirectionalLight } from '../lighting/DirectionalLight';
-import { ShadowCaster } from '../lighting/ShadowCaster';
-import { project } from '../math/IsoProjection';
-import { topoSort } from '../math/depthSort';
-import { hexToRgb, hexToRgba } from '../math/color';
+import type {Scene} from './Scene';
+import {LightmapCache} from './LightmapCache';
+import {Floor} from '../elements/Floor';
+import type {IsoObject, DrawContext} from '../elements/IsoObject';
+import {OmniLight} from '../lighting/OmniLight';
+import {DirectionalLight} from '../lighting/DirectionalLight';
+import {ShadowCaster} from '../lighting/ShadowCaster';
+import {project} from '../math/IsoProjection';
+import {topoSort} from '../math/depthSort';
+import {hexToRgb, hexToRgba} from '../math/color';
 
 /** Owns Scene's culling, sorting, shadow, and lightmap rendering state. */
 export class SceneRenderer {
@@ -47,7 +47,7 @@ export class SceneRenderer {
     canvasW: number,
     canvasH: number,
     originX: number,
-    originY: number,
+    originY: number
   ): void {
     const cache = this._ensureLightmap(canvasW, canvasH);
     cache.alwaysDirty = scene.dynamicLighting;
@@ -80,14 +80,14 @@ export class SceneRenderer {
       scene.camera.y,
       scene.camera.zoom,
       ambientRgb,
-      scene.view,
+      scene.view
     )) {
       this._bakeLightmap(scene, cache, originX, originY, ambientRgb);
     }
     cache.blit(ctx);
 
     scene.camera.applyTransform(
-      ctx, canvasW, canvasH, scene.tileW, scene.tileH, originX, originY, scene.view,
+      ctx, canvasW, canvasH, scene.tileW, scene.tileH, originX, originY, scene.view
     );
     const drawContext: DrawContext = {
       ctx,
@@ -101,7 +101,7 @@ export class SceneRenderer {
       view: scene.view,
     };
 
-    for (const object of this._groundBuf) object.draw(drawContext);
+    for (const object of this._groundBuf) {object.draw(drawContext);}
 
     this._frustumCull(scene, this._cullBuf, canvasW, canvasH);
     const hash = (this._computeObjectHash(this._cullBuf) * 31 + this._cullBuf.length) | 0;
@@ -110,7 +110,7 @@ export class SceneRenderer {
       this._sortHash = hash;
       this._sortDirty = false;
     }
-    for (const object of this._sortedCache) object.draw(drawContext);
+    for (const object of this._sortedCache) {object.draw(drawContext);}
 
     this._drawLightHalos(scene, ctx);
     scene.camera.restoreTransform(ctx);
@@ -139,18 +139,18 @@ export class SceneRenderer {
 
     for (const object of scene.allObjects) {
       if (object instanceof Floor) {
-        if (object.visible) this._floorBuf.push(object);
+        if (object.visible) {this._floorBuf.push(object);}
       }
-      else if (object.isGroundLayer && object.visible) this._groundBuf.push(object);
+      else if (object.isGroundLayer && object.visible) {this._groundBuf.push(object);}
       else if (object.visible) {
         this._cullBuf.push(object);
-        if (object.castsShadow !== false) this._shadowBuf.push(object);
+        if (object.castsShadow !== false) {this._shadowBuf.push(object);}
       }
     }
     for (const light of scene.allLights) {
-      if (!light.enabled) continue;
-      if (light instanceof OmniLight) this._omniBuf.push(light);
-      else if (light instanceof DirectionalLight) this._dirBuf.push(light);
+      if (!light.enabled) {continue;}
+      if (light instanceof OmniLight) {this._omniBuf.push(light);}
+      else if (light instanceof DirectionalLight) {this._dirBuf.push(light);}
     }
   }
 
@@ -159,7 +159,7 @@ export class SceneRenderer {
     cache: LightmapCache,
     originX: number,
     originY: number,
-    ambientRgb: [number, number, number],
+    ambientRgb: [number, number, number]
   ): void {
     cache.begin();
     const ctx = cache.ctx as unknown as CanvasRenderingContext2D;
@@ -167,8 +167,8 @@ export class SceneRenderer {
     ctx.translate(originX, originY);
     ctx.scale(scene.camera.zoom, scene.camera.zoom);
 
-    const { rotation, elevation } = scene.view;
-    if (elevation !== 0.5) ctx.scale(1, elevation / 0.5);
+    const {rotation, elevation} = scene.view;
+    if (elevation !== 0.5) {ctx.scale(1, elevation / 0.5);}
     if (rotation !== 0) {
       const radians = rotation * Math.PI / 180;
       const cos = Math.cos(radians);
@@ -178,7 +178,7 @@ export class SceneRenderer {
     }
     ctx.translate(
       -(scene.camera.x - scene.camera.y) * (scene.tileW / 2),
-      -(scene.camera.x + scene.camera.y) * (scene.tileH / 2),
+      -(scene.camera.x + scene.camera.y) * (scene.tileH / 2)
     );
 
     const drawContext: DrawContext = {
@@ -192,7 +192,7 @@ export class SceneRenderer {
       ambientRgb,
       view: scene.view,
     };
-    for (const floor of this._floorBuf) floor.draw(drawContext);
+    for (const floor of this._floorBuf) {floor.draw(drawContext);}
     for (const light of this._omniBuf) {
       ShadowCaster.draw(ctx, light, this._shadowBuf, scene.tileW, scene.tileH);
     }
@@ -207,7 +207,7 @@ export class SceneRenderer {
     scene: Scene,
     objects: IsoObject[],
     canvasW: number,
-    canvasH: number,
+    canvasH: number
   ): void {
     const padding = 0.5;
     const halfSum = (canvasH / 2) / scene.camera.zoom / (scene.tileH / 2) + padding;
@@ -222,7 +222,7 @@ export class SceneRenderer {
     let write = 0;
     for (let i = 0; i < objects.length; i++) {
       const object = objects[i];
-      const { minX, minY, maxX, maxY } = object.aabb;
+      const {minX, minY, maxX, maxY} = object.aabb;
       if (
         maxX + maxY >= sumMin && minX + minY <= sumMax &&
         maxX - minY >= diffMin && minX - maxY <= diffMax
@@ -256,7 +256,7 @@ export class SceneRenderer {
   private _computeFloorSnapshot(objects: readonly IsoObject[]): string {
     let snapshot = '';
     for (const object of objects) {
-      if (!(object instanceof Floor)) continue;
+      if (!(object instanceof Floor)) {continue;}
       snapshot += `${object.id}:${object.visible ? 1 : 0}:${object.cols}:${object.rows}:` +
         `${object.color}:${object.altColor}:${object.tileImageUrl ?? ''}:` +
         `${object.altTileImageUrl ?? ''}|`;
@@ -269,12 +269,12 @@ export class SceneRenderer {
   }
 
   private _drawLightHalos(scene: Scene, ctx: CanvasRenderingContext2D): void {
-    const { rotation, elevation } = scene.view;
+    const {rotation, elevation} = scene.view;
     for (const light of this._omniBuf) {
       const projected = project(light.position.x, light.position.y, 0, scene.tileW, scene.tileH);
       let x = projected.sx;
       let y = projected.sy - light.position.z;
-      if (elevation !== 0.5) y *= elevation / 0.5;
+      if (elevation !== 0.5) {y *= elevation / 0.5;}
       if (rotation !== 0) {
         const radians = rotation * Math.PI / 180;
         const cos = Math.cos(radians);
@@ -294,7 +294,7 @@ export class SceneRenderer {
     x: number,
     y: number,
     color: string,
-    intensity: number,
+    intensity: number
   ): void {
     const radius = 18 * Math.min(1.5, intensity);
     const gradient = ctx.createRadialGradient(x, y, 0, x, y, radius);

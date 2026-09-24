@@ -1,6 +1,6 @@
-import { describe, it, expect } from 'vitest';
-import { createCtxRecorder } from './helpers/canvas';
-import { DayNightCycle } from '../../examples/05-whisper-plains/environment/DayNightCycle';
+import {describe, it, expect} from 'vitest';
+import {createCtxRecorder} from './helpers/canvas';
+import {DayNightCycle} from '../../examples/05-whisper-plains/environment/DayNightCycle';
 import {
   drawStarField, drawPlainsSky, drawLakeSky, drawDeepSky,
 } from '../../examples/05-whisper-plains/environment/skies';
@@ -22,7 +22,7 @@ const W = 800, H = 600;
 
 /** Alphas written during a draw, excluding the trailing reset. */
 function alphas(values: unknown[]): number[] {
-  return values.map(Number).filter((n) => Number.isFinite(n));
+  return values.map(Number).filter(n => Number.isFinite(n));
 }
 
 /** Last written value, or undefined. `Array.at` is outside this project's lib. */
@@ -57,7 +57,7 @@ describe('drawStarField', () => {
   it('never writes an alpha outside [0, 1]', () => {
     const r = createCtxRecorder();
     // Sweep timestamps: the twinkle is a sine, so this covers both extremes.
-    for (let ts = 0; ts < 4000; ts += 137) drawStarField(r.ctx, W, H, ts, 1, () => '#fff');
+    for (let ts = 0; ts < 4000; ts += 137) {drawStarField(r.ctx, W, H, ts, 1, () => '#fff');}
 
     for (const a of alphas(r.valuesOf('globalAlpha'))) {
       expect(a).toBeGreaterThanOrEqual(0);
@@ -70,7 +70,7 @@ describe('drawStarField', () => {
     drawStarField(dim.ctx, W, H, 1000, 0, () => '#fff');
     // Every star invisible, but still drawn 鈥?the field does not special-case 0.
     expect(dim.argsOf('arc').length).toBe(60);
-    expect(alphas(dim.valuesOf('globalAlpha')).filter((a) => a > 0)).toEqual([1]);
+    expect(alphas(dim.valuesOf('globalAlpha')).filter(a => a > 0)).toEqual([1]);
   });
 
   it('is stable across frames at a fixed timestamp', () => {
@@ -93,7 +93,7 @@ function cycleAt(phase: number): DayNightCycle {
 /** The phase where `getColors()` reports stars, found by sweeping. */
 function nightPhase(): number {
   for (let p = 0; p < 1; p += 0.01) {
-    if (cycleAt(p).getColors().showStars) return p;
+    if (cycleAt(p).getColors().showStars) {return p;}
   }
   throw new Error('no night phase found');
 }
@@ -101,7 +101,7 @@ function nightPhase(): number {
 function dayPhase(): number {
   for (let p = 0; p < 1; p += 0.01) {
     const c = cycleAt(p).getColors();
-    if (!c.showStars && c.nightOverlay < 0.02) return p;
+    if (!c.showStars && c.nightOverlay < 0.02) {return p;}
   }
   throw new Error('no day phase found');
 }
@@ -109,7 +109,7 @@ function dayPhase(): number {
 /** Deep night: `nightOverlay >= 0.85`, past the point where motes stop. */
 function deepNightPhase(): number {
   for (let p = 0; p < 1; p += 0.005) {
-    if (cycleAt(p).getColors().nightOverlay >= 0.85) return p;
+    if (cycleAt(p).getColors().nightOverlay >= 0.85) {return p;}
   }
   throw new Error('no deep night phase found');
 }
@@ -177,7 +177,7 @@ describe('drawPlainsSky', () => {
     const r = createCtxRecorder();
     drawPlainsSky(r.ctx, W, H, 1000, cycleAt(dayPhase()));
 
-    const colors = r.valuesOf('fillStyle').filter((v) => typeof v === 'string') as string[];
+    const colors = r.valuesOf('fillStyle').filter(v => typeof v === 'string') as string[];
     for (const color of colors) {
       expect(color).not.toContain('NaN');
     }
@@ -201,7 +201,7 @@ describe('drawLakeSky', () => {
 
   it('restores globalAlpha and keeps every alpha legal', () => {
     const r = createCtxRecorder();
-    for (let ts = 0; ts < 3000; ts += 271) drawLakeSky(r.ctx, W, H, ts);
+    for (let ts = 0; ts < 3000; ts += 271) {drawLakeSky(r.ctx, W, H, ts);}
 
     expect(last(r.valuesOf('globalAlpha'))).toBe(1);
     for (const a of alphas(r.valuesOf('globalAlpha'))) {
@@ -226,10 +226,10 @@ describe('drawDeepSky', () => {
     // The glow alpha is `0.06 + sin(t) * 0.02`, so it must never go negative or
     // above 1 however long the scene has been open.
     const r = createCtxRecorder();
-    for (let ts = 0; ts < 40_000; ts += 997) drawDeepSky(r.ctx, W, H, ts);
+    for (let ts = 0; ts < 40_000; ts += 997) {drawDeepSky(r.ctx, W, H, ts);}
 
-    const stops = r.valuesOf('fillStyle').filter((v) => typeof v === 'string') as string[];
-    for (const stop of stops) expect(stop).not.toContain('NaN');
+    const stops = r.valuesOf('fillStyle').filter(v => typeof v === 'string') as string[];
+    for (const stop of stops) {expect(stop).not.toContain('NaN');}
   });
 
   it('is stable at a fixed timestamp', () => {
@@ -241,7 +241,7 @@ describe('drawDeepSky', () => {
     // Only the string writes: a gradient handle is a fresh object per call, so
     // comparing the raw `sets` would compare object identity, not the painting.
     const strings = (r: typeof a): unknown[] =>
-      r.sets.filter((s) => typeof s.value === 'string');
+      r.sets.filter(s => typeof s.value === 'string');
     expect(strings(a)).toEqual(strings(b));
   });
 });

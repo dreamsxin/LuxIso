@@ -16,8 +16,8 @@ export interface DayPhaseColors {
   celestialColor: string;
   celestialGlowColor: string;
   celestialGlowAlpha: number;
-  celestialX: number;   // 0–1 屏幕比例
-  celestialY: number;   // 0–1 屏幕比例
+  celestialX: number; // 0–1 屏幕比例
+  celestialY: number; // 0–1 屏幕比例
   celestialRadius: number; // px
   nightOverlay: number; // 0=白天 1=午夜
   showStars: boolean;
@@ -60,10 +60,10 @@ export class DayNightCycle {
     const dusk = Math.max(0, 1 - Math.min(
       Math.abs(p - 0.0) * 8,
       Math.abs(p - 0.5) * 8,
-      Math.abs(p - 1.0) * 8,
+      Math.abs(p - 1.0) * 8
     ));
 
-    const skyTop    = this._skyTop(n, dusk);
+    const skyTop = this._skyTop(n, dusk);
     const skyBottom = this._skyBottom(n, dusk);
 
     // ── 天体位置 ──────────────────────────────────────────────────────────
@@ -75,24 +75,24 @@ export class DayNightCycle {
     if (isSun) {
       // 东升西落：从右(日出) → 中(正午) → 左(日落)
       const t = p / 0.5; // 0=日出 1=日落
-      celestialX = 0.9 - t * 0.8;                        // 0.9 → 0.1
-      celestialY = 0.35 - Math.sin(t * Math.PI) * 0.28;  // 弧形，正午最高
+      celestialX = 0.9 - t * 0.8; // 0.9 → 0.1
+      celestialY = 0.35 - Math.sin(t * Math.PI) * 0.28; // 弧形，正午最高
     } else {
       // 月亮也是东升西落：从右(月出) → 中(午夜) → 左(月落)
       const t = (p - 0.5) / 0.5; // 0=月出 1=月落
-      celestialX = 0.9 - t * 0.8;                        // 0.9 → 0.1
+      celestialX = 0.9 - t * 0.8; // 0.9 → 0.1
       celestialY = 0.35 - Math.sin(t * Math.PI) * 0.22;
     }
 
-    const celestialColor      = isSun ? '#fffde0' : '#dde8ff';
-    const celestialGlowColor  = isSun ? '#ffcc44' : '#8ab4ff';
-    const celestialGlowAlpha  = isSun ? (1 - n) * 0.7 : n * 0.5;
-    const celestialRadius     = isSun ? 20 : 13;
+    const celestialColor = isSun ? '#fffde0' : '#dde8ff';
+    const celestialGlowColor = isSun ? '#ffcc44' : '#8ab4ff';
+    const celestialGlowAlpha = isSun ? (1 - n) * 0.7 : n * 0.5;
+    const celestialRadius = isSun ? 20 : 13;
 
     // ── 夜晚遮罩 ──────────────────────────────────────────────────────────
     const nightOverlay = n;
-    const showStars    = n > 0.1;
-    const starAlpha    = Math.min(1, (n - 0.1) / 0.4);
+    const showStars = n > 0.1;
+    const starAlpha = Math.min(1, (n - 0.1) / 0.4);
 
     return {
       skyTop, skyBottom,
@@ -102,7 +102,7 @@ export class DayNightCycle {
     };
   }
 
-  getDirLightParams(): { color: string; intensity: number; angle: number; elevation: number } {
+  getDirLightParams(): {color: string; intensity: number; angle: number; elevation: number} {
     const n = this.nightness;
     const p = this._phase;
 
@@ -113,9 +113,9 @@ export class DayNightCycle {
     const dusk = Math.max(0, 1 - Math.min(
       Math.abs(p - 0.0) * 6,
       Math.abs(p - 0.5) * 6,
-      Math.abs(p - 1.0) * 6,
+      Math.abs(p - 1.0) * 6
     ));
-    const r = Math.round(this._lerp(255, 80,  n) + dusk * 40);
+    const r = Math.round(this._lerp(255, 80, n) + dusk * 40);
     const g = Math.round(this._lerp(248, 110, n) - dusk * 30);
     const b = Math.round(this._lerp(220, 200, n) - dusk * 60);
     const color = `rgb(${clamp(r)},${clamp(g)},${clamp(b)})`;
@@ -138,17 +138,17 @@ export class DayNightCycle {
     const sunArc = Math.sin(p * Math.PI * 2); // 正午最高
     const elevation = this._lerp(3, 60, Math.max(0, sunArc));
 
-    return { color, intensity, angle, elevation };
+    return {color, intensity, angle, elevation};
   }
 
-  getAmbientParams(): { color: string; intensity: number } {
+  getAmbientParams(): {color: string; intensity: number} {
     const n = this.nightness;
     // 白天：淡紫青色（梦幻草原），夜晚：深蓝冷色
-    const r = Math.round(this._lerp(230, 40,  n));
-    const g = Math.round(this._lerp(245, 60,  n));
+    const r = Math.round(this._lerp(230, 40, n));
+    const g = Math.round(this._lerp(245, 60, n));
     const b = Math.round(this._lerp(255, 180, n));
     return {
-      color:     `rgb(${clamp(r)},${clamp(g)},${clamp(b)})`,
+      color: `rgb(${clamp(r)},${clamp(g)},${clamp(b)})`,
       intensity: this._lerp(1.25, 0.12, n),
     };
   }
@@ -160,14 +160,14 @@ export class DayNightCycle {
    *
    * 白天：暖白高亮，夜晚：深蓝低亮。
    */
-  getSceneAmbient(): { color: string; intensity: number } {
+  getSceneAmbient(): {color: string; intensity: number} {
     const n = this.nightness;
     // 白天暖白偏黄，夜晚深蓝
-    const r = Math.round(this._lerp(255, 20,  n));
-    const g = Math.round(this._lerp(248, 35,  n));
-    const b = Math.round(this._lerp(220, 80,  n));
+    const r = Math.round(this._lerp(255, 20, n));
+    const g = Math.round(this._lerp(248, 35, n));
+    const b = Math.round(this._lerp(220, 80, n));
     return {
-      color:     `rgb(${clamp(r)},${clamp(g)},${clamp(b)})`,
+      color: `rgb(${clamp(r)},${clamp(g)},${clamp(b)})`,
       // 白天 0.55 留出空间给方向光贡献，夜晚 0.06 真正变暗
       intensity: this._lerp(0.55, 0.06, n),
     };
@@ -177,14 +177,14 @@ export class DayNightCycle {
    * 返回地面渲染参数，供 Floor.ambientLight 和 Floor.nightTintAlpha 使用。
    * 白天 ambientLight 较高（草地明亮），夜晚降低并叠加蓝色夜色。
    */
-  getFloorParams(): { ambientLight: number; nightTintAlpha: number; nightTint: string } {
+  getFloorParams(): {ambientLight: number; nightTintAlpha: number; nightTint: string} {
     const n = this.nightness;
     return {
       // 白天 0.55，夜晚 0.08 — 让夜晚草地真正变暗
-      ambientLight:     this._lerp(0.55, 0.08, n),
+      ambientLight: this._lerp(0.55, 0.08, n),
       // 夜晚叠加深蓝色调（最大 0.55）
-      nightTintAlpha:   this._lerp(0,    0.55, n),
-      nightTint:        '#0a1428',
+      nightTintAlpha: this._lerp(0, 0.55, n),
+      nightTint: '#0a1428',
     };
   }
 
@@ -196,17 +196,17 @@ export class DayNightCycle {
 
   private _skyTop(n: number, dusk: number): string {
     // 白天：梦幻淡紫蓝，夜晚：深蓝，黄昏：橙紫
-    const r = Math.round(this._lerp(80,  4,   n) + dusk * 110);
-    const g = Math.round(this._lerp(160, 8,   n) - dusk * 40);
-    const b = Math.round(this._lerp(240, 22,  n) - dusk * 60);
+    const r = Math.round(this._lerp(80, 4, n) + dusk * 110);
+    const g = Math.round(this._lerp(160, 8, n) - dusk * 40);
+    const b = Math.round(this._lerp(240, 22, n) - dusk * 60);
     return `rgb(${clamp(r)},${clamp(g)},${clamp(b)})`;
   }
 
   private _skyBottom(n: number, dusk: number): string {
     // 白天：淡紫粉（梦幻地平线），夜晚：深蓝，黄昏：橙红
-    const r = Math.round(this._lerp(200, 14,  n) + dusk * 160);
-    const g = Math.round(this._lerp(210, 25,  n) + dusk * 20);
-    const b = Math.round(this._lerp(255, 90,  n) - dusk * 60);
+    const r = Math.round(this._lerp(200, 14, n) + dusk * 160);
+    const g = Math.round(this._lerp(210, 25, n) + dusk * 20);
+    const b = Math.round(this._lerp(255, 90, n) - dusk * 60);
     return `rgb(${clamp(r)},${clamp(g)},${clamp(b)})`;
   }
 }

@@ -1,4 +1,4 @@
-import type { Component, ComponentCtor } from '../ecs/Component';
+import type {Component, ComponentCtor} from '../ecs/Component';
 
 /**
  * Validator — lightweight runtime validation for scene JSON and ECS lookups.
@@ -15,12 +15,12 @@ import type { Component, ComponentCtor } from '../ecs/Component';
 
 export interface ValidationResult {
   ok: boolean;
-  errors:   string[];
+  errors: string[];
   warnings: string[];
 }
 
 function result(errors: string[], warnings: string[]): ValidationResult {
-  return { ok: errors.length === 0, errors, warnings };
+  return {ok: errors.length === 0, errors, warnings};
 }
 
 // ── Scene JSON validation ─────────────────────────────────────────────────────
@@ -56,9 +56,9 @@ export interface SceneValidationOptions {
 
 export function validateSceneJson(
   json: unknown,
-  options: SceneValidationOptions = {},
+  options: SceneValidationOptions = {}
 ): ValidationResult {
-  const errors: string[]   = [];
+  const errors: string[] = [];
   const warnings: string[] = [];
   const lightTypes = new Set(['omni', 'directional']);
   // Must mirror the built-in keys seeded into Engine._propRegistry at the bottom
@@ -66,13 +66,13 @@ export function validateSceneJson(
   // using those perfectly valid props were reported as invalid.
   const propTypes = new Set(['crystal', 'boulder', 'chest', 'tree', 'flowers', 'lantern']);
   const declaredTypes = options.lightTypes !== undefined || options.propTypes !== undefined;
-  for (const type of options.lightTypes ?? []) lightTypes.add(type);
-  for (const type of options.propTypes ?? []) propTypes.add(type);
+  for (const type of options.lightTypes ?? []) {lightTypes.add(type);}
+  for (const type of options.propTypes ?? []) {propTypes.add(type);}
   /** Every id seen, to catch the duplicates that break removeById/getById. */
   const seenIds = new Map<string, string>();
 
   const noteId = (id: unknown, where: string): void => {
-    if (typeof id !== 'string' || id === '') return;
+    if (typeof id !== 'string' || id === '') {return;}
     const first = seenIds.get(id);
     if (first !== undefined) {
       // `Scene.removeById` filters *every* match and `getById` returns the
@@ -86,8 +86,8 @@ export function validateSceneJson(
 
   /** Unknown type: fatal only when the caller declared the accepted set. */
   const noteUnknownType = (message: string): void => {
-    if (declaredTypes) errors.push(message);
-    else warnings.push(message);
+    if (declaredTypes) {errors.push(message);}
+    else {warnings.push(message);}
   };
 
   if (typeof json !== 'object' || json === null) {
@@ -99,37 +99,42 @@ export function validateSceneJson(
   // Dimensions
   const cols = Number(s.cols ?? 10);
   const rows = Number(s.rows ?? 10);
-  if (!Number.isInteger(cols) || cols < 1 || cols > 128) errors.push(`cols must be an integer 1–128, got ${s.cols}`);
-  if (!Number.isInteger(rows) || rows < 1 || rows > 128) errors.push(`rows must be an integer 1–128, got ${s.rows}`);
+  if (!Number.isInteger(cols) || cols < 1 || cols > 128) {errors.push(`cols must be an integer 1–128, got ${s.cols}`);}
+  if (!Number.isInteger(rows) || rows < 1 || rows > 128) {errors.push(`rows must be an integer 1–128, got ${s.rows}`);}
 
   const tileW = Number(s.tileW ?? 64);
   const tileH = Number(s.tileH ?? 32);
-  if (tileW <= 0) errors.push(`tileW must be > 0, got ${s.tileW}`);
-  if (tileH <= 0) errors.push(`tileH must be > 0, got ${s.tileH}`);
-  if (tileW !== tileH * 2) warnings.push(`Standard iso ratio is tileW = 2 × tileH (got ${tileW} × ${tileH})`);
+  if (tileW <= 0) {errors.push(`tileW must be > 0, got ${s.tileW}`);}
+  if (tileH <= 0) {errors.push(`tileH must be > 0, got ${s.tileH}`);}
+  if (tileW !== tileH * 2) {warnings.push(`Standard iso ratio is tileW = 2 × tileH (got ${tileW} × ${tileH})`);}
 
   // Floor
   if (s.floor !== undefined) {
     if (typeof s.floor !== 'object' || s.floor === null) {
       errors.push('floor must be an object');
     } else {
-      if (!s.floor.id) errors.push('floor.id is required');
-      else noteId(s.floor.id, 'floor');
+      if (!s.floor.id) {errors.push('floor.id is required');}
+      else {noteId(s.floor.id, 'floor');}
       if (s.floor.walkable !== undefined) {
         if (!Array.isArray(s.floor.walkable)) {
           errors.push('floor.walkable must be an array');
         } else if (Array.isArray(s.floor.walkable[0])) {
           // 2D array
           const grid = s.floor.walkable as unknown[][];
-          if (grid.length !== rows) warnings.push(`floor.walkable has ${grid.length} rows, expected ${rows}`);
+          if (grid.length !== rows) {warnings.push(`floor.walkable has ${grid.length} rows, expected ${rows}`);}
           for (let r = 0; r < grid.length; r++) {
             if (!Array.isArray(grid[r])) { errors.push(`floor.walkable[${r}] must be an array`); break; }
-            if ((grid[r] as unknown[]).length !== cols) warnings.push(`floor.walkable[${r}] has ${(grid[r] as unknown[]).length} cols, expected ${cols}`);
+            const row = grid[r] as unknown[];
+            if (row.length !== cols) {
+              warnings.push(`floor.walkable[${r}] has ${row.length} cols, expected ${cols}`);
+            }
           }
         } else {
           // Flat array
           const flat = s.floor.walkable as unknown[];
-          if (flat.length !== cols * rows) warnings.push(`floor.walkable flat array length ${flat.length} ≠ cols×rows (${cols * rows})`);
+          if (flat.length !== cols * rows) {
+            warnings.push(`floor.walkable flat array length ${flat.length} ≠ cols×rows (${cols * rows})`);
+          }
         }
       }
     }
@@ -142,8 +147,8 @@ export function validateSceneJson(
     } else {
       s.walls.forEach((w, i) => {
         const wall = w as Record<string, unknown>;
-        if (!wall.id) errors.push(`walls[${i}].id is required`);
-        else noteId(wall.id, `walls[${i}]`);
+        if (!wall.id) {errors.push(`walls[${i}].id is required`);}
+        else {noteId(wall.id, `walls[${i}]`);}
         let numeric = true;
         for (const k of ['x', 'y', 'endX', 'endY']) {
           if (typeof wall[k] !== 'number') { errors.push(`walls[${i}].${k} must be a number`); numeric = false; }
@@ -170,13 +175,13 @@ export function validateSceneJson(
         } else if (!lightTypes.has(light.type)) {
           noteUnknownType(
             `lights[${i}].type '${light.type}' is not one of ${[...lightTypes].join(', ')}; ` +
-            'register it with Engine.registerLight() or pass it in options.lightTypes',
+            'register it with Engine.registerLight() or pass it in options.lightTypes'
           );
         }
-        if (light.id !== undefined) noteId(light.id, `lights[${i}]`);
+        if (light.id !== undefined) {noteId(light.id, `lights[${i}]`);}
         if (light.type === 'omni') {
           for (const k of ['x', 'y', 'z']) {
-            if (typeof light[k] !== 'number') errors.push(`lights[${i}].${k} must be a number`);
+            if (typeof light[k] !== 'number') {errors.push(`lights[${i}].${k} must be a number`);}
           }
           if (typeof light.intensity === 'number' && (light.intensity < 0 || light.intensity > 10)) {
             warnings.push(`lights[${i}].intensity ${light.intensity} is outside typical range 0–10`);
@@ -202,10 +207,10 @@ export function validateSceneJson(
     } else {
       s.characters.forEach((c, i) => {
         const ch = c as Record<string, unknown>;
-        if (!ch.id) errors.push(`characters[${i}].id is required`);
-        else noteId(ch.id, `characters[${i}]`);
+        if (!ch.id) {errors.push(`characters[${i}].id is required`);}
+        else {noteId(ch.id, `characters[${i}]`);}
         for (const k of ['x', 'y']) {
-          if (typeof ch[k] !== 'number') errors.push(`characters[${i}].${k} must be a number`);
+          if (typeof ch[k] !== 'number') {errors.push(`characters[${i}].${k} must be a number`);}
         }
         const x = Number(ch.x), y = Number(ch.y);
         if (x < 0 || x > cols || y < 0 || y > rows) {
@@ -222,16 +227,16 @@ export function validateSceneJson(
     } else {
       s.props.forEach((p, i) => {
         const prop = p as Record<string, unknown>;
-        if (!prop.id) errors.push(`props[${i}].id is required`);
-        else noteId(prop.id, `props[${i}]`);
-        if (typeof prop.x !== 'number') errors.push(`props[${i}].x must be a number`);
-        if (typeof prop.y !== 'number') errors.push(`props[${i}].y must be a number`);
+        if (!prop.id) {errors.push(`props[${i}].id is required`);}
+        else {noteId(prop.id, `props[${i}]`);}
+        if (typeof prop.x !== 'number') {errors.push(`props[${i}].x must be a number`);}
+        if (typeof prop.y !== 'number') {errors.push(`props[${i}].y must be a number`);}
         if (typeof prop.type !== 'string') {
           errors.push(`props[${i}].type must be a string`);
         } else if (!propTypes.has(prop.type)) {
           noteUnknownType(
             `props[${i}].type '${prop.type}' is not one of ${[...propTypes].join(', ')}; ` +
-            'register it with Engine.registerProp() or pass it in options.propTypes',
+            'register it with Engine.registerProp() or pass it in options.propTypes'
           );
         }
         // `Engine.buildScene` feeds this straight into `new HealthComponent({ max })`,
@@ -255,7 +260,7 @@ interface ComponentLookup {
 }
 
 function componentName(ctor: ComponentCtor): string {
-  return (ctor as { name?: string }).name ?? 'UnknownComponent';
+  return (ctor as {name?: string}).name ?? 'UnknownComponent';
 }
 
 /**
@@ -264,29 +269,29 @@ function componentName(ctor: ComponentCtor): string {
  */
 export function requireComponent<T extends Component>(
   entity: ComponentLookup,
-  ctor: ComponentCtor<T>,
+  ctor: ComponentCtor<T>
 ): T;
 export function requireComponent<T extends Component>(
   entity: ComponentLookup,
   ctor: ComponentCtor<T>,
-  required: true,
+  required: true
 ): T;
 export function requireComponent<T extends Component>(
   entity: ComponentLookup,
   ctor: ComponentCtor<T>,
-  required: false,
+  required: false
 ): T | undefined;
 export function requireComponent<T extends Component>(
   entity: ComponentLookup,
   ctor: ComponentCtor<T>,
-  required = true,
+  required = true
 ): T | undefined {
   const comp = entity.getComponent(ctor);
   if (!comp && required) {
     const name = componentName(ctor);
     throw new Error(
       `Entity "${entity.id}" is missing required component "${name}". ` +
-      `Did you forget to call entity.addComponent(new ...Component(...))?`,
+      'Did you forget to call entity.addComponent(new ...Component(...))?'
     );
   }
   return comp;
@@ -298,7 +303,7 @@ export function requireComponent<T extends Component>(
  */
 export function validateComponents(
   entity: ComponentLookup,
-  required: readonly ComponentCtor[],
+  required: readonly ComponentCtor[]
 ): ValidationResult {
   const errors = required
     .filter(ctor => !entity.hasComponent(ctor))

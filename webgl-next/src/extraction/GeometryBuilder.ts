@@ -16,7 +16,7 @@ export interface VertexStyle {
   pickId?: number;
 }
 
-const EMPTY_RANGE: RenderRange = { first: 0, count: 0 };
+const EMPTY_RANGE: RenderRange = {first: 0, count: 0};
 
 export class GeometryBuilder {
   private _data = new Float32Array(RENDER_VERTEX_FLOATS * 1024);
@@ -35,7 +35,7 @@ export class GeometryBuilder {
   }
 
   range(first: number): RenderRange {
-    return { first, count: this._vertexCount - first };
+    return {first, count: this._vertexCount - first};
   }
 
   geometry(
@@ -44,7 +44,7 @@ export class GeometryBuilder {
     opaque: RenderRange = EMPTY_RANGE,
     transparent: RenderRange = EMPTY_RANGE,
     debug: RenderRange = EMPTY_RANGE,
-    segments: RenderDrawSegment[] = [],
+    segments: RenderDrawSegment[] = []
   ): RenderGeometry {
     return {
       data: this._data,
@@ -75,7 +75,7 @@ export class GeometryBuilder {
     c: RenderPoint,
     d: RenderPoint,
     uv: readonly [number, number, number, number],
-    style: VertexStyle,
+    style: VertexStyle
   ): void {
     const [u0, v0, u1, v1] = uv;
     this._texturedTriangle(a, b, c, [u0, v0], [u1, v0], [u1, v1], style);
@@ -93,12 +93,12 @@ export class GeometryBuilder {
       [b[0] + ox, b[1] + oy],
       [b[0] - ox, b[1] - oy],
       [a[0] - ox, a[1] - oy],
-      style,
+      style
     );
   }
 
   polygon(points: readonly RenderPoint[], style: VertexStyle): void {
-    if (points.length < 3) return;
+    if (points.length < 3) {return;}
     for (let i = 1; i < points.length - 1; i++) {
       this.triangle(points[0], points[i], points[i + 1], style);
     }
@@ -109,7 +109,7 @@ export class GeometryBuilder {
     radiusX: number,
     radiusY: number,
     style: VertexStyle,
-    segments = 20,
+    segments = 20
   ): void {
     const count = Math.max(8, segments);
     for (let i = 0; i < count; i++) {
@@ -119,7 +119,7 @@ export class GeometryBuilder {
         center,
         [center[0] + Math.cos(a0) * radiusX, center[1] + Math.sin(a0) * radiusY],
         [center[0] + Math.cos(a1) * radiusX, center[1] + Math.sin(a1) * radiusY],
-        style,
+        style
       );
     }
   }
@@ -135,7 +135,7 @@ export class GeometryBuilder {
     uvA: RenderPoint,
     uvB: RenderPoint,
     uvC: RenderPoint,
-    style: VertexStyle,
+    style: VertexStyle
   ): void {
     this._pushVertex(a, style, uvA, true);
     this._pushVertex(b, style, uvB, true);
@@ -146,7 +146,7 @@ export class GeometryBuilder {
     point: RenderPoint,
     style: VertexStyle,
     uv: RenderPoint,
-    textured: boolean,
+    textured: boolean
   ): void {
     this._ensure(1);
     const offset = this._vertexCount * RENDER_VERTEX_FLOATS;
@@ -175,10 +175,10 @@ export class GeometryBuilder {
 
   private _ensure(additionalVertices: number): void {
     const required = (this._vertexCount + additionalVertices) * RENDER_VERTEX_FLOATS;
-    if (required <= this._data.length) return;
+    if (required <= this._data.length) {return;}
 
     let capacity = this._data.length;
-    while (capacity < required) capacity *= 2;
+    while (capacity < required) {capacity *= 2;}
     const next = new Float32Array(capacity);
     next.set(this._data);
     this._data = next;

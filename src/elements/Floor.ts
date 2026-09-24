@@ -1,10 +1,10 @@
-import { project } from '../math/IsoProjection';
-import { AABB } from '../math/depthSort';
-import { AssetLoader } from '../core/AssetLoader';
-import { IsoObject, DrawContext } from './IsoObject';
-import { hexToRgb } from '../math/color';
-import type { OmniLight } from '../lighting/OmniLight';
-import type { DirectionalLight } from '../lighting/DirectionalLight';
+import {project} from '../math/IsoProjection';
+import {AABB} from '../math/depthSort';
+import {AssetLoader} from '../core/AssetLoader';
+import {IsoObject, DrawContext} from './IsoObject';
+import {hexToRgb} from '../math/color';
+import type {OmniLight} from '../lighting/OmniLight';
+import type {DirectionalLight} from '../lighting/DirectionalLight';
 
 export interface FloorOptions {
   id: string;
@@ -66,11 +66,11 @@ export class Floor extends IsoObject {
   /** Preload tile textures if configured. Call before engine.start(). */
   async preload(): Promise<void> {
     const urls = [this.tileImageUrl, this.altTileImageUrl].filter(Boolean) as string[];
-    if (urls.length) await AssetLoader.loadAll(urls);
+    if (urls.length) {await AssetLoader.loadAll(urls);}
   }
 
   get aabb(): AABB {
-    return { minX: 0, minY: 0, maxX: this.cols, maxY: this.rows, baseZ: 0 };
+    return {minX: 0, minY: 0, maxX: this.cols, maxY: this.rows, baseZ: 0};
   }
 
   /** Invalidate the tile color cache (e.g. after changing color/altColor). */
@@ -80,10 +80,10 @@ export class Floor extends IsoObject {
   }
 
   draw(dc: DrawContext): void {
-    const { ctx, tileW, tileH, originX, originY, omniLights, dirLights, ambientRgb } = dc;
+    const {ctx, tileW, tileH, originX, originY, omniLights, dirLights, ambientRgb} = dc;
 
     // Resolve tile images (synchronous — must be preloaded)
-    const img    = this.tileImageUrl    ? AssetLoader.get(this.tileImageUrl)    : undefined;
+    const img = this.tileImageUrl ? AssetLoader.get(this.tileImageUrl) : undefined;
     const altImg = this.altTileImageUrl ? AssetLoader.get(this.altTileImageUrl) : undefined;
 
     // ── Build / validate color cache ────────────────────────────────────────
@@ -104,15 +104,15 @@ export class Floor extends IsoObject {
 
     for (let row = 0; row < this.rows; row++) {
       for (let col = 0; col < this.cols; col++) {
-        const pTop    = project(col,     row,     0, tileW, tileH);
-        const pRight  = project(col + 1, row,     0, tileW, tileH);
+        const pTop = project(col, row, 0, tileW, tileH);
+        const pRight = project(col + 1, row, 0, tileW, tileH);
         const pBottom = project(col + 1, row + 1, 0, tileW, tileH);
-        const pLeft   = project(col,     row + 1, 0, tileW, tileH);
+        const pLeft = project(col, row + 1, 0, tileW, tileH);
 
-        const tTop    = { x: originX + pTop.sx,    y: originY + pTop.sy    };
-        const tRight  = { x: originX + pRight.sx,  y: originY + pRight.sy  };
-        const tBottom = { x: originX + pBottom.sx, y: originY + pBottom.sy };
-        const tLeft   = { x: originX + pLeft.sx,   y: originY + pLeft.sy   };
+        const tTop = {x: originX + pTop.sx, y: originY + pTop.sy};
+        const tRight = {x: originX + pRight.sx, y: originY + pRight.sy};
+        const tBottom = {x: originX + pBottom.sx, y: originY + pBottom.sy};
+        const tLeft = {x: originX + pLeft.sx, y: originY + pLeft.sy};
 
         // Tile centre for image positioning
         const cx = (tTop.x + tBottom.x) / 2;
@@ -126,10 +126,10 @@ export class Floor extends IsoObject {
         // Diamond clip path
         ctx.save();
         ctx.beginPath();
-        ctx.moveTo(tTop.x,    tTop.y);
-        ctx.lineTo(tRight.x,  tRight.y);
+        ctx.moveTo(tTop.x, tTop.y);
+        ctx.lineTo(tRight.x, tRight.y);
         ctx.lineTo(tBottom.x, tBottom.y);
-        ctx.lineTo(tLeft.x,   tLeft.y);
+        ctx.lineTo(tLeft.x, tLeft.y);
         ctx.closePath();
 
         if (tileImg) {
@@ -154,10 +154,10 @@ export class Floor extends IsoObject {
 
         // Tile border
         ctx.beginPath();
-        ctx.moveTo(tTop.x,    tTop.y);
-        ctx.lineTo(tRight.x,  tRight.y);
+        ctx.moveTo(tTop.x, tTop.y);
+        ctx.lineTo(tRight.x, tRight.y);
         ctx.lineTo(tBottom.x, tBottom.y);
-        ctx.lineTo(tLeft.x,   tLeft.y);
+        ctx.lineTo(tLeft.x, tLeft.y);
         ctx.closePath();
         ctx.strokeStyle = 'rgba(0,0,0,0.35)';
         ctx.lineWidth = 0.5;
@@ -173,16 +173,18 @@ export class Floor extends IsoObject {
     dirLights: DirectionalLight[],
     ambientRgb: [number, number, number],
     originX: number, originY: number,
-    tileW: number, tileH: number,
+    tileW: number, tileH: number
   ): string {
-    const omni = omniLights.map(l =>
-      `${l.position.x.toFixed(1)},${l.position.y.toFixed(1)},${l.position.z.toFixed(1)},${l.color},${l.intensity.toFixed(3)},${l.radius},${l.isGlobal ? 1 : 0},${l.falloff}`
-    ).join('|');
+    const omni = omniLights.map(l => {
+      const pos = `${l.position.x.toFixed(1)},${l.position.y.toFixed(1)},${l.position.z.toFixed(1)}`;
+      return `${pos},${l.color},${l.intensity.toFixed(3)},${l.radius},${l.isGlobal ? 1 : 0},${l.falloff}`;
+    }).join('|');
     const dir = dirLights.map(l =>
       `${l.angle.toFixed(3)},${l.elevation.toFixed(3)},${l.color},${l.intensity.toFixed(3)}`
     ).join('|');
     const amb = ambientRgb.map(v => v.toFixed(4)).join(',');
-    return `${omni};${dir};${amb};${originX},${originY};${tileW}x${tileH};${this.cols}x${this.rows};${this.color};${this.altColor}`;
+    const geom = `${originX},${originY};${tileW}x${tileH};${this.cols}x${this.rows}`;
+    return `${omni};${dir};${amb};${geom};${this.color};${this.altColor}`;
   }
 
   private _rebuildColorCache(
@@ -190,21 +192,21 @@ export class Floor extends IsoObject {
     dirLights: DirectionalLight[],
     ambientRgb: [number, number, number],
     originX: number, originY: number,
-    tileW: number, tileH: number,
+    tileW: number, tileH: number
   ): void {
     const cache: string[] = new Array(this.cols * this.rows);
 
     // Pre-compute omni light screen positions once
-    const omniScreenPos = omniLights.map((l) => {
+    const omniScreenPos = omniLights.map(l => {
       const lp = project(l.position.x, l.position.y, 0, tileW, tileH);
-      return { lsx: originX + lp.sx, lsy: originY + lp.sy - l.position.z, light: l };
+      return {lsx: originX + lp.sx, lsy: originY + lp.sy - l.position.z, light: l};
     });
 
     // Pre-compute directional light contribution (same for all tiles)
     let dirR = 0, dirG = 0, dirB = 0;
     for (const dl of dirLights) {
       const factor = Math.sin(dl.elevation) * dl.intensity;
-      if (factor <= 0) continue;
+      if (factor <= 0) {continue;}
       const [lr, lg, lb] = hexToRgb(dl.color);
       dirR += (lr / 255) * factor;
       dirG += (lg / 255) * factor;
@@ -212,12 +214,12 @@ export class Floor extends IsoObject {
     }
 
     const [baseR, baseG, baseB] = hexToRgb(this.color);
-    const [altR, altG, altB]    = this.altColor ? hexToRgb(this.altColor) : [baseR, baseG, baseB];
+    const [altR, altG, altB] = this.altColor ? hexToRgb(this.altColor) : [baseR, baseG, baseB];
     const img = this.tileImageUrl ? AssetLoader.get(this.tileImageUrl) : undefined;
 
     for (let row = 0; row < this.rows; row++) {
       for (let col = 0; col < this.cols; col++) {
-        const { sx: csx, sy: csy } = project(col + 0.5, row + 0.5, 0, tileW, tileH);
+        const {sx: csx, sy: csy} = project(col + 0.5, row + 0.5, 0, tileW, tileH);
         const tileCx = originX + csx;
         const tileCy = originY + csy;
 
@@ -225,9 +227,9 @@ export class Floor extends IsoObject {
         let gIllum = ambientRgb[1] + dirG;
         let bIllum = ambientRgb[2] + dirB;
 
-        for (const { lsx, lsy, light } of omniScreenPos) {
+        for (const {lsx, lsy, light} of omniScreenPos) {
           const factor = light.illuminateAt(tileCx, tileCy, lsx, lsy);
-          if (factor <= 0) continue;
+          if (factor <= 0) {continue;}
           const [lr, lg, lb] = hexToRgb(light.color);
           rIllum += (lr / 255) * factor;
           gIllum += (lg / 255) * factor;
@@ -246,13 +248,19 @@ export class Floor extends IsoObject {
           // near-zero illumination, which made draw() skip the multiply overlay
           // and render unlit textures at FULL brightness - the exact opposite of
           // the intent. rIllum=0 already yields rgb(0,0,0), i.e. fully dark.
-          cache[row * this.cols + col] = `rgb(${Math.round(Math.min(255, rIllum * 255))},${Math.round(Math.min(255, gIllum * 255))},${Math.round(Math.min(255, bIllum * 255))})`;
+          const tintR = Math.round(Math.min(255, rIllum * 255));
+          const tintG = Math.round(Math.min(255, gIllum * 255));
+          const tintB = Math.round(Math.min(255, bIllum * 255));
+          cache[row * this.cols + col] = `rgb(${tintR},${tintG},${tintB})`;
         } else {
           // For solid-color tiles: store final lit color
           const [tr, tg, tb] = isEven || !this.altColor
             ? [baseR, baseG, baseB]
             : [altR, altG, altB];
-          cache[row * this.cols + col] = `rgb(${Math.min(255, Math.round(tr * rIllum))},${Math.min(255, Math.round(tg * gIllum))},${Math.min(255, Math.round(tb * bIllum))})`;
+          const litR = Math.min(255, Math.round(tr * rIllum));
+          const litG = Math.min(255, Math.round(tg * gIllum));
+          const litB = Math.min(255, Math.round(tb * bIllum));
+          cache[row * this.cols + col] = `rgb(${litR},${litG},${litB})`;
         }
       }
     }

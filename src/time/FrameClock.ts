@@ -53,10 +53,10 @@ export class FrameClock {
   sample(ts: number): number {
     // A non-finite stamp is not a measurement: it must not become the baseline,
     // or every later frame would measure against NaN and integrate NaN forever.
-    if (!Number.isFinite(ts)) return 0;
+    if (!Number.isFinite(ts)) {return 0;}
     const previous = this._last;
     this._last = ts;
-    if (previous === null) return 0;
+    if (previous === null) {return 0;}
     return Math.min(Math.max(0, (ts - previous) / 1000), this.maxDt);
   }
 

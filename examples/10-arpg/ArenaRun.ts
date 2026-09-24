@@ -22,15 +22,15 @@
  * nearest one to lunge at), and that makes them provable at a fixed dt instead of
  * by feel. `AbilityBook` owns only the cooldowns.
  */
-import { PathCache } from '../../src/index';
-import type { TileCollider } from '../../src/index';
-import { Combatant } from './Combatant';
-import { AbilityBook, type AbilityBookSnapshot } from './Abilities';
-import { HeroProgress, type HeroProgressSnapshot } from './Progression';
-import { WaveDirector, type ArpgPhase, type WaveDirectorSnapshot } from './WaveDirector';
+import {PathCache} from '../../src/index';
+import type {TileCollider} from '../../src/index';
+import {Combatant} from './Combatant';
+import {AbilityBook, type AbilityBookSnapshot} from './Abilities';
+import {HeroProgress, type HeroProgressSnapshot} from './Progression';
+import {WaveDirector, type ArpgPhase, type WaveDirectorSnapshot} from './WaveDirector';
 
 /** A blocked arena tile. */
-export interface PillarTile { col: number; row: number; }
+export interface PillarTile {col: number; row: number;}
 
 /**
  * Something worth reacting to, reported with the world position it happened at.
@@ -43,12 +43,12 @@ export interface PillarTile { col: number; row: number; }
  * gone, it has been removed from `enemies`.
  */
 export type ArenaEventType =
-  | 'hero-hit'    // the hero landed a blow
-  | 'hero-hurt'   // something landed a blow on the hero
-  | 'cleave'      // the hero's area skill connected
-  | 'dash'        // the hero closed or broke away
-  | 'kill'        // an enemy died
-  | 'level-up'    // the hero gained a level
+  | 'hero-hit' // the hero landed a blow
+  | 'hero-hurt' // something landed a blow on the hero
+  | 'cleave' // the hero's area skill connected
+  | 'dash' // the hero closed or broke away
+  | 'kill' // an enemy died
+  | 'level-up' // the hero gained a level
   | 'wave-start'
   | 'boss'
   | 'victory'
@@ -233,7 +233,7 @@ export class ArenaRun {
 
   /** Tear the run down and start a fresh one. */
   restart(): void {
-    for (const unit of [this._hero, ...this._enemies]) this._opts.onDespawn?.(unit);
+    for (const unit of [this._hero, ...this._enemies]) {this._opts.onDespawn?.(unit);}
     this._enemies = [];
     this._hero = this._spawnHero();
     this._director = this._newDirector();
@@ -268,14 +268,14 @@ export class ArenaRun {
    * @returns false if the save has no hero, in which case nothing changes.
    */
   adopt(fighters: readonly Combatant[], snapshot: Partial<ArenaRunSnapshot> = {}): boolean {
-    const hero = fighters.find((unit) => unit.faction === 'hero');
-    if (!hero) return false;
+    const hero = fighters.find(unit => unit.faction === 'hero');
+    if (!hero) {return false;}
 
-    for (const unit of [this._hero, ...this._enemies]) this._opts.onDespawn?.(unit);
+    for (const unit of [this._hero, ...this._enemies]) {this._opts.onDespawn?.(unit);}
     this._hero = hero;
-    this._enemies = fighters.filter((unit) => unit !== hero);
+    this._enemies = fighters.filter(unit => unit !== hero);
     this._director = this._newDirector();
-    if (snapshot.director) this._director.restore(snapshot.director);
+    if (snapshot.director) {this._director.restore(snapshot.director);}
     // A save from before skills existed has no `abilities` key; `restore` reads
     // that as "everything available" rather than leaving a timer undefined.
     this._abilities.restore(snapshot.abilities);
@@ -300,12 +300,12 @@ export class ArenaRun {
     let best: Combatant | null = null;
     let bestDistance = Infinity;
     for (const enemy of this._enemies) {
-      if (enemy.isDead) continue;
+      if (enemy.isDead) {continue;}
       const distance = Math.hypot(
         enemy.position.x - this._hero.position.x,
-        enemy.position.y - this._hero.position.y,
+        enemy.position.y - this._hero.position.y
       );
-      if (distance >= bestDistance) continue;
+      if (distance >= bestDistance) {continue;}
       best = enemy;
       bestDistance = distance;
     }
@@ -314,7 +314,7 @@ export class ArenaRun {
 
   /** Advance one frame. `dt` is seconds; a non-finite or non-positive dt is ignored. */
   step(dt: number, intent: HeroIntent = {}): void {
-    if (!Number.isFinite(dt) || dt <= 0) return;
+    if (!Number.isFinite(dt) || dt <= 0) {return;}
     const fighting = this.phase === 'wave' || this.phase === 'boss';
 
     // Timers first, requests second: a skill used this frame must not also be
@@ -331,18 +331,18 @@ export class ArenaRun {
       }
       // Dash before cleave, because pressing both means "get in there and swing":
       // the other order would cleave the spot the hero is about to leave.
-      if (intent.dash) this._dash(x, y);
-      if (intent.cleave) this._cleave();
+      if (intent.dash) {this._dash(x, y);}
+      if (intent.cleave) {this._cleave();}
       this._hero.position.x = Math.min(this._max, Math.max(this._min, this._hero.position.x));
       this._hero.position.y = Math.min(this._max, Math.max(this._min, this._hero.position.y));
     }
 
-    if (fighting && intent.attack) this._hero.swing(this.nearestEnemy());
+    if (fighting && intent.attack) {this._hero.swing(this.nearestEnemy());}
 
-    for (const enemy of this._enemies) enemy.think(dt, fighting ? this._hero : null);
+    for (const enemy of this._enemies) {enemy.think(dt, fighting ? this._hero : null);}
 
     this._hero.fixedUpdate(dt);
-    for (const enemy of this._enemies) enemy.fixedUpdate(dt);
+    for (const enemy of this._enemies) {enemy.fixedUpdate(dt);}
     this._separate();
 
 
@@ -361,12 +361,12 @@ export class ArenaRun {
     }
     this._enemies = survivors;
 
-    if (this._hero.isDead) this._director.reportHeroDefeated();
+    if (this._hero.isDead) {this._director.reportHeroDefeated();}
     this._director.update(dt);
   }
 
   private _emit(type: ArenaEventType, x: number, y: number): void {
-    this._opts.onEvent?.({ type, x, y });
+    this._opts.onEvent?.({type, x, y});
   }
 
   /**
@@ -411,9 +411,13 @@ export class ArenaRun {
    * whatever it was spawned with, so `levels` is used for that one.
    */
   private _award(xp: number): void {
-    if (xp <= 0) return;
+    if (xp <= 0) {
+      return;
+    }
     const levels = this._progress.gain(xp);
-    if (levels <= 0) return;
+    if (levels <= 0) {
+      return;
+    }
 
     const hero = this._hero;
     hero.bonusDamage = this._progress.damageBonus;
@@ -456,19 +460,19 @@ export class ArenaRun {
    *   start its cooldown — see `AbilityBook`'s note on why that check lives here.
    */
   private _cleave(): boolean {
-    if (!this._abilities.ready('cleave')) return false;
+    if (!this._abilities.ready('cleave')) {return false;}
     const hero = this._hero;
 
     const targets: Combatant[] = [];
     for (const enemy of this._enemies) {
-      if (enemy.isDead) continue;
+      if (enemy.isDead) {continue;}
       const distance = Math.hypot(
         enemy.position.x - hero.position.x,
-        enemy.position.y - hero.position.y,
+        enemy.position.y - hero.position.y
       );
-      if (distance <= ArenaRun.CLEAVE_RADIUS) targets.push(enemy);
+      if (distance <= ArenaRun.CLEAVE_RADIUS) {targets.push(enemy);}
     }
-    if (targets.length === 0) return false;
+    if (targets.length === 0) {return false;}
 
     this._abilities.use('cleave');
     for (const target of targets) {
@@ -492,23 +496,23 @@ export class ArenaRun {
    *   there is nothing to do, and the cooldown stays untouched.
    */
   private _dash(axisX: number, axisY: number): boolean {
-    if (!this._abilities.ready('dash')) return false;
+    if (!this._abilities.ready('dash')) {return false;}
 
     let dx = axisX;
     let dy = axisY;
     if (dx === 0 && dy === 0) {
       const target = this.nearestEnemy();
-      if (!target) return false;
+      if (!target) {return false;}
       dx = target.position.x - this._hero.position.x;
       dy = target.position.y - this._hero.position.y;
     }
     const length = Math.hypot(dx, dy);
-    if (!Number.isFinite(length) || length < 1e-6) return false;
+    if (!Number.isFinite(length) || length < 1e-6) {return false;}
 
     this._abilities.use('dash');
     this._hero.movement.nudge(
       (dx / length) * ArenaRun.DASH_DISTANCE,
-      (dy / length) * ArenaRun.DASH_DISTANCE,
+      (dy / length) * ArenaRun.DASH_DISTANCE
     );
     // Reported where the hero landed, not where it left from: the cue belongs to
     // the arrival, which is the half the player is looking at.
@@ -528,7 +532,7 @@ export class ArenaRun {
       this._emit(
         attacker.faction === 'hero' ? 'hero-hit' : 'hero-hurt',
         attacker.position.x,
-        attacker.position.y,
+        attacker.position.y
       );
       // The target is whoever got hit, not whoever swung. The hero attacks an
       // enemy → show on the enemy; an enemy attacks the hero → show on the hero.
@@ -536,7 +540,7 @@ export class ArenaRun {
       if (target) {
         this._floatDamage(
           target, damage,
-          attacker.faction === 'hero' ? '#ffffff' : '#ff6060',
+          attacker.faction === 'hero' ? '#ffffff' : '#ff6060'
         );
       }
     };
@@ -558,8 +562,8 @@ export class ArenaRun {
    */
   private _separate(): void {
     const units: Combatant[] = [];
-    if (!this._hero.isDead) units.push(this._hero);
-    for (const enemy of this._enemies) if (!enemy.isDead) units.push(enemy);
+    if (!this._hero.isDead) {units.push(this._hero);}
+    for (const enemy of this._enemies) {if (!enemy.isDead) {units.push(enemy);}}
 
     for (let i = 0; i < units.length; i++) {
       for (let j = i + 1; j < units.length; j++) {
@@ -569,7 +573,7 @@ export class ArenaRun {
         let dx = b.position.x - a.position.x;
         let dy = b.position.y - a.position.y;
         let distance = Math.hypot(dx, dy);
-        if (distance >= minDistance) continue;
+        if (distance >= minDistance) {continue;}
 
         if (distance < 1e-6) {
           // Exactly stacked — a wave can seat two mobs on the same ring point.
@@ -600,7 +604,7 @@ export class ArenaRun {
    */
   private _raiseCover(): readonly PillarTile[] {
     const collider = this._opts.collider;
-    if (!collider || this._opts.pillars === false) return [];
+    if (!collider || this._opts.pillars === false) {return [];}
 
     const cx = Math.floor(this._cols / 2);
     const cy = Math.floor(this._rows / 2);
@@ -613,11 +617,11 @@ export class ArenaRun {
     ]) {
       // Skip anything the arena is too small to hold, and never block the centre
       // the hero starts on.
-      if (col < 1 || row < 1 || col >= this._cols - 1 || row >= this._rows - 1) continue;
-      if (col === cx && row === cy) continue;
-      if (!collider.isWalkable(col, row)) continue;
+      if (col < 1 || row < 1 || col >= this._cols - 1 || row >= this._rows - 1) {continue;}
+      if (col === cx && row === cy) {continue;}
+      if (!collider.isWalkable(col, row)) {continue;}
       collider.setWalkable(col, row, false);
-      tiles.push({ col, row });
+      tiles.push({col, row});
     }
     return tiles;
   }
@@ -630,26 +634,26 @@ export class ArenaRun {
    * already overlapping blocked ground, so it never joins the fight and the wave
    * never ends. Rotating to the next free angle is the cheap fix.
    */
-  private _ringSpot(angle: number, radius: number): { x: number; y: number } {
+  private _ringSpot(angle: number, radius: number): {x: number; y: number} {
     const cx = this._cols / 2, cy = this._rows / 2;
     const collider = this._opts.collider;
     for (let i = 0; i < 24; i++) {
       const a = angle + (i * Math.PI) / 12;
       const x = cx + Math.cos(a) * radius;
       const y = cy + Math.sin(a) * radius;
-      if (!collider) return { x, y };
-      if (collider.isWalkable(Math.floor(x), Math.floor(y))) return { x, y };
+      if (!collider) {return {x, y};}
+      if (collider.isWalkable(Math.floor(x), Math.floor(y))) {return {x, y};}
     }
-    return { x: cx, y: cy };
+    return {x: cx, y: cy};
   }
 
   private _newDirector(): WaveDirector {
     return new WaveDirector({
       waves: this._opts.waves ?? 3,
       intermission: this._opts.intermission ?? 2.5,
-      mobsPerWave: (wave) => 1 + wave,
+      mobsPerWave: wave => 1 + wave,
       onSpawnWave: (wave, count) => {
-        for (let i = 0; i < count; i++) this._spawnEnemy(`w${wave}-${i}`, i, count, wave);
+        for (let i = 0; i < count; i++) {this._spawnEnemy(`w${wave}-${i}`, i, count, wave);}
       },
       onSpawnBoss: () => this._spawnBoss(),
       onPhase: (phase, previous) => {

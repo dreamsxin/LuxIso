@@ -3,7 +3,7 @@
 Each phase must leave `main` releasable. Canvas2D is the rollback path until the
 final cutover gate.
 
-## Implementation Status (2026-09-12)
+## Implementation Status (2026-09-21)
 
 | Phase | Status | Remaining gate work |
 |---|---|---|
@@ -13,9 +13,16 @@ final cutover gate.
 | 3 - Lighting/shadows | Implemented preview | Six of the nine fixtures still need baselines behind the 2,500-pixel gate |
 
 | 4 - Effects/editor | In progress | Editor move parity screenshots and sprite-editor integration; HUD path and the extractor registry are in |
-| 5 - Preview release | Not started | Browser matrix, package checks, and `0.2.0-webgl.0` publication |
+| 5 - Preview release | Not started | Atlas and batching (see Phase 5), browser matrix, package checks, and `0.2.0-webgl.0` publication |
 | 6 - Default cutover | Not started | Requires two accepted preview iterations |
 | 7 - Hardware ray tracing research | Conditional | Standard WebGPU acceleration structures and browser support |
+
+Source gates landed on 2026-09-21: `npm run lint` — ESLint 10 flat config, with
+`@stylistic` holding the formatting rules that ESLint core drops in v11 and
+`typescript-eslint` holding the correctness ones — runs on every push and PR
+ahead of the browser matrix, and the workflow's `paths` filter now includes
+`examples/**`, so the ten example-backed test files can no longer be skipped by
+a diff that never mentions `src/`.
 
 Phase 4's newest consumer is `examples/10-arpg`, a full run on the WebGL2 backend:
 a custom `Entity` through `SceneExtractor.register`, `HudLayer` stacked over the GL
@@ -103,6 +110,57 @@ delete/import/export flows pass.
 - Run browser matrix, long-session memory test, resize/DPR test, context-loss
   test, and package declaration checks.
 - Document custom object migration from `draw(ctx)` to render primitives.
+
+Prerequisite: reduce the vertex volume. Measured on 2026-09-23 with
+`src/__tests__/ExtractionScale.test.ts` (100x100 floor, 200 props, 1920x1080
+viewport, Windows/node): `total=4.56ms cull=0.12 sort=0.14 build=4.30`,
+`segments=4`, `vertices=16803`, of which `floorVerts=11094`.
+
+Two things follow, and the first corrects an assumption this section used to
+state. Draw-call batching for untextured geometry **is already done**:
+`_recordSegment` extends the previous segment whenever blend and texture match,
+so a hundred props collapse into one run and the whole frame issues four
+segments, not one per record. An atlas would only help where runs are split *by
+texture*, which the preview scene does not exercise.
+
+The actual hot spot is vertex writing — 94% of extraction time — and the floor is
+two thirds of the vertices. So the cheapest real win is the one already
+identified: collapse an entire `Floor` layer into one quad instead of six
+vertices per visible tile (1,849 tiles at this viewport). It renders through its
+own buffer and never enters `topoSort`, so nothing about ordering constrains it.
+
+Note also that 4.56 ms already exceeds the 4 ms p95 row in `ACCEPTANCE.md`, with
+only 49 props surviving culling against a reference workload of 1,000 visible
+objects. The budget's own reference load has never been run.
+
+When texture-split runs do need merging, the isometric constraint is that
+`topoSort` has already fixed the draw order, so merging is only legal inside a
+run that crosses no depth-conflict pair; the batchers in orthogonal engines
+assume no such ordering and cannot be copied wholesale.
+
+Known parity gaps to close or accept before the preview, each verified in the
+source on 2026-09-21:
+
+- ~~Particles are ordered differently per backend.~~ Closed on 2026-09-21: the
+  extractor makes one pass over the sorted list, so particles and clouds are
+  submitted where they stand instead of being deferred past every object. Both
+  orderings are pinned from opposite sides in
+  `src/__tests__/ParticleDrawOrderParity.test.ts`. The pixel baselines did *not*
+  move — a regenerated set came back byte-identical on 2026-09-23. That is not
+  reassurance, it is the gate's blind spot: a fixture URL skips
+  `scene.fixedUpdate` entirely (`webgl-next/main.ts:400`), so no emitter ever
+  ticks and every gated capture contains zero particles. The gate cannot see a
+  particle regression at all, which is why the parity test had to be unit-level.
+- `MAX_OMNI_LIGHTS` is 8 and the renderer clamps to it, while the performance
+  budget in `ACCEPTANCE.md` specifies a 16-omni reference workload. One of the
+  two numbers has to move.
+- `EditorWebGLPreview` sizes its canvas with `dpr = 1` from the 2D backing
+  store, so GPU picking is expected to be off by the device pixel ratio above
+  DPR 1. `ACCEPTANCE.md` claims no picking offset at mobile DPR; that claim is
+  currently unverified.
+- The GL debug range covers collision tiles, the selected object's bounds and
+  light markers. `DebugRenderer`'s `showAABB` over all objects, `showTriggers`,
+  `drawPath` and the FPS/object-count HUD remain Canvas2D-only.
 
 Exit: no severity-1 parity defects; fallback telemetry and diagnostics are
 actionable.

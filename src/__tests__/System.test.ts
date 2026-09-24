@@ -1,12 +1,12 @@
-import { describe, it, expect } from 'vitest';
-import { Scene } from '../core/Scene';
-import { System } from '../ecs/System';
-import type { Component } from '../ecs/Component';
-import type { Entity } from '../ecs/Entity';
-import { HealthComponent } from '../ecs/components/HealthComponent';
-import { Crystal } from '../elements/props/Crystal';
-import { Boulder } from '../elements/props/Boulder';
-import { Floor } from '../elements/Floor';
+import {describe, it, expect} from 'vitest';
+import {Scene} from '../core/Scene';
+import {System} from '../ecs/System';
+import type {Component} from '../ecs/Component';
+import type {Entity} from '../ecs/Entity';
+import {HealthComponent} from '../ecs/components/HealthComponent';
+import {Crystal} from '../elements/props/Crystal';
+import {Boulder} from '../elements/props/Boulder';
+import {Floor} from '../elements/Floor';
 
 class HealthSystem extends System {
   readonly query = [HealthComponent] as const;
@@ -20,11 +20,11 @@ class HealthSystem extends System {
   }
 
   update(entities: Entity[]): void {
-    this.updates.push(entities.map((entity) => entity.id));
+    this.updates.push(entities.map(entity => entity.id));
   }
 
   fixedUpdate(entities: Entity[]): void {
-    this.fixedUpdates.push(entities.map((entity) => entity.id));
+    this.fixedUpdates.push(entities.map(entity => entity.id));
   }
 
   override onAttach(): void {
@@ -67,15 +67,15 @@ describe('Scene ECS Systems', () => {
   it('matches visible entities with every queried component', () => {
     const scene = new Scene();
     const healthy = new Crystal('healthy', 1, 1);
-    healthy.addComponent(new HealthComponent({ max: 10 }));
+    healthy.addComponent(new HealthComponent({max: 10}));
     const plain = new Boulder('plain', 2, 2);
     const hidden = new Crystal('hidden', 3, 3);
-    hidden.addComponent(new HealthComponent({ max: 10 }));
+    hidden.addComponent(new HealthComponent({max: 10}));
     hidden.visible = false;
     scene.addObject(healthy);
     scene.addObject(plain);
     scene.addObject(hidden);
-    scene.addObject(new Floor({ id: 'floor', cols: 2, rows: 2 }));
+    scene.addObject(new Floor({id: 'floor', cols: 2, rows: 2}));
 
     const system = scene.addSystem(new HealthSystem());
     scene.update(1000);
@@ -90,7 +90,7 @@ describe('Scene ECS Systems', () => {
     const system = scene.addSystem(new HealthSystem());
 
     scene.update(1000);
-    entity.addComponent(new HealthComponent({ max: 10 }));
+    entity.addComponent(new HealthComponent({max: 10}));
     scene.update(1016);
     entity.removeComponent(HealthComponent);
     scene.update(1032);

@@ -1,5 +1,5 @@
-import type { RenderSnapshot } from '../contracts/RenderSnapshot';
-import { renderPointToScreen } from './cameraTransform';
+import type {RenderSnapshot} from '../contracts/RenderSnapshot';
+import {renderPointToScreen} from './cameraTransform';
 
 /** Bridges renderer-neutral text records into accessible DOM labels. */
 export class DomOverlayRenderer {
@@ -33,14 +33,14 @@ export class DomOverlayRenderer {
     }
 
     for (const [id, element] of this._elements) {
-      if (element.dataset.frame === String(frame)) continue;
+      if (element.dataset.frame === String(frame)) {continue;}
       element.remove();
       this._elements.delete(id);
     }
   }
 
   clear(): void {
-    for (const element of this._elements.values()) element.remove();
+    for (const element of this._elements.values()) {element.remove();}
     this._elements.clear();
   }
 }

@@ -1,11 +1,11 @@
-import { describe, it, expect, afterEach } from 'vitest';
-import { Engine } from '../core/Engine';
-import { Scene } from '../core/Scene';
-import { SceneSerializer } from '../core/SceneSerializer';
-import { HealthComponent } from '../ecs/components/HealthComponent';
-import { TileCollider } from '../physics/TileCollider';
-import { ArenaRun } from '../../examples/10-arpg/ArenaRun';
-import { Combatant } from '../../examples/10-arpg/Combatant';
+import {describe, it, expect, afterEach} from 'vitest';
+import {Engine} from '../core/Engine';
+import {Scene} from '../core/Scene';
+import {SceneSerializer} from '../core/SceneSerializer';
+import {HealthComponent} from '../ecs/components/HealthComponent';
+import {TileCollider} from '../physics/TileCollider';
+import {ArenaRun} from '../../examples/10-arpg/ArenaRun';
+import {Combatant} from '../../examples/10-arpg/Combatant';
 import {
   registerCombatantPersistence, unregisterCombatantPersistence, COMBATANT_TYPE,
 } from '../../examples/10-arpg/persistence';
@@ -23,12 +23,12 @@ import {
 function makeCanvas(): HTMLCanvasElement {
   return {
     width: 640, height: 480,
-    getContext: () => ({ clearRect: () => {}, save: () => {}, restore: () => {}, setTransform: () => {} }),
+    getContext: () => ({clearRect: () => {}, save: () => {}, restore: () => {}, setTransform: () => {}}),
   } as unknown as HTMLCanvasElement;
 }
 
 function arena(): Scene {
-  const scene = new Scene({ name: 'Arena', tileW: 64, tileH: 32, cols: 12, rows: 12 });
+  const scene = new Scene({name: 'Arena', tileW: 64, tileH: 32, cols: 12, rows: 12});
   scene.collider = new TileCollider(12, 12);
   return scene;
 }
@@ -55,7 +55,7 @@ describe('ARPG persistence', () => {
     });
     expect('hp' in entry).toBe(false); // undamaged
 
-    const restored = new Engine({ canvas: makeCanvas() }).buildScene(saved)
+    const restored = new Engine({canvas: makeCanvas()}).buildScene(saved)
       .getById('hero') as Combatant;
     expect(restored).toBeInstanceOf(Combatant);
     expect(restored.faction).toBe('hero');
@@ -71,17 +71,57 @@ describe('ARPG persistence', () => {
     expect(restored.color).toBe('#6fd8ff');
   });
 
+  it('round-trips the level bonuses a hero earned and a mob\'s xp payout', () => {
+    // Both fields are written only when non-zero, so a save built from an
+    // untouched hero cannot tell a working round trip from a missing one.
+    registerCombatantPersistence();
+    const scene = arena();
+    const hero = new Combatant('hero', 6, 6, {faction: 'hero', hp: 140, damage: 16});
+    hero.bonusDamage = 9;
+    scene.addObject(hero);
+    scene.addObject(new Combatant('w2-0', 3, 9, {hp: 32, damage: 6, xpValue: 20}));
+
+    const saved = SceneSerializer.toJSON(scene);
+    const props = saved.props as Array<Record<string, unknown>>;
+    const heroEntry = props.find(p => p.id === 'hero') as Record<string, unknown>;
+    const mobEntry = props.find(p => p.id === 'w2-0') as Record<string, unknown>;
+    expect(heroEntry).toMatchObject({bonusDamage: 9});
+    expect(mobEntry).toMatchObject({xpValue: 20});
+    expect('xpValue' in heroEntry).toBe(false);
+    expect('bonusDamage' in mobEntry).toBe(false);
+
+    const reloaded = new Engine({canvas: makeCanvas()}).buildScene(saved);
+    const restoredHero = reloaded.getById('hero') as Combatant;
+    const restoredMob = reloaded.getById('w2-0') as Combatant;
+    expect(restoredHero.bonusDamage).toBe(9);
+    expect(restoredHero.attackDamage).toBe(25);
+    expect(restoredMob.xpValue).toBe(20);
+  });
+
+  it('floors a negative bonusDamage from a hand-edited save', () => {
+    // A negative bonus makes `attackDamage` negative, and `takeDamage` floors
+    // that at 0 — the hero would simply stop hurting anything.
+    registerCombatantPersistence();
+    const restored = Engine.buildProps([{
+      type: COMBATANT_TYPE, id: 'hero', x: 6, y: 6,
+      faction: 'hero', health: 140, damage: 16, bonusDamage: -40,
+    }])[0] as Combatant;
+
+    expect(restored.bonusDamage).toBe(0);
+    expect(restored.attackDamage).toBe(16);
+  });
+
   it('carries a wounded fighter back at the hp it was saved with', () => {
     registerCombatantPersistence();
     const scene = arena();
-    const mob = new Combatant('w1-0', 3, 4, { hp: 40, damage: 6 });
+    const mob = new Combatant('w1-0', 3, 4, {hp: 40, damage: 6});
     mob.health.takeDamage(28);
     scene.addObject(mob);
 
     const saved = SceneSerializer.toJSON(scene);
-    expect((saved.props as Array<Record<string, unknown>>)[0]).toMatchObject({ health: 40, hp: 12 });
+    expect((saved.props as Array<Record<string, unknown>>)[0]).toMatchObject({health: 40, hp: 12});
 
-    const restored = new Engine({ canvas: makeCanvas() }).buildScene(saved)
+    const restored = new Engine({canvas: makeCanvas()}).buildScene(saved)
       .getById('w1-0') as Combatant;
     expect(restored.health.hp).toBe(12);
     expect(restored.health.maxHp).toBe(40);
@@ -93,11 +133,11 @@ describe('ARPG persistence', () => {
   it('hands the restored fighter the collider JSON cannot carry', () => {
     const collider = new TileCollider(12, 12);
     collider.setWalkable(4, 3, false);
-    registerCombatantPersistence({ collider });
+    registerCombatantPersistence({collider});
 
     const scene = arena();
-    scene.addObject(new Combatant('mob', 3, 3, { hp: 20, speed: 2 }));
-    const restored = new Engine({ canvas: makeCanvas() })
+    scene.addObject(new Combatant('mob', 3, 3, {hp: 20, speed: 2}));
+    const restored = new Engine({canvas: makeCanvas()})
       .buildScene(SceneSerializer.toJSON(scene)).getById('mob') as Combatant;
 
     // Walking east into the blocked tile is stopped by the injected collider.
@@ -108,15 +148,15 @@ describe('ARPG persistence', () => {
   it('keeps a whole wave, and only the fighters it should', () => {
     registerCombatantPersistence();
     const scene = arena();
-    scene.addObject(new Combatant('hero', 6, 6, { faction: 'hero', hp: 140 }));
+    scene.addObject(new Combatant('hero', 6, 6, {faction: 'hero', hp: 140}));
     for (let i = 0; i < 3; i++) {
-      scene.addObject(new Combatant(`w2-${i}`, 2 + i, 9, { hp: 32 }));
+      scene.addObject(new Combatant(`w2-${i}`, 2 + i, 9, {hp: 32}));
     }
 
     const saved = SceneSerializer.toJSON(scene);
     expect((saved.props as unknown[]).length).toBe(4);
 
-    const reloaded = new Engine({ canvas: makeCanvas() }).buildScene(saved);
+    const reloaded = new Engine({canvas: makeCanvas()}).buildScene(saved);
     const fighters = reloaded.getAll(Combatant);
     expect(fighters.length).toBe(4);
     expect(fighters.filter(f => f.faction === 'hero').length).toBe(1);
@@ -126,15 +166,15 @@ describe('ARPG persistence', () => {
   it('is a silent half-round-trip with only the save side registered', () => {
     // What the framework's two registries make easy to get wrong, pinned so the
     // demo notices if one call goes missing.
-    SceneSerializer.register(Combatant, () => ({ type: COMBATANT_TYPE }));
+    SceneSerializer.register(Combatant, () => ({type: COMBATANT_TYPE}));
     const scene = arena();
-    scene.addObject(new Combatant('mob', 3, 3, { hp: 20 }));
+    scene.addObject(new Combatant('mob', 3, 3, {hp: 20}));
 
     const saved = SceneSerializer.toJSON(scene);
     expect((saved.props as unknown[]).length).toBe(1);
 
     // No loader for the type: the entry is skipped with a warning, not restored.
-    const reloaded = new Engine({ canvas: makeCanvas() }).buildScene(saved);
+    const reloaded = new Engine({canvas: makeCanvas()}).buildScene(saved);
     expect(reloaded.getAll(Combatant).length).toBe(0);
   });
 });
@@ -145,20 +185,20 @@ describe('ARPG checkpoint', () => {
   /** Chase and swing, the policy a run has to be winnable under. */
   function brawler(run: ArenaRun) {
     const target = run.nearestEnemy();
-    if (!target) return {};
+    if (!target) {return {};}
     const dx = target.position.x - run.hero.position.x;
     const dy = target.position.y - run.hero.position.y;
     const distance = Math.hypot(dx, dy);
-    if (distance <= run.hero.attackRange * 0.8) return { attack: true };
-    return { x: dx / distance, y: dy / distance, attack: true };
+    if (distance <= run.hero.attackRange * 0.8) {return {attack: true};}
+    return {x: dx / distance, y: dy / distance, attack: true};
   }
 
   it('survives a full save to JSON and back, mid-run', () => {
     registerCombatantPersistence();
     const scene = arena();
     const run = new ArenaRun({
-      onSpawn: (unit) => scene.addObject(unit),
-      onDespawn: (unit) => scene.removeById(unit.id),
+      onSpawn: unit => scene.addObject(unit),
+      onDespawn: unit => scene.removeById(unit.id),
     });
     run.start();
 
@@ -177,7 +217,7 @@ describe('ARPG checkpoint', () => {
     }));
 
     // Load the way the page does: props restored without a Scene, then adopted.
-    const fighters = Engine.buildProps((save.scene as { props?: [] }).props)
+    const fighters = Engine.buildProps((save.scene as {props?: []}).props)
       .filter((object): object is Combatant => object instanceof Combatant);
     const resumed = new ArenaRun();
     expect(resumed.adopt(fighters, save.run)).toBe(true);

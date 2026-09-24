@@ -4,25 +4,25 @@
  * 每个立方体独立做正弦波运动，相邻立方体相位差形成波浪扩散效果。
  * 立方体使用半透明蓝色材质，边缘高光，内部自发光。
  */
-import { IsoObject, DrawContext } from '../../src/elements/IsoObject';
-import { AABB } from '../../src/math/depthSort';
-import { project } from '../../src/math/IsoProjection';
+import {IsoObject, DrawContext} from '../../src/elements/IsoObject';
+import {AABB} from '../../src/math/depthSort';
+import {project} from '../../src/math/IsoProjection';
 
 export interface VoxelLakeOptions {
-  cols: number;          // 湖面列数（世界单位）
-  rows: number;          // 湖面行数（世界单位）
-  voxelSize: number;     // 每个立方体边长（世界单位，如 0.25）
-  waveSpeed: number;     // 波速
-  amplitude: number;     // 最大振幅（世界单位）
-  waveLength: number;    // 波长
-  opacity: number;       // 整体透明度 0–1
+  cols: number; // 湖面列数（世界单位）
+  rows: number; // 湖面行数（世界单位）
+  voxelSize: number; // 每个立方体边长（世界单位，如 0.25）
+  waveSpeed: number; // 波速
+  amplitude: number; // 最大振幅（世界单位）
+  waveLength: number; // 波长
+  opacity: number; // 整体透明度 0–1
 }
 
 interface Voxel {
-  gx: number;   // 网格列
-  gy: number;   // 网格行
-  wx: number;   // 世界 x
-  wy: number;   // 世界 y
+  gx: number; // 网格列
+  gy: number; // 网格行
+  wx: number; // 世界 x
+  wy: number; // 世界 y
   phase: number; // 初始相位偏移
   speedJitter: number; // 速度微扰
   distFromCenter: number; // 距湖心距离（0–1）
@@ -44,13 +44,13 @@ export class VoxelLake extends IsoObject {
 
   constructor(id: string, x: number, y: number, opts: VoxelLakeOptions) {
     super(id, x, y, 0);
-    this.cols       = opts.cols;
-    this.rows       = opts.rows;
-    this.voxelSize  = opts.voxelSize;
-    this.waveSpeed  = opts.waveSpeed;
-    this.amplitude  = opts.amplitude;
+    this.cols = opts.cols;
+    this.rows = opts.rows;
+    this.voxelSize = opts.voxelSize;
+    this.waveSpeed = opts.waveSpeed;
+    this.amplitude = opts.amplitude;
     this.waveLength = opts.waveLength;
-    this.opacity    = opts.opacity;
+    this.opacity = opts.opacity;
     this.castsShadow = false;
 
     const cx = x + this.cols / 2;
@@ -91,7 +91,7 @@ export class VoxelLake extends IsoObject {
   }
 
   draw(dc: DrawContext): void {
-    const { ctx, tileW, tileH, originX, originY } = dc;
+    const {ctx, tileW, tileH, originX, originY} = dc;
     const t = this._time;
     const s = this.voxelSize;
     const halfS = s / 2;
@@ -120,7 +120,7 @@ export class VoxelLake extends IsoObject {
     wx: number, wy: number,
     wz: number,
     halfS: number, cubeH: number,
-    wave: number,
+    wave: number
   ): void {
     const op = this.opacity;
 
@@ -145,8 +145,8 @@ export class VoxelLake extends IsoObject {
 
     // 波动亮度：波峰更亮，波谷更暗
     const brightness = 0.5 + wave * 0.25;
-    const r = Math.round(20  + brightness * 40);
-    const g = Math.round(80  + brightness * 80);
+    const r = Math.round(20 + brightness * 40);
+    const g = Math.round(80 + brightness * 80);
     const b = Math.round(160 + brightness * 60);
 
     // ── 左侧面（暗） ──────────────────────────────────────────────────────
@@ -165,7 +165,8 @@ export class VoxelLake extends IsoObject {
     const tlB = project(wx - halfS, wy - halfS, zBot, tileW, tileH);
     ctx.lineTo(ox + tlB.sx, oy + tlB.sy);
     ctx.closePath();
-    ctx.fillStyle = `rgba(${Math.round(r*0.6)},${Math.round(g*0.6)},${Math.round(b*0.75)},${(op * 0.7).toFixed(2)})`;
+    const leftR = Math.round(r * 0.6), leftG = Math.round(g * 0.6), leftB = Math.round(b * 0.75);
+    ctx.fillStyle = `rgba(${leftR},${leftG},${leftB},${(op * 0.7).toFixed(2)})`;
     ctx.fill();
 
     // ── 右侧面（中亮） ────────────────────────────────────────────────────
@@ -175,7 +176,8 @@ export class VoxelLake extends IsoObject {
     ctx.lineTo(ox + brB.sx, oy + brB.sy);
     ctx.lineTo(ox + trB.sx, oy + trB.sy);
     ctx.closePath();
-    ctx.fillStyle = `rgba(${Math.round(r*0.75)},${Math.round(g*0.75)},${Math.round(b*0.85)},${(op * 0.75).toFixed(2)})`;
+    const rightR = Math.round(r * 0.75), rightG = Math.round(g * 0.75), rightB = Math.round(b * 0.85);
+    ctx.fillStyle = `rgba(${rightR},${rightG},${rightB},${(op * 0.75).toFixed(2)})`;
     ctx.fill();
 
     // ── 顶面（最亮，带高光） ──────────────────────────────────────────────

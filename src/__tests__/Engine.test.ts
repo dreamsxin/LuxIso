@@ -1,6 +1,6 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { Engine } from '../core/Engine';
-import { Scene } from '../core/Scene';
+import {describe, it, expect, vi, beforeEach, afterEach} from 'vitest';
+import {Engine} from '../core/Engine';
+import {Scene} from '../core/Scene';
 
 // Minimal canvas stub
 
@@ -33,7 +33,7 @@ function makeCanvas(): HTMLCanvasElement {
       setLineDash: vi.fn(),
       strokeRect: vi.fn(),
       fillText: vi.fn(),
-      measureText: vi.fn(() => ({ width: 0 })),
+      measureText: vi.fn(() => ({width: 0})),
       globalCompositeOperation: 'source-over',
       globalAlpha: 1,
       fillStyle: '',
@@ -49,36 +49,36 @@ function makeCanvas(): HTMLCanvasElement {
 describe('Engine - construction', () => {
   it('sets default origin to canvas centre', () => {
     const canvas = makeCanvas();
-    const engine = new Engine({ canvas });
+    const engine = new Engine({canvas});
     expect(engine.originX).toBe(320);
     expect(engine.originY).toBe(240);
   });
 
   it('exposes ctx', () => {
     const canvas = makeCanvas();
-    const engine = new Engine({ canvas });
+    const engine = new Engine({canvas});
     expect(engine.ctx).toBeDefined();
   });
 
   it('scene is null before setScene', () => {
-    const engine = new Engine({ canvas: makeCanvas() });
+    const engine = new Engine({canvas: makeCanvas()});
     expect(engine.scene).toBeNull();
   });
 });
 
 describe('Engine - buildScene', () => {
   it('returns a Scene instance', () => {
-    const engine = new Engine({ canvas: makeCanvas() });
+    const engine = new Engine({canvas: makeCanvas()});
     const scene = engine.buildScene({
       cols: 5, rows: 5,
-      floor: { id: 'f', cols: 5, rows: 5 },
+      floor: {id: 'f', cols: 5, rows: 5},
     });
     expect(scene).toBeInstanceOf(Scene);
   });
 
   it('scene has correct dimensions', () => {
-    const engine = new Engine({ canvas: makeCanvas() });
-    const scene = engine.buildScene({ cols: 8, rows: 6, tileW: 64, tileH: 32 });
+    const engine = new Engine({canvas: makeCanvas()});
+    const scene = engine.buildScene({cols: 8, rows: 6, tileW: 64, tileH: 32});
     expect(scene.cols).toBe(8);
     expect(scene.rows).toBe(6);
     expect(scene.tileW).toBe(64);
@@ -86,7 +86,7 @@ describe('Engine - buildScene', () => {
   });
 
   it('builds collider from walkable map', () => {
-    const engine = new Engine({ canvas: makeCanvas() });
+    const engine = new Engine({canvas: makeCanvas()});
     const scene = engine.buildScene({
       cols: 2, rows: 2,
       floor: {
@@ -102,8 +102,8 @@ describe('Engine - buildScene', () => {
 
 describe('Engine - setScene / scene getter', () => {
   it('setScene stores the scene', () => {
-    const engine = new Engine({ canvas: makeCanvas() });
-    const scene = new Scene({ cols: 4, rows: 4 });
+    const engine = new Engine({canvas: makeCanvas()});
+    const scene = new Scene({cols: 4, rows: 4});
     engine.setScene(scene);
     expect(engine.scene).toBe(scene);
   });
@@ -123,7 +123,7 @@ describe('Engine - start / stop', () => {
   });
 
   it('start calls requestAnimationFrame', () => {
-    const engine = new Engine({ canvas: makeCanvas() });
+    const engine = new Engine({canvas: makeCanvas()});
     engine.setScene(new Scene());
     engine.start();
     expect(requestAnimationFrame).toHaveBeenCalled();
@@ -131,7 +131,7 @@ describe('Engine - start / stop', () => {
   });
 
   it('stop calls cancelAnimationFrame', () => {
-    const engine = new Engine({ canvas: makeCanvas() });
+    const engine = new Engine({canvas: makeCanvas()});
     engine.setScene(new Scene());
     engine.start();
     engine.stop();
@@ -139,7 +139,7 @@ describe('Engine - start / stop', () => {
   });
 
   it('calling start twice does not double-register', () => {
-    const engine = new Engine({ canvas: makeCanvas() });
+    const engine = new Engine({canvas: makeCanvas()});
     engine.setScene(new Scene());
     engine.start();
     engine.start();

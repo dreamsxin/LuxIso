@@ -1,15 +1,15 @@
-import type { PickResult, RenderBackend, RenderStats } from '../contracts/RenderBackend';
+import type {PickResult, RenderBackend, RenderStats} from '../contracts/RenderBackend';
 import {
   MAX_OMNI_LIGHTS,
   RENDER_VERTEX_FLOATS,
   type RenderRange,
   type RenderSnapshot,
 } from '../contracts/RenderSnapshot';
-import { GLResourceRegistry } from '../device/GLResourceRegistry';
-import type { GLResourceCounts } from '../device/GLResourceRegistry';
-import { decodePickId } from '../extraction/GeometryBuilder';
-import { TextureRegistry } from '../resources/TextureRegistry';
-import { computeShadowMaskCacheKey } from './ShadowMaskCacheKey';
+import {GLResourceRegistry} from '../device/GLResourceRegistry';
+import type {GLResourceCounts} from '../device/GLResourceRegistry';
+import {decodePickId} from '../extraction/GeometryBuilder';
+import {TextureRegistry} from '../resources/TextureRegistry';
+import {computeShadowMaskCacheKey} from './ShadowMaskCacheKey';
 import {
   pickingFragmentShader,
   shadowCompositeFragmentShader,
@@ -95,6 +95,7 @@ export class WebGLRenderer implements RenderBackend {
     frame: 0,
     cpuMs: 0,
     drawCalls: 0,
+    pickingDrawCalls: 0,
     triangles: 0,
     vertices: 0,
     bufferBytes: 0,
@@ -118,7 +119,7 @@ export class WebGLRenderer implements RenderBackend {
   };
 
   private readonly _onContextRestored = (): void => {
-    if (this._disposed) return;
+    if (this._disposed) {return;}
     this._contextLost = false;
     this._statsValue.contextLost = false;
     this._resources = new GLResourceRegistry(this._gl);
@@ -133,7 +134,7 @@ export class WebGLRenderer implements RenderBackend {
       premultipliedAlpha: true,
       preserveDrawingBuffer: false,
     });
-    if (!context) throw new WebGLUnavailableError();
+    if (!context) {throw new WebGLUnavailableError();}
     this._gl = context;
     this._resources = new GLResourceRegistry(context);
     this._initResources();
@@ -165,7 +166,7 @@ export class WebGLRenderer implements RenderBackend {
     const height = Math.max(1, Math.round(cssHeight * this._dpr));
     this.canvas.style.width = `${cssWidth}px`;
     this.canvas.style.height = `${cssHeight}px`;
-    if (this.canvas.width === width && this.canvas.height === height) return;
+    if (this.canvas.width === width && this.canvas.height === height) {return;}
     this.canvas.width = width;
     this.canvas.height = height;
     if (!this._contextLost) {
@@ -176,7 +177,7 @@ export class WebGLRenderer implements RenderBackend {
 
   render(snapshot: RenderSnapshot): void {
     this._assertUsable();
-    if (this._contextLost) return;
+    if (this._contextLost) {return;}
     const startedAt = performance.now();
     const gl = this._gl;
     // Open the texture frame before anything resolves a URL, so this frame's
@@ -220,8 +221,10 @@ export class WebGLRenderer implements RenderBackend {
     this._lastSnapshot = snapshot;
     this._statsValue.frame = snapshot.frame;
     this._statsValue.cpuMs = performance.now() - startedAt;
-    this._statsValue.drawCalls = visualDrawCalls + pickingDrawCalls;
-    this._statsValue.triangles = geometry.vertexCount / 3;
+    this._statsValue.drawCalls = visualDrawCalls;
+    this._statsValue.pickingDrawCalls = pickingDrawCalls;
+    this._statsValue.triangles = (geometry.floor.count + geometry.opaque.count
+      + geometry.transparent.count + geometry.debug.count) / 3;
     this._statsValue.vertices = geometry.vertexCount;
     this._statsValue.bufferBytes = byteLength;
     this._statsValue.omniLights = Math.min(MAX_OMNI_LIGHTS, snapshot.omniLights.length);
@@ -232,29 +235,29 @@ export class WebGLRenderer implements RenderBackend {
   }
 
   pick(x: number, y: number): PickResult | null {
-    if (this._contextLost || !this._lastSnapshot) return null;
+    if (this._contextLost || !this._lastSnapshot) {return null;}
     const px = Math.floor(x * this._dpr);
     const py = this.canvas.height - 1 - Math.floor(y * this._dpr);
-    if (px < 0 || py < 0 || px >= this.canvas.width || py >= this.canvas.height) return null;
+    if (px < 0 || py < 0 || px >= this.canvas.width || py >= this.canvas.height) {return null;}
 
     const gl = this._gl;
     gl.bindFramebuffer(gl.FRAMEBUFFER, this._pickFramebuffer);
     gl.readPixels(px, py, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, this._pixel);
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     const pickId = decodePickId(this._pixel[0], this._pixel[1], this._pixel[2]);
-    if (pickId === 0) return null;
+    if (pickId === 0) {return null;}
     const objectId = this._lastSnapshot.pickLookup.get(pickId);
-    return objectId ? { pickId, objectId } : null;
+    return objectId ? {pickId, objectId} : null;
   }
 
   dispose(): void {
-    if (this._disposed) return;
+    if (this._disposed) {return;}
     this._disposed = true;
     this.canvas.removeEventListener('webglcontextlost', this._onContextLost);
     this.canvas.removeEventListener('webglcontextrestored', this._onContextRestored);
     this._textures.dispose();
-    if (this._contextLost) this._resources.abandon();
-    else this._resources.dispose();
+    if (this._contextLost) {this._resources.abandon();}
+    else {this._resources.dispose();}
     this._lastSnapshot = null;
   }
 
@@ -297,7 +300,7 @@ export class WebGLRenderer implements RenderBackend {
       this._gl.FLOAT,
       false,
       stride,
-      offsetFloats * Float32Array.BYTES_PER_ELEMENT,
+      offsetFloats * Float32Array.BYTES_PER_ELEMENT
     );
   }
 
@@ -335,12 +338,12 @@ export class WebGLRenderer implements RenderBackend {
 
   private _createShadowCompositeProgram(): ShadowCompositeProgramState {
     const program = this._resources.program(shadowCompositeVertexShader, shadowCompositeFragmentShader);
-    return { program, mask: this._uniform(program, 'uShadowMask') };
+    return {program, mask: this._uniform(program, 'uShadowMask')};
   }
 
   private _uniform(program: WebGLProgram, name: string): WebGLUniformLocation {
     const location = this._gl.getUniformLocation(program, name);
-    if (location === null) throw new Error(`Required shader uniform is missing: ${name}`);
+    if (location === null) {throw new Error(`Required shader uniform is missing: ${name}`);}
     return location;
   }
 
@@ -356,7 +359,7 @@ export class WebGLRenderer implements RenderBackend {
     gl.uniform1f(program.elevation, camera.elevation);
     gl.uniform1f(program.rotation, camera.rotation * Math.PI / 180);
     gl.uniform1f(program.aspect, snapshot.tileW / snapshot.tileH);
-    if (program.texture) gl.uniform1i(program.texture, 0);
+    if (program.texture) {gl.uniform1i(program.texture, 0);}
   }
 
   private _setLightUniforms(snapshot: RenderSnapshot): void {
@@ -445,13 +448,13 @@ export class WebGLRenderer implements RenderBackend {
     _program: ProgramState,
     snapshot: RenderSnapshot,
     picking: boolean,
-    range: RenderRange,
+    range: RenderRange
   ): number {
-    if (range.count <= 0) return 0;
+    if (range.count <= 0) {return 0;}
     const gl = this._gl;
     const segments = snapshot.geometry.segments.length > 0
       ? snapshot.geometry.segments
-      : [{ first: 0, count: snapshot.geometry.vertexCount, blend: 'alpha' as const }];
+      : [{first: 0, count: snapshot.geometry.vertexCount, blend: 'alpha' as const}];
     let drawCalls = 0;
     const rangeEnd = range.first + range.count;
     gl.activeTexture(gl.TEXTURE0);
@@ -459,15 +462,15 @@ export class WebGLRenderer implements RenderBackend {
       const first = Math.max(range.first, segment.first);
       const end = Math.min(rangeEnd, segment.first + segment.count);
       const count = end - first;
-      if (count <= 0) continue;
+      if (count <= 0) {continue;}
       let texture = this._textures.white;
       if (segment.textureUrl) {
         const resolved = this._textures.resolve(segment.textureUrl);
-        if (!resolved) continue;
+        if (!resolved) {continue;}
         texture = resolved;
       }
       gl.bindTexture(gl.TEXTURE_2D, texture);
-      if (!picking) this._setBlendMode(segment.blend);
+      if (!picking) {this._setBlendMode(segment.blend);}
       gl.drawArrays(gl.TRIANGLES, first, count);
       drawCalls++;
     }
@@ -478,7 +481,7 @@ export class WebGLRenderer implements RenderBackend {
     const shadows = snapshot.geometry.shadows;
     this._statsValue.shadowMaskCacheHits = 0;
     this._statsValue.shadowMaskCacheMisses = 0;
-    if (shadows.count <= 0) return 0;
+    if (shadows.count <= 0) {return 0;}
 
     const cacheKey = computeShadowMaskCacheKey(snapshot, this.canvas.width, this.canvas.height);
     let drawCalls = 0;
@@ -550,7 +553,7 @@ export class WebGLRenderer implements RenderBackend {
       gl.COLOR_ATTACHMENT0,
       gl.TEXTURE_2D,
       this._pickTexture,
-      0,
+      0
     );
     const status = gl.checkFramebufferStatus(gl.FRAMEBUFFER);
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
@@ -577,7 +580,7 @@ export class WebGLRenderer implements RenderBackend {
       gl.COLOR_ATTACHMENT0,
       gl.TEXTURE_2D,
       this._shadowMaskTexture,
-      0,
+      0
     );
     const status = gl.checkFramebufferStatus(gl.FRAMEBUFFER);
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
@@ -588,12 +591,12 @@ export class WebGLRenderer implements RenderBackend {
   }
 
   private _assertUsable(): void {
-    if (this._disposed) throw new Error('WebGLRenderer has been disposed.');
+    if (this._disposed) {throw new Error('WebGLRenderer has been disposed.');}
   }
 }
 
 function nextPowerOfTwo(value: number): number {
   let result = 1;
-  while (result < value) result *= 2;
+  while (result < value) {result *= 2;}
   return result;
 }

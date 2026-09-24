@@ -5,11 +5,11 @@
  * 装饰：内部旋转光芒 + 外圈折射光点
  * 动画：移动时上下浮动 + 方向倾斜 + 慢速自转
  */
-import { Entity } from '../../../src/ecs/Entity';
-import { DrawContext } from '../../../src/elements/IsoObject';
-import { AABB } from '../../../src/math/depthSort';
-import { project } from '../../../src/math/IsoProjection';
-import { DirectionalLight } from '../../../src/lighting/DirectionalLight';
+import {Entity} from '../../../src/ecs/Entity';
+import {DrawContext} from '../../../src/elements/IsoObject';
+import {AABB} from '../../../src/math/depthSort';
+import {project} from '../../../src/math/IsoProjection';
+import {DirectionalLight} from '../../../src/lighting/DirectionalLight';
 
 export class CubeHero extends Entity {
   velX = 0;
@@ -20,21 +20,21 @@ export class CubeHero extends Entity {
 
   /** 飞升动画进度，0=未激活，>0=飞升中 */
   private _ascendProgress = 0;
-  private _ascendActive   = false;
+  private _ascendActive = false;
   private _ascendDuration = 1.2; // 秒
-  private _descendMode    = false; // true=降落模式
-  private _descendStartZ  = 210;   // 降落起始 z（与光柱高度匹配）
+  private _descendMode = false; // true=降落模式
+  private _descendStartZ = 210; // 降落起始 z（与光柱高度匹配）
 
-  private _bobPhase   = 0;
-  private _tiltX      = 0;
-  private _tiltY      = 0;
-  private _spinAngle  = 0;
+  private _bobPhase = 0;
+  private _tiltX = 0;
+  private _tiltY = 0;
+  private _spinAngle = 0;
   private _glintAngle = 0;
-  private _lastTs     = 0;
+  private _lastTs = 0;
   private _teleportFlash = 0;
   /** 入场动画：从高空落下，0=开始，1=完成 */
   private _entryProgress = 0;
-  private _entryActive   = false;
+  private _entryActive = false;
 
   constructor(id: string, x: number, y: number) {
     super(id, x, y, 0);
@@ -48,12 +48,12 @@ export class CubeHero extends Entity {
 
   /** 触发飞升动画，返回 Promise，动画结束后 resolve */
   triggerAscend(): Promise<void> {
-    this._ascendActive   = true;
+    this._ascendActive = true;
     this._ascendProgress = 0;
     return new Promise(resolve => {
       const check = () => {
-        if (!this._ascendActive) resolve();
-        else requestAnimationFrame(check);
+        if (!this._ascendActive) {resolve();}
+        else {requestAnimationFrame(check);}
       };
       requestAnimationFrame(check);
     });
@@ -61,7 +61,7 @@ export class CubeHero extends Entity {
 
   /** 触发从高空落下的入场动画 */
   triggerEntry(): void {
-    this._entryActive   = true;
+    this._entryActive = true;
     this._entryProgress = 0;
   }
 
@@ -69,9 +69,9 @@ export class CubeHero extends Entity {
    * @param beamZ 光柱顶端的 z 值（屏幕像素），默认 210（与 Portal.beamH * scaleY 匹配）
    */
   triggerDescend(beamZ = 210): void {
-    this._entryActive   = true;
+    this._entryActive = true;
     this._entryProgress = 0;
-    this._descendMode   = true;
+    this._descendMode = true;
     this._descendStartZ = beamZ;
   }
 
@@ -105,7 +105,7 @@ export class CubeHero extends Entity {
 
     // 慢速自转 + 折射光旋转（接近传送阵时加速）
     const spinBoost = 1 + this.portalProximity * 2.5;
-    this._spinAngle  += dt * 0.6 * spinBoost;
+    this._spinAngle += dt * 0.6 * spinBoost;
     this._glintAngle += dt * 1.8 * spinBoost;
 
     if (this._teleportFlash > 0) {
@@ -118,8 +118,8 @@ export class CubeHero extends Entity {
       // easeInQuad 加速上升
       const t = this._ascendProgress;
       const ease = t * t;
-      this.position.z = ease * 280;          // 飞升高度
-      this._spinAngle += dt * (3 + t * 8);   // 加速旋转
+      this.position.z = ease * 280; // 飞升高度
+      this._spinAngle += dt * (3 + t * 8); // 加速旋转
       if (this._ascendProgress >= 1) {
         this._ascendActive = false;
       }
@@ -134,10 +134,10 @@ export class CubeHero extends Entity {
         // 降落模式：从光柱顶端匀速落下，最后轻弹
         const startZ = this._descendStartZ;
         const bounce = t < 0.85
-          ? 1 - t / 0.85                                          // 线性下落
-          : 0.08 * Math.pow(1 - (t - 0.85) / 0.15, 2);          // 落地小弹跳
+          ? 1 - t / 0.85 // 线性下落
+          : 0.08 * Math.pow(1 - (t - 0.85) / 0.15, 2); // 落地小弹跳
         this.position.z = bounce * startZ;
-        this._spinAngle += dt * (4 - t * 3);                     // 旋转逐渐减慢
+        this._spinAngle += dt * (4 - t * 3); // 旋转逐渐减慢
       } else {
         // 原有弹跳入场
         const bounce = t < 0.36 ? 1 - (1 - t / 0.36) * (1 - t / 0.36)
@@ -147,24 +147,24 @@ export class CubeHero extends Entity {
       }
 
       if (this._entryProgress >= 1) {
-        this._entryActive  = false;
-        this._descendMode  = false;
-        this.position.z    = 0;
+        this._entryActive = false;
+        this._descendMode = false;
+        this.position.z = 0;
       }
     }
   }
 
   draw(dc: DrawContext): void {
-    const { ctx, tileW, tileH, originX, originY, dirLights } = dc;
-    const { x, y, z } = this.position;
+    const {ctx, tileW, tileH, originX, originY, dirLights} = dc;
+    const {x, y, z} = this.position;
 
     // 角色当前屏幕位置（含 z 偏移）
-    const { sx, sy } = project(x, y, z, tileW, tileH);
+    const {sx, sy} = project(x, y, z, tileW, tileH);
     const cx = originX + sx;
     const cy = originY + sy;
 
     // 地面投影位置（z=0），用于正确放置阴影
-    const { sx: gsx, sy: gsy } = project(x, y, 0, tileW, tileH);
+    const {sx: gsx, sy: gsy} = project(x, y, 0, tileW, tileH);
     const gx = originX + gsx;
     const gy = originY + gsy;
 
@@ -217,7 +217,7 @@ export class CubeHero extends Entity {
     _cx: number, cy: number,
     gx: number, gy: number,
     dirLights: DirectionalLight[],
-    _tileW: number, _tileH: number,
+    _tileW: number, _tileH: number
   ): void {
     const m = ctx.getTransform();
     const zoom = m.a || 1;
@@ -261,9 +261,9 @@ export class CubeHero extends Entity {
     ctx.translate(screenX, screenY);
     ctx.scale(shadowScaleX, 0.38);
     const sg = ctx.createRadialGradient(0, 0, 0, 0, 0, r);
-    sg.addColorStop(0,   `rgba(0,0,0,${shadowAlpha.toFixed(2)})`);
+    sg.addColorStop(0, `rgba(0,0,0,${shadowAlpha.toFixed(2)})`);
     sg.addColorStop(0.5, `rgba(0,0,0,${(shadowAlpha * 0.45).toFixed(2)})`);
-    sg.addColorStop(1,   'rgba(0,0,0,0)');
+    sg.addColorStop(1, 'rgba(0,0,0,0)');
     ctx.beginPath();
     ctx.arc(0, 0, r, 0, Math.PI * 2);
     ctx.fillStyle = sg;
@@ -277,17 +277,17 @@ export class CubeHero extends Entity {
     const spin = this._spinAngle;
 
     // 钻石尺寸参数
-    const W  = 20;   // 腰部半宽
-    const HT = 22;   // 冠部高度（上半）
-    const HP = 26;   // 亭部高度（下半）
+    const W = 20; // 腰部半宽
+    const HT = 22; // 冠部高度（上半）
+    const HP = 26; // 亭部高度（下半）
     const GIRDLE = 3; // 腰棱厚度
 
     // 腰部顶点（8个，形成八边形腰棱）
     const SIDES = 8;
-    const girdle: Array<{ x: number; y: number }> = [];
+    const girdle: Array<{x: number; y: number}> = [];
     for (let i = 0; i < SIDES; i++) {
       const a = (i / SIDES) * Math.PI * 2 + spin;
-      girdle.push({ x: Math.cos(a) * W, y: Math.sin(a) * W * 0.45 });
+      girdle.push({x: Math.cos(a) * W, y: Math.sin(a) * W * 0.45});
     }
 
     // 冠顶（table facet 中心）
@@ -316,7 +316,7 @@ export class CubeHero extends Entity {
     // ── 腰棱 ──────────────────────────────────────────────────────────────
     ctx.beginPath();
     ctx.moveTo(girdle[0].x, girdle[0].y);
-    for (let i = 1; i < SIDES; i++) ctx.lineTo(girdle[i].x, girdle[i].y);
+    for (let i = 1; i < SIDES; i++) {ctx.lineTo(girdle[i].x, girdle[i].y);}
     ctx.closePath();
     ctx.fillStyle = 'rgba(180,220,255,0.25)';
     ctx.fill();
@@ -328,10 +328,10 @@ export class CubeHero extends Entity {
     // table（顶面平台）顶点
     const tableR = W * 0.52;
     const TABLE_SIDES = 8;
-    const table: Array<{ x: number; y: number }> = [];
+    const table: Array<{x: number; y: number}> = [];
     for (let i = 0; i < TABLE_SIDES; i++) {
       const a = (i / TABLE_SIDES) * Math.PI * 2 + spin + Math.PI / TABLE_SIDES;
-      table.push({ x: Math.cos(a) * tableR, y: tableY + Math.sin(a) * tableR * 0.4 });
+      table.push({x: Math.cos(a) * tableR, y: tableY + Math.sin(a) * tableR * 0.4});
     }
 
     // 冠部侧面（girdle → table 边）
@@ -359,7 +359,7 @@ export class CubeHero extends Entity {
     // table 顶面（最亮）
     ctx.beginPath();
     ctx.moveTo(table[0].x, table[0].y);
-    for (let i = 1; i < TABLE_SIDES; i++) ctx.lineTo(table[i].x, table[i].y);
+    for (let i = 1; i < TABLE_SIDES; i++) {ctx.lineTo(table[i].x, table[i].y);}
     ctx.closePath();
 
     // 顶面渐变（模拟天光反射）
@@ -414,9 +414,9 @@ export class CubeHero extends Entity {
     const auraR = 38 + Math.sin(t * 0.7) * 4;
     const auraAlpha = 0.12 + proximity * 0.18;
     const auraGrad = ctx.createRadialGradient(cx, cy - 12, 0, cx, cy - 12, auraR);
-    auraGrad.addColorStop(0,   `rgba(160,200,255,${auraAlpha.toFixed(2)})`);
+    auraGrad.addColorStop(0, `rgba(160,200,255,${auraAlpha.toFixed(2)})`);
     auraGrad.addColorStop(0.5, `rgba(180,140,255,${(auraAlpha * 0.5).toFixed(2)})`);
-    auraGrad.addColorStop(1,   'rgba(100,80,255,0)');
+    auraGrad.addColorStop(1, 'rgba(100,80,255,0)');
     ctx.beginPath();
     ctx.arc(cx, cy - 12, auraR, 0, Math.PI * 2);
     ctx.fillStyle = auraGrad;
@@ -475,10 +475,10 @@ export class CubeHero extends Entity {
   private _drawGlints(ctx: CanvasRenderingContext2D): void {
     const a = this._glintAngle;
     const glints = [
-      { r: 26, offset: 0,              size: 3.5, alpha: 0.9 },
-      { r: 22, offset: Math.PI * 0.5,  size: 2.5, alpha: 0.7 },
-      { r: 28, offset: Math.PI * 1.1,  size: 2,   alpha: 0.6 },
-      { r: 20, offset: Math.PI * 1.6,  size: 3,   alpha: 0.8 },
+      {r: 26, offset: 0, size: 3.5, alpha: 0.9},
+      {r: 22, offset: Math.PI * 0.5, size: 2.5, alpha: 0.7},
+      {r: 28, offset: Math.PI * 1.1, size: 2, alpha: 0.6},
+      {r: 20, offset: Math.PI * 1.6, size: 3, alpha: 0.8},
     ];
 
     for (const g of glints) {

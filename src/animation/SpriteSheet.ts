@@ -1,4 +1,4 @@
-import { AssetLoader } from '../core/AssetLoader';
+import {AssetLoader} from '../core/AssetLoader';
 
 export interface FrameRect {
   x: number;
@@ -45,7 +45,7 @@ export class SpriteSheet {
     this.url = opts.url;
     this.scale = opts.scale ?? 1;
     this.anchorY = opts.anchorY ?? 1;
-    this.clips = new Map(opts.clips.map((c) => [c.name, c]));
+    this.clips = new Map(opts.clips.map(c => [c.name, c]));
   }
 
   /** Preload the underlying image. */
@@ -61,7 +61,7 @@ export class SpriteSheet {
   /** Get a clip by name; throws if not found. */
   getClip(name: string): AnimationClip {
     const clip = this.clips.get(name);
-    if (!clip) throw new Error(`SpriteSheet: clip "${name}" not found`);
+    if (!clip) {throw new Error(`SpriteSheet: clip "${name}" not found`);}
     return clip;
   }
 

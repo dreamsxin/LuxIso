@@ -34,28 +34,28 @@ export class GLResourceRegistry {
 
   buffer(): WebGLBuffer {
     const resource = this._gl.createBuffer();
-    if (!resource) throw new Error('Unable to create WebGL buffer.');
+    if (!resource) {throw new Error('Unable to create WebGL buffer.');}
     this._buffers.push(resource);
     return resource;
   }
 
   vertexArray(): WebGLVertexArrayObject {
     const resource = this._gl.createVertexArray();
-    if (!resource) throw new Error('Unable to create WebGL vertex array.');
+    if (!resource) {throw new Error('Unable to create WebGL vertex array.');}
     this._vertexArrays.push(resource);
     return resource;
   }
 
   texture(): WebGLTexture {
     const resource = this._gl.createTexture();
-    if (!resource) throw new Error('Unable to create WebGL texture.');
+    if (!resource) {throw new Error('Unable to create WebGL texture.');}
     this._textures.push(resource);
     return resource;
   }
 
   framebuffer(): WebGLFramebuffer {
     const resource = this._gl.createFramebuffer();
-    if (!resource) throw new Error('Unable to create WebGL framebuffer.');
+    if (!resource) {throw new Error('Unable to create WebGL framebuffer.');}
     this._framebuffers.push(resource);
     return resource;
   }
@@ -106,18 +106,18 @@ export class GLResourceRegistry {
    */
   releaseTexture(texture: WebGLTexture): boolean {
     const index = this._textures.indexOf(texture);
-    if (index < 0) return false;
+    if (index < 0) {return false;}
     this._textures.splice(index, 1);
     this._gl.deleteTexture(texture);
     return true;
   }
 
   dispose(): void {
-    for (const resource of this._buffers) this._gl.deleteBuffer(resource);
-    for (const resource of this._vertexArrays) this._gl.deleteVertexArray(resource);
-    for (const resource of this._programs) this._gl.deleteProgram(resource);
-    for (const resource of this._textures) this._gl.deleteTexture(resource);
-    for (const resource of this._framebuffers) this._gl.deleteFramebuffer(resource);
+    for (const resource of this._buffers) {this._gl.deleteBuffer(resource);}
+    for (const resource of this._vertexArrays) {this._gl.deleteVertexArray(resource);}
+    for (const resource of this._programs) {this._gl.deleteProgram(resource);}
+    for (const resource of this._textures) {this._gl.deleteTexture(resource);}
+    for (const resource of this._framebuffers) {this._gl.deleteFramebuffer(resource);}
     this.abandon();
   }
 
@@ -132,7 +132,7 @@ export class GLResourceRegistry {
 
   private _shader(type: number, source: string): WebGLShader {
     const shader = this._gl.createShader(type);
-    if (!shader) throw new Error('Unable to create WebGL shader.');
+    if (!shader) {throw new Error('Unable to create WebGL shader.');}
     this._gl.shaderSource(shader, source);
     this._gl.compileShader(shader);
     if (!this._gl.getShaderParameter(shader, this._gl.COMPILE_STATUS)) {

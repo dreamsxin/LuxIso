@@ -1,8 +1,8 @@
-import { Entity } from '../../ecs/Entity';
-import { AABB } from '../../math/depthSort';
-import { project } from '../../math/IsoProjection';
-import { shiftColor } from '../../math/color';
-import { DrawContext } from '../IsoObject';
+import {Entity} from '../../ecs/Entity';
+import {AABB} from '../../math/depthSort';
+import {project} from '../../math/IsoProjection';
+import {shiftColor} from '../../math/color';
+import {DrawContext} from '../IsoObject';
 
 export interface FlowerPatchOptions {
   id: string;
@@ -58,7 +58,7 @@ export class FlowerPatch extends Entity {
   }
 
   draw(dc: DrawContext): void {
-    const { ctx, tileW, tileH, originX, originY } = dc;
+    const {ctx, tileW, tileH, originX, originY} = dc;
     const projected = project(this.position.x, this.position.y, 0, tileW, tileH);
     const centerX = originX + projected.sx;
     const centerY = originY + projected.sy;
@@ -80,7 +80,10 @@ export class FlowerPatch extends Entity {
 
       ctx.fillStyle = '#70a95a';
       ctx.beginPath();
-      ctx.ellipse(x - 2.2 * flower.scale, baseY - stemHeight * 0.38, 2.5 * flower.scale, 1.1 * flower.scale, -0.45, 0, Math.PI * 2);
+      ctx.ellipse(
+        x - 2.2 * flower.scale, baseY - stemHeight * 0.38,
+        2.5 * flower.scale, 1.1 * flower.scale, -0.45, 0, Math.PI * 2
+      );
       ctx.fill();
 
       for (let petal = 0; petal < 5; petal++) {
@@ -104,7 +107,7 @@ function buildFlowerOffsets(count: number, seed: number): FlowerOffset[] {
     state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
     return state / 0x100000000;
   };
-  return Array.from({ length: count }, (_, index) => ({
+  return Array.from({length: count}, (_, index) => ({
     x: random() * 1.1 - 0.55,
     y: random() * 0.7 - 0.35,
     scale: 0.72 + random() * 0.45,

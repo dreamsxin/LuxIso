@@ -1,7 +1,7 @@
-import { describe, it, expect } from 'vitest';
-import { Cloud } from '../elements/props/Cloud';
-import { project } from '../math/IsoProjection';
-import { createDrawContext } from './helpers/canvas';
+import {describe, it, expect} from 'vitest';
+import {Cloud} from '../elements/props/Cloud';
+import {project} from '../math/IsoProjection';
+import {createDrawContext} from './helpers/canvas';
 
 /**
  * `Cloud` was the least-covered element after `Boulder` and `Chest` — 18% of its
@@ -13,20 +13,20 @@ import { createDrawContext } from './helpers/canvas';
 
 describe('Cloud — drift', () => {
   it('reports nothing on the first frame', () => {
-    const cloud = new Cloud({ id: 'c', x: 2, y: 3, speed: 1 });
+    const cloud = new Cloud({id: 'c', x: 2, y: 3, speed: 1});
     cloud.update(1000);
     expect(cloud.position.x).toBe(2);
     expect(cloud.position.y).toBe(3);
   });
 
   it('drifts along its angle', () => {
-    const cloud = new Cloud({ id: 'c', x: 0, y: 0, speed: 2, angle: 0 });
+    const cloud = new Cloud({id: 'c', x: 0, y: 0, speed: 2, angle: 0});
     cloud.update(1000);
-    cloud.update(1050);   // 50 ms
+    cloud.update(1050); // 50 ms
     expect(cloud.position.x).toBeCloseTo(0.1);
     expect(cloud.position.y).toBeCloseTo(0);
 
-    const diagonal = new Cloud({ id: 'd', x: 0, y: 0, speed: 2, angle: Math.PI / 2 });
+    const diagonal = new Cloud({id: 'd', x: 0, y: 0, speed: 2, angle: Math.PI / 2});
     diagonal.update(0);
     diagonal.update(50);
     expect(diagonal.position.x).toBeCloseTo(0);
@@ -36,7 +36,7 @@ describe('Cloud — drift', () => {
   it('drifts after a first frame at timestamp 0', () => {
     // `Engine` starts its clock at 0, and 0 used to double as "not started",
     // leaving the sentinel armed forever: the cloud stood still for the whole run.
-    const cloud = new Cloud({ id: 'c', x: 0, y: 0, speed: 2 });
+    const cloud = new Cloud({id: 'c', x: 0, y: 0, speed: 2});
     cloud.update(0);
     cloud.update(50);
     cloud.update(100);
@@ -44,14 +44,14 @@ describe('Cloud — drift', () => {
   });
 
   it('clamps a long gap instead of teleporting', () => {
-    const cloud = new Cloud({ id: 'c', x: 0, y: 0, speed: 2 });
+    const cloud = new Cloud({id: 'c', x: 0, y: 0, speed: 2});
     cloud.update(0);
-    cloud.update(5000);            // 5 s while the tab was hidden
-    expect(cloud.position.x).toBeCloseTo(0.2);   // clamped to 100 ms
+    cloud.update(5000); // 5 s while the tab was hidden
+    expect(cloud.position.x).toBeCloseTo(0.2); // clamped to 100 ms
   });
 
   it('never drifts backwards when the clock does', () => {
-    const cloud = new Cloud({ id: 'c', x: 5, y: 5, speed: 2 });
+    const cloud = new Cloud({id: 'c', x: 5, y: 5, speed: 2});
     cloud.update(1000);
     cloud.update(500);
     expect(cloud.position.x).toBe(5);
@@ -63,25 +63,25 @@ describe('Cloud — drift', () => {
   });
 
   it('wraps around every edge of the scene', () => {
-    const east = new Cloud({ id: 'e', x: 14.1, y: 5, speed: 0 });
+    const east = new Cloud({id: 'e', x: 14.1, y: 5, speed: 0});
     east.boundsX = 12;
     east.update(0);
     east.update(16);
     expect(east.position.x).toBe(-2);
 
-    const west = new Cloud({ id: 'w', x: -2.1, y: 5, speed: 0 });
+    const west = new Cloud({id: 'w', x: -2.1, y: 5, speed: 0});
     west.boundsX = 12;
     west.update(0);
     west.update(16);
     expect(west.position.x).toBe(14);
 
-    const south = new Cloud({ id: 's', x: 5, y: 14.1, speed: 0 });
+    const south = new Cloud({id: 's', x: 5, y: 14.1, speed: 0});
     south.boundsY = 12;
     south.update(0);
     south.update(16);
     expect(south.position.y).toBe(-2);
 
-    const north = new Cloud({ id: 'n', x: 5, y: -2.1, speed: 0 });
+    const north = new Cloud({id: 'n', x: 5, y: -2.1, speed: 0});
     north.boundsY = 12;
     north.update(0);
     north.update(16);
@@ -91,13 +91,13 @@ describe('Cloud — drift', () => {
 
 describe('Cloud — geometry', () => {
   it('keeps altitude in screen pixels, and reports it back in world units', () => {
-    const cloud = new Cloud({ id: 'c', x: 1, y: 1, altitude: 6 });
+    const cloud = new Cloud({id: 'c', x: 1, y: 1, altitude: 6});
     expect(cloud.position.z).toBe(192);
     expect(cloud.altitude).toBe(6);
   });
 
   it('sizes its AABB from the scale, above its own altitude', () => {
-    const cloud = new Cloud({ id: 'c', x: 4, y: 4, altitude: 5, scale: 2 });
+    const cloud = new Cloud({id: 'c', x: 4, y: 4, altitude: 5, scale: 2});
     const box = cloud.aabb;
     expect(box.minX).toBeCloseTo(4 - 2.4);
     expect(box.maxX).toBeCloseTo(4 + 2.4);
@@ -108,8 +108,8 @@ describe('Cloud — geometry', () => {
 
 describe('Cloud — draw', () => {
   it('drops its shadow on the ground, not under the body', () => {
-    const cloud = new Cloud({ id: 'c', x: 3, y: 2, altitude: 6 });
-    const dc = createDrawContext({ originX: 100, originY: 50 });
+    const cloud = new Cloud({id: 'c', x: 3, y: 2, altitude: 6});
+    const dc = createDrawContext({originX: 100, originY: 50});
     cloud.draw(dc);
 
     const ground = project(3, 2, 0, 64, 32);
@@ -124,9 +124,9 @@ describe('Cloud — draw', () => {
 
   it('scales the shadow with the cloud', () => {
     const small = createDrawContext();
-    new Cloud({ id: 'a', x: 1, y: 1, scale: 1 }).draw(small);
+    new Cloud({id: 'a', x: 1, y: 1, scale: 1}).draw(small);
     const big = createDrawContext();
-    new Cloud({ id: 'b', x: 1, y: 1, scale: 2 }).draw(big);
+    new Cloud({id: 'b', x: 1, y: 1, scale: 2}).draw(big);
 
     const [[, , rxSmall, rySmall]] = small.recorder.argsOf('ellipse');
     const [[, , rxBig, ryBig]] = big.recorder.argsOf('ellipse');
@@ -136,11 +136,11 @@ describe('Cloud — draw', () => {
 
   it('is deterministic for a given seed, and differs between seeds', () => {
     const first = createDrawContext();
-    new Cloud({ id: 'a', x: 1, y: 1, seed: 0.42 }).draw(first);
+    new Cloud({id: 'a', x: 1, y: 1, seed: 0.42}).draw(first);
     const again = createDrawContext();
-    new Cloud({ id: 'b', x: 1, y: 1, seed: 0.42 }).draw(again);
+    new Cloud({id: 'b', x: 1, y: 1, seed: 0.42}).draw(again);
     const other = createDrawContext();
-    new Cloud({ id: 'c', x: 1, y: 1, seed: 0.91 }).draw(other);
+    new Cloud({id: 'c', x: 1, y: 1, seed: 0.91}).draw(other);
 
     expect(again.recorder.argsOf('lineTo')).toEqual(first.recorder.argsOf('lineTo'));
     expect(other.recorder.argsOf('lineTo')).not.toEqual(first.recorder.argsOf('lineTo'));
@@ -148,7 +148,7 @@ describe('Cloud — draw', () => {
 
   it('hands the canvas back at full opacity', () => {
     const dc = createDrawContext();
-    new Cloud({ id: 'c', x: 1, y: 1 }).draw(dc);
+    new Cloud({id: 'c', x: 1, y: 1}).draw(dc);
     const alphas = dc.recorder.valuesOf('globalAlpha');
     expect(alphas.length).toBeGreaterThan(1);
     expect(alphas[alphas.length - 1]).toBe(1);

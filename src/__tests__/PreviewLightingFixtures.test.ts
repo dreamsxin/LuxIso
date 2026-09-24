@@ -1,8 +1,8 @@
-import { describe, expect, it } from 'vitest';
-import { Scene } from '../core/Scene';
-import { DirectionalLight } from '../lighting/DirectionalLight';
-import { OmniLight } from '../lighting/OmniLight';
-import { SceneExtractor } from '../../webgl-next/src/extraction/SceneExtractor';
+import {describe, expect, it} from 'vitest';
+import {Scene} from '../core/Scene';
+import {DirectionalLight} from '../lighting/DirectionalLight';
+import {OmniLight} from '../lighting/OmniLight';
+import {SceneExtractor} from '../../webgl-next/src/extraction/SceneExtractor';
 import {
   applyPreviewLightingFixture,
   DEFAULT_PREVIEW_LIGHTING_FIXTURE_ID,
@@ -14,10 +14,10 @@ import {
 
 describe('WebGL preview lighting fixtures', () => {
   it('defines the complete deterministic camera and light coverage matrix', () => {
-    const ids = PREVIEW_LIGHTING_FIXTURES.map((fixture) => fixture.id);
+    const ids = PREVIEW_LIGHTING_FIXTURES.map(fixture => fixture.id);
     const rotations = PREVIEW_LIGHTING_FIXTURES
-      .filter((fixture) => fixture.id.startsWith('day-'))
-      .map((fixture) => fixture.view.rotation);
+      .filter(fixture => fixture.id.startsWith('day-'))
+      .map(fixture => fixture.view.rotation);
 
     expect(new Set(ids).size).toBe(ids.length);
     expect(rotations).toEqual([0, 90, 180, 270]);
@@ -74,26 +74,26 @@ describe('WebGL preview lighting fixtures', () => {
   it('fails clearly when a fixture light is absent or has the wrong type', () => {
     const missing = new Scene();
     expect(() => applyPreviewLightingFixture(missing, 'day-ne')).toThrow(
-      'WebGL preview fixture requires DirectionalLight #sun.',
+      'WebGL preview fixture requires DirectionalLight #sun.'
     );
 
-    missing.addLight(new OmniLight({ id: 'sun', x: 0, y: 0, z: 0 }));
+    missing.addLight(new OmniLight({id: 'sun', x: 0, y: 0, z: 0}));
     expect(() => applyPreviewLightingFixture(missing, 'day-ne')).toThrow(
-      'WebGL preview fixture requires DirectionalLight #sun.',
+      'WebGL preview fixture requires DirectionalLight #sun.'
     );
     expect(() => applyPreviewLightingFixture(fixtureScene(), 'unknown')).toThrow(
-      'Unknown WebGL preview fixture: unknown.',
+      'Unknown WebGL preview fixture: unknown.'
     );
   });
 });
 
 function fixtureScene(): Scene {
-  const scene = new Scene({ cols: 12, rows: 10, tileW: 64, tileH: 32 });
-  scene.addLight(new DirectionalLight({ id: 'sun' }));
-  scene.addLight(new OmniLight({ id: 'work-light', x: -1, y: -1, z: -1 }));
-  scene.addLight(new OmniLight({ id: 'lantern-west-light', x: -1, y: -1, z: -1 }));
-  scene.addLight(new OmniLight({ id: 'lantern-east-light', x: -1, y: -1, z: -1 }));
-  scene.addLight(new OmniLight({ id: 'sky-fill', x: -1, y: -1, z: -1 }));
+  const scene = new Scene({cols: 12, rows: 10, tileW: 64, tileH: 32});
+  scene.addLight(new DirectionalLight({id: 'sun'}));
+  scene.addLight(new OmniLight({id: 'work-light', x: -1, y: -1, z: -1}));
+  scene.addLight(new OmniLight({id: 'lantern-west-light', x: -1, y: -1, z: -1}));
+  scene.addLight(new OmniLight({id: 'lantern-east-light', x: -1, y: -1, z: -1}));
+  scene.addLight(new OmniLight({id: 'sky-fill', x: -1, y: -1, z: -1}));
   return scene;
 }
 
@@ -113,7 +113,7 @@ function expectOmniState(scene: Scene, expected: PreviewOmniLightFixture): void 
   expect(light).toBeInstanceOf(OmniLight);
   const omni = light as OmniLight;
   expect(omni.enabled).toBe(expected.enabled);
-  expect(omni.position).toEqual({ x: expected.x, y: expected.y, z: expected.z });
+  expect(omni.position).toEqual({x: expected.x, y: expected.y, z: expected.z});
   expect(omni.radius).toBe(expected.radius);
   expect(omni.color).toBe(expected.color);
   expect(omni.intensity).toBe(expected.intensity);
@@ -126,5 +126,5 @@ function radiansToDegrees(value: number): number {
 }
 
 function viewport() {
-  return { viewportWidth: 800, viewportHeight: 600, originX: 400, originY: 120 };
+  return {viewportWidth: 800, viewportHeight: 600, originX: 400, originY: 120};
 }

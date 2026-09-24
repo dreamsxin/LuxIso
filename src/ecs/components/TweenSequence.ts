@@ -10,9 +10,9 @@
  *     { targets: [{ prop: 'z', from: 48, to: 0 }], duration: 0.5, easing: Easing.bounce },
  *   ], { repeat: -1 }));
  */
-import { IsoObject } from '../../elements/IsoObject';
-import { Component } from '../Component';
-import { TweenComponent, TweenOptions } from './TweenComponent';
+import {IsoObject} from '../../elements/IsoObject';
+import {Component} from '../Component';
+import {TweenComponent, TweenOptions} from './TweenComponent';
 
 export interface TweenSequenceOptions {
   /** Number of times to repeat the full sequence. -1 = infinite. Default 0 (once). */
@@ -24,17 +24,17 @@ export interface TweenSequenceOptions {
 export class TweenSequence implements Component {
   readonly componentType = 'tweenSequence' as const;
 
-  private _steps:    TweenOptions[];
-  private _opts:     TweenSequenceOptions;
-  private _owner:    IsoObject | null = null;
-  private _current:  TweenComponent | null = null;
-  private _stepIdx   = 0;
+  private _steps: TweenOptions[];
+  private _opts: TweenSequenceOptions;
+  private _owner: IsoObject | null = null;
+  private _current: TweenComponent | null = null;
+  private _stepIdx = 0;
   private _iteration = 0;
-  private _done      = false;
+  private _done = false;
 
   constructor(steps: TweenOptions[], opts: TweenSequenceOptions = {}) {
     this._steps = steps;
-    this._opts  = opts;
+    this._opts = opts;
   }
 
   onAttach(owner: IsoObject): void {
@@ -43,15 +43,15 @@ export class TweenSequence implements Component {
   }
 
   onDetach(): void {
-    this._owner   = null;
+    this._owner = null;
     this._current = null;
   }
 
-  get isDone():    boolean { return this._done; }
-  get stepIndex(): number  { return this._stepIdx; }
+  get isDone(): boolean { return this._done; }
+  get stepIndex(): number { return this._stepIdx; }
 
   update(ts?: number): void {
-    if (!this._owner || !this._current || this._done) return;
+    if (!this._owner || !this._current || this._done) {return;}
     this._current.update(ts);
 
     if (this._current.isDone) {
@@ -67,7 +67,7 @@ export class TweenSequence implements Component {
         if (this._iteration < maxIter) {
           this._startStep(0);
         } else {
-          this._done    = true;
+          this._done = true;
           this._current = null;
         }
       }

@@ -1,7 +1,7 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { Minimap } from '../core/Minimap';
-import { Scene } from '../core/Scene';
-import { Character } from '../elements/Character';
+import {describe, it, expect, beforeEach, vi} from 'vitest';
+import {Minimap} from '../core/Minimap';
+import {Scene} from '../core/Scene';
+import {Character} from '../elements/Character';
 
 // Mock OffscreenCanvas if not available in the test environment
 if (typeof OffscreenCanvas === 'undefined') {
@@ -35,15 +35,15 @@ describe('Minimap', () => {
   let minimap: Minimap;
 
   beforeEach(() => {
-    scene = new Scene({ cols: 10, rows: 10 });
-    minimap = new Minimap(scene, { cols: 10, rows: 10 });
+    scene = new Scene({cols: 10, rows: 10});
+    minimap = new Minimap(scene, {cols: 10, rows: 10});
   });
 
   it('can be initialized with style', () => {
     const customMinimap = new Minimap(scene, {
       cols: 5,
       rows: 5,
-      style: { bg: '#ff0000', alpha: 0.5 }
+      style: {bg: '#ff0000', alpha: 0.5},
     });
     expect(customMinimap.alpha).toBe(0.5);
   });
@@ -66,7 +66,7 @@ describe('Minimap', () => {
     } as unknown as CanvasRenderingContext2D;
 
     // Add a character to the scene to be drawn on minimap
-    const char = new Character({ id: 'player', x: 2, y: 3 });
+    const char = new Character({id: 'player', x: 2, y: 3});
     scene.addObject(char);
 
     minimap.draw(mockCtx, 0, 0, 100, 100);

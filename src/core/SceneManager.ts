@@ -29,10 +29,10 @@
  *   // Resume:
  *   await mgr.pop();
  */
-import { Engine } from './Engine';
-import { Scene } from './Scene';
-import { InputManager } from './InputManager';
-import { AssetLoader } from './AssetLoader';
+import {Engine} from './Engine';
+import {Scene} from './Scene';
+import {InputManager} from './InputManager';
+import {AssetLoader} from './AssetLoader';
 
 export interface ManagedScene {
   scene: Scene;
@@ -44,7 +44,7 @@ export interface ManagedScene {
   /** Called when this scene becomes the active (top) scene. */
   onEnter?(): void | Promise<void>;
   /** Called when this scene is removed from the stack. */
-  onExit?():  void | Promise<void>;
+  onExit?(): void | Promise<void>;
   /** Called when another scene is pushed on top of this one. */
   onPause?(): void | Promise<void>;
   /** Called when the scene above this one is popped. */
@@ -75,10 +75,10 @@ export interface ManagedScene {
 type SceneFactory = () => Promise<ManagedScene> | ManagedScene;
 
 export class SceneManager {
-  private _engine:    Engine;
-  private _registry   = new Map<string, SceneFactory>();
-  private _stack:     Array<{ name: string; managed: ManagedScene }> = [];
-  private _loading    = false;
+  private _engine: Engine;
+  private _registry = new Map<string, SceneFactory>();
+  private _stack: Array<{name: string; managed: ManagedScene}> = [];
+  private _loading = false;
 
   constructor(engine: Engine) {
     this._engine = engine;
@@ -121,7 +121,7 @@ export class SceneManager {
    */
   update(dt: number, input: InputManager): void {
     const managed = this.currentManaged;
-    if (managed?.onUpdate) managed.onUpdate(dt, input);
+    if (managed?.onUpdate) {managed.onUpdate(dt, input);}
   }
 
   /**
@@ -135,7 +135,7 @@ export class SceneManager {
    * diagnose from the symptom.
    */
   async push(name: string): Promise<void> {
-    if (this._loading) return;
+    if (this._loading) {return;}
     this._loading = true;
     const previous = this._stack[this._stack.length - 1];
     let paused = false;
@@ -149,12 +149,12 @@ export class SceneManager {
 
       const managed = await this._build(name);
       built = managed;
-      this._stack.push({ name, managed });
+      this._stack.push({name, managed});
       pushed = true;
       this._engine.setScene(managed.scene);
-      if (managed.onEnter) await managed.onEnter();
+      if (managed.onEnter) {await managed.onEnter();}
     } catch (err) {
-      if (pushed) this._stack.pop();
+      if (pushed) {this._stack.pop();}
       // The factory already ran, so the failed scene may be holding textures.
       // `ManagedScene.assetLoader` promises they are released after the scene
       // leaves, and the rollback path was the one place that forgot: a retry
@@ -162,7 +162,7 @@ export class SceneManager {
       built?.assetLoader?.clear();
       if (previous) {
         this._engine.setScene(previous.managed.scene);
-        if (paused && previous.managed.onResume) await previous.managed.onResume();
+        if (paused && previous.managed.onResume) {await previous.managed.onResume();}
       }
       throw err;
     } finally {
@@ -182,12 +182,12 @@ export class SceneManager {
    * close to impossible to diagnose from the symptom. The error still propagates.
    */
   async pop(): Promise<void> {
-    if (this._loading || this._stack.length === 0) return;
+    if (this._loading || this._stack.length === 0) {return;}
     this._loading = true;
     try {
       const top = this._stack.pop()!;
       try {
-        if (top.managed.onExit) await top.managed.onExit();
+        if (top.managed.onExit) {await top.managed.onExit();}
       } finally {
         // The scene is already off the stack, so this is the last chance to
         // release its assets — a throwing onExit must not turn into a leak.
@@ -196,7 +196,7 @@ export class SceneManager {
         const newTop = this._stack[this._stack.length - 1];
         if (newTop) {
           this._engine.setScene(newTop.managed.scene);
-          if (newTop.managed.onResume) await newTop.managed.onResume();
+          if (newTop.managed.onResume) {await newTop.managed.onResume();}
         } else {
           this._engine.setScene(new Scene());
         }
@@ -220,22 +220,22 @@ export class SceneManager {
    * same guarantee.
    */
   async replace(name: string): Promise<void> {
-    if (this._loading) return;
+    if (this._loading) {return;}
     this._loading = true;
     try {
       // Nothing is disturbed if this throws.
       const managed = await this._build(name);
       const outgoing = this._stack;
-      this._stack = [{ name, managed }];
+      this._stack = [{name, managed}];
       this._engine.setScene(managed.scene);
 
       try {
-        if (managed.onEnter) await managed.onEnter();
+        if (managed.onEnter) {await managed.onEnter();}
       } catch (err) {
         // The outgoing scenes have not been exited yet, so this is recoverable.
         this._stack = outgoing;
         const previous = outgoing[outgoing.length - 1];
-        if (previous) this._engine.setScene(previous.managed.scene);
+        if (previous) {this._engine.setScene(previous.managed.scene);}
         throw err;
       }
 
@@ -243,7 +243,7 @@ export class SceneManager {
       for (let i = outgoing.length - 1; i >= 0; i--) {
         const old = outgoing[i].managed;
         try {
-          if (old.onExit) await old.onExit();
+          if (old.onExit) {await old.onExit();}
         } finally {
           old.assetLoader?.clear();
         }
@@ -266,7 +266,7 @@ export class SceneManager {
 
   private async _build(name: string): Promise<ManagedScene> {
     const factory = this._registry.get(name);
-    if (!factory) throw new Error(`SceneManager: scene "${name}" is not registered`);
+    if (!factory) {throw new Error(`SceneManager: scene "${name}" is not registered`);}
     return factory();
   }
 }

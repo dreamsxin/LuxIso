@@ -1,11 +1,11 @@
-import type { RenderSnapshot } from '../contracts/RenderSnapshot';
+import type {RenderSnapshot} from '../contracts/RenderSnapshot';
 
 export class MinimapRenderer {
   private readonly _context: CanvasRenderingContext2D;
 
   constructor(private readonly _canvas: HTMLCanvasElement) {
     const context = _canvas.getContext('2d');
-    if (!context) throw new Error('Canvas 2D is required for the minimap overlay.');
+    if (!context) {throw new Error('Canvas 2D is required for the minimap overlay.');}
     this._context = context;
   }
 
@@ -14,7 +14,7 @@ export class MinimapRenderer {
     const rect = this._canvas.getBoundingClientRect();
     // Nothing has laid the canvas out yet: a zero-size rect used to produce a
     // 1x1 backing store and a full frame of drawing commands nobody could see.
-    if (rect.width <= 0 || rect.height <= 0) return;
+    if (rect.width <= 0 || rect.height <= 0) {return;}
     const dpr = typeof window === 'undefined'
       ? 1
       : Math.max(1, Math.min(3, window.devicePixelRatio || 1));

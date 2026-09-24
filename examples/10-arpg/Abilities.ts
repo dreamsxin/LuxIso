@@ -36,7 +36,7 @@ export class AbilityBook {
    * costs more because it answers the arena's real threat — the boss outreaches
    * the hero, so closing distance on demand is worth more than the damage is.
    */
-  static readonly COOLDOWNS: AbilityCooldowns = { cleave: 3.5, dash: 5 };
+  static readonly COOLDOWNS: AbilityCooldowns = {cleave: 3.5, dash: 5};
 
   private readonly _cooldowns: AbilityCooldowns;
   private readonly _remaining: Record<AbilityId, number>;
@@ -46,7 +46,7 @@ export class AbilityBook {
       cleave: Math.max(0, cooldowns.cleave ?? AbilityBook.COOLDOWNS.cleave),
       dash: Math.max(0, cooldowns.dash ?? AbilityBook.COOLDOWNS.dash),
     };
-    this._remaining = { cleave: 0, dash: 0 };
+    this._remaining = {cleave: 0, dash: 0};
   }
 
   /** Every ability this book knows, in a stable order for a HUD to lay out. */
@@ -67,7 +67,7 @@ export class AbilityBook {
    */
   fraction(id: AbilityId): number {
     const total = this._cooldowns[id];
-    if (total <= 0) return 0;
+    if (total <= 0) {return 0;}
     return Math.min(1, this._remaining[id] / total);
   }
 
@@ -77,7 +77,7 @@ export class AbilityBook {
    * follow, so a first frame or a resumed tab cannot hand out a free cast.
    */
   tick(dt: number): void {
-    if (!Number.isFinite(dt) || dt <= 0) return;
+    if (!Number.isFinite(dt) || dt <= 0) {return;}
     for (const id of this.ids) {
       this._remaining[id] = Math.max(0, this._remaining[id] - dt);
     }
@@ -89,18 +89,18 @@ export class AbilityBook {
    * @returns false if it was not ready, in which case nothing changed.
    */
   use(id: AbilityId): boolean {
-    if (!this.ready(id)) return false;
+    if (!this.ready(id)) {return false;}
     this._remaining[id] = this._cooldowns[id];
     return true;
   }
 
   /** Clear every timer — a fresh run starts with everything available. */
   reset(): void {
-    for (const id of this.ids) this._remaining[id] = 0;
+    for (const id of this.ids) {this._remaining[id] = 0;}
   }
 
   snapshot(): AbilityBookSnapshot {
-    return { remaining: { cleave: this._remaining.cleave, dash: this._remaining.dash } };
+    return {remaining: {cleave: this._remaining.cleave, dash: this._remaining.dash}};
   }
 
   /**

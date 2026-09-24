@@ -1,7 +1,7 @@
-import type { IsoObject } from '../../../src/elements/IsoObject';
-import type { DirectionalLight } from '../../../src/lighting/DirectionalLight';
-import type { OmniLight } from '../../../src/lighting/OmniLight';
-import type { AABB } from '../../../src/math/depthSort';
+import type {IsoObject} from '../../../src/elements/IsoObject';
+import type {DirectionalLight} from '../../../src/lighting/DirectionalLight';
+import type {OmniLight} from '../../../src/lighting/OmniLight';
+import type {AABB} from '../../../src/math/depthSort';
 import {
   projectDirectionalShadow,
   projectOmniShadow,
@@ -64,7 +64,7 @@ interface CacheEntry<TLightState> {
 export class ShadowProjectionCache {
   private _omni = new WeakMap<IsoObject, WeakMap<OmniLight, CacheEntry<OmniState>>>();
   private _directional = new WeakMap<IsoObject, WeakMap<DirectionalLight, CacheEntry<DirectionalState>>>();
-  private readonly _stats: MutableShadowCacheStats = { hits: 0, misses: 0 };
+  private readonly _stats: MutableShadowCacheStats = {hits: 0, misses: 0};
 
   get stats(): ShadowCacheStats {
     return this._stats;
@@ -86,7 +86,7 @@ export class ShadowProjectionCache {
     object: IsoObject,
     light: OmniLight,
     tileW: number,
-    tileH: number,
+    tileH: number
   ): ProjectedShadow | null {
     const bounds = object.aabb;
     let lightEntries = this._omni.get(object);
@@ -116,7 +116,7 @@ export class ShadowProjectionCache {
     object: IsoObject,
     light: DirectionalLight,
     tileW: number,
-    tileH: number,
+    tileH: number
   ): ProjectedShadow | null {
     const bounds = object.aabb;
     let lightEntries = this._directional.get(object);
@@ -147,7 +147,7 @@ function captureObject(
   object: IsoObject,
   bounds: AABB,
   tileW: number,
-  tileH: number,
+  tileH: number
 ): ObjectState {
   return {
     minX: bounds.minX,
@@ -170,7 +170,7 @@ function sameObject(
   object: IsoObject,
   bounds: AABB,
   tileW: number,
-  tileH: number,
+  tileH: number
 ): boolean {
   return state.minX === bounds.minX &&
     state.minY === bounds.minY &&
