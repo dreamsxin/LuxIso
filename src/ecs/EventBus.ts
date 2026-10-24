@@ -30,6 +30,25 @@ export interface EventEmitter<Events extends object> {
 }
 
 /**
+ * A scoped group of subscriptions released together.
+ *
+ * The typical lifecycle is a scene that subscribes in `onEnter` and releases in
+ * `onExit` — without a bag, every subscription has to be kept around to `off`
+ * by hand, and the one that is forgotten keeps firing with a closure over the
+ * dead scene. Also usable for any "listen while X holds" span.
+ */
+export interface EventSubscriptionBag<Events extends object> {
+  /** Subscribe through the parent bus; the subscription joins the bag. */
+  on<K extends EventKey<Events>>(event: K, handler: Handler<Events[K]>): () => void;
+  /** `once` through the parent bus; the subscription joins the bag. */
+  once<K extends EventKey<Events>>(event: K, handler: Handler<Events[K]>): () => void;
+  /** Unsubscribe everything the bag has collected. Idempotent. */
+  release(): void;
+  /** Subscriptions still held. A `once` that has fired counts until release. */
+  readonly size: number;
+}
+
+/**
  * Event bus whose event names and payloads are coupled by an event map.
  * Omit the generic argument for an open bus that accepts arbitrary strings.
  */
@@ -88,6 +107,39 @@ export class EventBus<Events extends object = OpenEventMap> implements EventEmit
   /** Number of handlers registered for a given event. */
   listenerCount(event: EventKey<Events>): number {
     return this._handlers.get(event)?.size ?? 0;
+  }
+
+  /**
+   * Create a subscription bag: a scope whose subscriptions release together.
+   *
+   *   const bag = bus.bag();
+   *   bag.on('damage', handler);
+   *   bag.release();               // everything unsubscribes, idempotent
+   *
+   * Subscribing on a released bag is not an error, but the handler unsubscribes
+   * immediately and never fires — a closed bag stays closed. The individual
+   * handle returned by `bag.on` still works for early removal.
+   */
+  bag(): EventSubscriptionBag<Events> {
+    const subs: Array<() => void> = [];
+    let released = false;
+    const track = (unsub: () => void): () => void => {
+      if (released) {
+        unsub();
+        return unsub;
+      }
+      subs.push(unsub);
+      return unsub;
+    };
+    return {
+      on: (event, handler) => track(this.on(event, handler)),
+      once: (event, handler) => track(this.once(event, handler)),
+      release: () => {
+        released = true;
+        for (const unsub of subs.splice(0)) {unsub();}
+      },
+      get size() {return subs.length;},
+    };
   }
 }
 

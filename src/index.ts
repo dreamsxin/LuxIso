@@ -7,6 +7,7 @@ export {SceneRenderer} from './core/SceneRenderer';
 export {SceneSerializer} from './core/SceneSerializer';
 export type {PropSerializer} from './core/SceneSerializer';
 export type {LightSerializer} from './core/SceneSerializer';
+export type {SaveVersionCheck} from './core/SceneSerializer';
 export {Minimap} from './core/Minimap';
 export type {MinimapStyle} from './core/Minimap';
 export type {SceneOptions} from './core/Scene';
@@ -89,6 +90,7 @@ export {Entity} from './ecs/Entity';
 export type {Component, ComponentCtor} from './ecs/Component';
 export {System} from './ecs/System';
 export {EventBus, globalBus} from './ecs/EventBus';
+export type {EventSubscriptionBag} from './ecs/EventBus';
 export type {
   EventEmitter, LuxIsoEventMap,
   DamageEvent, HealEvent, DeathEvent, MoveEvent, ArrivalEvent, TriggerEvent,

@@ -1,4 +1,5 @@
 import {Scene} from './Scene';
+import {SceneSerializer} from './SceneSerializer';
 import {FrameClock} from '../time/FrameClock';
 import {Floor} from '../elements/Floor';
 import {Wall, WallOptions} from '../elements/Wall';
@@ -186,6 +187,19 @@ export class Engine {
   private _accumulator = 0;
   /** Fixed physics timestep in seconds. Default 1/60. */
   fixedDeltaTime = 1 / 60;
+  /**
+   * Upper bound on fixed steps a single frame may run.
+   *
+   * The `[0, 0.1]` dt clamp already bounds a stalled frame to about 7 owed
+   * steps, so at the default of 8 this cap never binds — it exists to make the
+   * bound explicit and to give a tuning point: lowering it (e.g. to 4) turns a
+   * long stall into slow motion instead of a burst of catch-up steps. Steps the
+   * cap defers are counted in `deferredFixedSteps`; the accumulator remainder
+   * carries into later frames, so no simulated time is lost.
+   */
+  maxFixedStepsPerFrame = 8;
+  /** Total fixed steps the per-frame cap deferred over the engine's lifetime. */
+  private _deferredFixedSteps = 0;
   private _preFrame: ((ts: number) => void) | null = null;
 
   /**
@@ -396,6 +410,14 @@ export class Engine {
 
 
   private _buildScene(json: SceneJson): Scene {
+    // A record from a newer framework must be rejected, not silently mis-built
+    // with defaults standing in for fields this version does not know. Legacy
+    // records without the field load as-is.
+    const version = SceneSerializer.checkVersion(json);
+    if (!version.ok) {
+      throw new Error(`Engine.buildScene: ${version.message}`);
+    }
+
     // Validate the dimensions up front so a bad value fails loudly here rather
     // than degrading into an all-blocked collider further down.
     const cols = Engine._dimension(json.cols ?? json.floor?.cols, 10, 'cols');
@@ -594,6 +616,13 @@ export class Engine {
   get paused(): boolean { return this._autoPaused; }
 
   /**
+   * Fixed steps the `maxFixedStepsPerFrame` cap has deferred so far. A number
+   * that grows during normal play means the cap (or the machine) cannot keep up
+   * with `fixedDeltaTime` — the game is running in slow motion by design.
+   */
+  get deferredFixedSteps(): number { return this._deferredFixedSteps; }
+
+  /**
    * Stop the loop and drop the visibility listener. Call when discarding the
    * engine; `start()` can be used again afterwards.
    */
@@ -684,9 +713,17 @@ export class Engine {
     const rawDt = this._clock.sample(ts);
 
     this._accumulator += rawDt;
-    while (this._accumulator >= this.fixedDeltaTime) {
+    const cap = Math.max(1, this.maxFixedStepsPerFrame);
+    let steps = 0;
+    while (this._accumulator >= this.fixedDeltaTime && steps < cap) {
       this._scene.fixedUpdate(this.fixedDeltaTime);
       this._accumulator -= this.fixedDeltaTime;
+      steps++;
+    }
+    if (steps === cap) {
+      // The cap bound this frame. What is still owed carries into later frames
+      // (slow motion, not lost time); count it so the slowdown is observable.
+      this._deferredFixedSteps += Math.floor(this._accumulator / this.fixedDeltaTime);
     }
 
     this._scene.update(ts);

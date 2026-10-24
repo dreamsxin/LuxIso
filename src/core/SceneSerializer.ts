@@ -53,8 +53,62 @@ const BUILT_IN_TYPES: readonly IsoObjectCtor[] = [
 /** Built-ins that are runtime-only by design and must never be persisted. */
 const TRANSIENT_TYPES: readonly IsoObjectCtor[] = [FloatingText, ParticleSystem];
 
+/** Result of `SceneSerializer.checkVersion`. */
+export interface SaveVersionCheck {
+  /** False when the record must not be loaded. */
+  ok: boolean;
+  /**
+   * The record's `formatVersion`; `null` when absent — records written before
+   * versioning existed load as-is and are reported as legacy.
+   */
+  version: number | null;
+  /** Human-readable rejection reason, present when `ok` is false. */
+  message?: string;
+}
+
 /** Serializes the built-in scene schema consumed by Engine.buildScene(). */
 export class SceneSerializer {
+  /**
+   * The save-format version `toJSON` writes.
+   *
+   * Before this field existed a save written by a newer framework loaded into
+   * an older one and silently mis-built — unknown fields were ignored, missing
+   * ones became defaults, and the corruption only surfaced later as gameplay
+   * weirdness. `checkVersion` turns that into a load-time rejection, and the
+   * field gives future format changes a place to hang migrations on.
+   */
+  static readonly FORMAT_VERSION = 1;
+
+  /**
+   * Check a save record's `formatVersion` before loading it.
+   *
+   * - Absent → legacy record, accepted (`version: null`).
+   * - Current or older-but-integer → accepted. There are no migrations yet;
+   *   when the format first changes, this is where the migration chain goes.
+   * - Greater than `FORMAT_VERSION`, or not a positive integer → rejected with
+   *   a message naming both versions.
+   */
+  static checkVersion(json: object): SaveVersionCheck {
+    const raw = (json as {formatVersion?: unknown}).formatVersion;
+    if (raw === undefined) {return {ok: true, version: null};}
+    if (typeof raw !== 'number' || !Number.isInteger(raw) || raw < 1) {
+      return {
+        ok: false,
+        version: null,
+        message: `invalid formatVersion ${JSON.stringify(raw)}; expected a positive integer.`,
+      };
+    }
+    if (raw > SceneSerializer.FORMAT_VERSION) {
+      return {
+        ok: false,
+        version: raw,
+        message: `the record was written for format ${raw}, but this framework understands up to ` +
+          `${SceneSerializer.FORMAT_VERSION}. Loading it would silently drop or corrupt fields; upgrade first.`,
+      };
+    }
+    return {ok: true, version: raw};
+  }
+
   /**
    * Custom prop serializers, in registration order.
    *
@@ -189,6 +243,7 @@ export class SceneSerializer {
       : undefined;
 
     return {
+      formatVersion: SceneSerializer.FORMAT_VERSION,
       name: scene.name,
       cols: scene.cols,
       rows: scene.rows,
