@@ -45,6 +45,7 @@ export default defineConfig({
             ex08: resolve(__dirname, 'examples/08-volcano/index.html'),
             ex09: resolve(__dirname, 'examples/09-slopes/index.html'),
             ex10: resolve(__dirname, 'examples/10-arpg/index.html'),
+            ex11: resolve(__dirname, 'examples/11-zones-tweens/index.html'),
           },
         },
       },

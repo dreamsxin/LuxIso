@@ -172,6 +172,7 @@
     .bg-08   { background: linear-gradient(135deg, #0d0503 0%, #2a0a04 50%, #4a1a08 100%); }
     .bg-09   { background: linear-gradient(135deg, #081408 0%, #142814 50%, #0a1e0a 100%); }
     .bg-10   { background: linear-gradient(135deg, #07090d 0%, #16202c 50%, #2a1420 100%); }
+    .bg-11   { background: linear-gradient(135deg, #100a24 0%, #1d1840 50%, #0a2230 100%); }
     .bg-main { background: linear-gradient(135deg, #0a0a0f 0%, #141428 100%); }
     .bg-scene-editor  { background: linear-gradient(135deg, #080810 0%, #10102a 50%, #0a0a1a 100%); }
     .bg-sprite-editor { background: linear-gradient(135deg, #080c10 0%, #0c1828 50%, #080c18 100%); }
@@ -319,6 +320,12 @@
           desc: 'WebGL2 上的完整一局：三波小怪 + Boss + 结算。自定义 Entity 通过 SceneExtractor 注册表参与 GL 渲染，HudLayer 由 HudOverlayRenderer 叠在 GL 画布上，键盘与 TouchStick 共用同一条移动轴。',
           tags: ['WebGL2', 'ECS', 'HUD', 'Touch'],
         },
+        {
+          href: '/examples/11-zones-tweens/', bg: 'bg-11', dotsId: 'dots-11',
+          num: '11', emoji: '🌀', title: 'Trigger Zones & Tweens',
+          desc: 'Beacon puzzle: TriggerZoneComponent charges beacons on enter, TweenSequence plays the bounce chain, a TweenComponent sinks the rune gate, and a procedural 8-direction sprite drives DirectionalAnimator. Minimap HUD included.',
+          tags: ['Trigger', 'Tween', 'Minimap', 'Directional Anim'],
+        },
       ],
     },
     {
@@ -347,6 +354,7 @@
     'dots-07': { colors: ['#c08020','#e0a030','#a06010'], count: 9 },
     'dots-08': { colors: ['#ff4400','#ff8800','#cc2200'], count: 11 },
     'dots-09': { colors: ['#306030','#508050','#204020'], count: 9 },
+    'dots-11': { colors: ['#6a40c0','#40a0d0','#c0a040'], count: 9 },
     'dots-main': { colors: ['#404060','#505080','#6060a0'], count: 9 },
   };
 

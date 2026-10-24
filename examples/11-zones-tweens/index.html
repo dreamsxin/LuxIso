@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LuxIso — 11 Zones, Tweens &amp; Minimap</title>
+  <style>
+    body { margin: 0; background: #14131f; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; gap: 8px; }
+    canvas { display: block; cursor: crosshair; border-radius: 6px; }
+    .hud { color: #b8b4d0; font: 13px monospace; margin: 0; display: flex; gap: 18px; align-items: center; }
+    #status { color: #ffd040; }
+    kbd { background: #2a2840; border: 1px solid #4a4668; border-radius: 3px; padding: 0 5px; }
+  </style>
+</head>
+<body>
+  <canvas id="canvas"></canvas>
+  <p class="hud">
+    <span id="status">…</span>
+    <span><kbd>WASD</kbd>/arrows move · click to pathfind · <kbd>F</kbd> trigger zones debug</span>
+  </p>
+  <script type="module" src="./main.ts"></script>
+</body>
+</html>
