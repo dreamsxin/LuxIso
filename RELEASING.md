@@ -67,3 +67,8 @@ git push origin main --follow-tags
 Use `npm version minor` or `npm version major` when the change requires it. npm
 versions are immutable, so never reuse a published version or move a release
 tag. Deprecate a bad version and publish a new patch instead.
+
+Note that `npm run build:lib` clears `dist/` and leaves only the library
+bundle (`luxiso.mjs` / `luxiso.cjs` / `dist/types`). That is what the publish
+workflow packs, but it means `vite preview` and the Playwright suite serve
+nothing afterwards — run `npm run build` again to restore the demo build.

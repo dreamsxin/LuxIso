@@ -100,6 +100,9 @@ broken object cannot take down the frame. `unregister(Ctor)` and
 npm install luxiso
 ```
 
+Releases are tag-driven; see [RELEASING.md](RELEASING.md) for the publishing
+process and [CHANGELOG.md](CHANGELOG.md) for what each version contains.
+
 ## Run The Demos
 
 Clone the repository, then run:
@@ -348,6 +351,11 @@ if you wrote a custom `get aabb()`, drop the `* Z_UNITS_PER_PX` and pass pixels.
 
 ## Architecture
 
+> **Design documents**
+> - [docs/DESIGN.md](docs/DESIGN.md) — framework design baseline: layering and dependency rules, the frame lifecycle, cross-subsystem contracts (time, coordinates, sim/render, input, ownership, serialization, events), the four registry surfaces, and the prioritized gap analysis (G1–G12).
+> - [docs/REFERENCES.md](docs/REFERENCES.md) — collected game-framework design references (game loop, ECS, scene management, renderer abstraction, spatial partitioning, web platform, input, save, audio), each link verified with takeaways for this framework.
+> - [FRAMEWORK_ANALYSIS.md](FRAMEWORK_ANALYSIS.md) — the audit/defect log the design rules were distilled from.
+
 ```
 Engine                     — canvas setup, RAF loop, JSON loader, pre/postFrame
 └── Scene                  — object/light container, lifecycle, Camera, ECS Systems, IsoView
@@ -480,15 +488,16 @@ examples/
 ├── 07-desert-ruins/             # Procedural terrain, interactive props, portals
 ├── 08-volcano/                  # Lava terrain, particle FX, burn damage, click-to-move
 ├── 09-slopes/                   # Height-map terrain, bilinear interpolation, smooth voxel hills
-└── 10-arpg/                     # WebGL2 arena: 3 waves + boss + result + checkpoint; pillar cover with LoS-gated A* chase; spatial audio panned around the hero; custom Entity via SceneExtractor.register, HudLayer over GL, keyboard + TouchStick
-    ├── WaveDirector.ts          # Run structure (phases, waves, boss, result) + snapshot/restore — no Scene/Engine/DOM, unit-tested
-    ├── ArenaRun.ts              # The rules: spawning, hero intent, kill reporting, life on kill, crowd separation, `ArenaEvent` reporting. Driven by `step(dt, intent)`, so a full run is a unit test
-    ├── Combatant.ts             # Hero / grunt / boss: Entity + HealthComponent + MovementComponent
-    ├── CombatantExtractor.ts    # The SceneExtractor registration that makes it renderable on the GL path
-    ├── sfx.ts                   # WAV synthesis into `data:` URLs — the demo ships no binary audio assets
-    ├── ArenaAudio.ts            # Event → cue policy: per-frame voice budget, per-cue gap, phase-driven BGM bed, optional local pack
-
-    └── persistence.ts           # Both halves of the round trip: SceneSerializer.register (save) + Engine.registerProp (load)
+├── 10-arpg/                     # WebGL2 arena: 3 waves + boss + result + checkpoint; pillar cover with LoS-gated A* chase; spatial audio panned around the hero; custom Entity via SceneExtractor.register, HudLayer over GL, keyboard + TouchStick
+│   ├── WaveDirector.ts          # Run structure (phases, waves, boss, result) + snapshot/restore — no Scene/Engine/DOM, unit-tested
+│   ├── ArenaRun.ts              # The rules: spawning, hero intent, kill reporting, life on kill, crowd separation, `ArenaEvent` reporting. Driven by `step(dt, intent)`, so a full run is a unit test
+│   ├── Combatant.ts             # Hero / grunt / boss: Entity + HealthComponent + MovementComponent
+│   ├── CombatantExtractor.ts    # The SceneExtractor registration that makes it renderable on the GL path
+│   ├── sfx.ts                   # WAV synthesis into `data:` URLs — the demo ships no binary audio assets
+│   ├── ArenaAudio.ts            # Event → cue policy: per-frame voice budget, per-cue gap, phase-driven BGM bed, optional local pack
+│   └── persistence.ts           # Both halves of the round trip: SceneSerializer.register (save) + Engine.registerProp (load)
+└── 11-zones-tweens/             # Beacon puzzle: TriggerZoneComponent enter/exit, TweenSequence bounce chains, TweenComponent gate, procedural 8-direction sprite on DirectionalAnimator, Minimap HUD
+    └── heroSheet.ts             #   Procedurally paints a data:-URL 8-dir sprite sheet — no binary asset
 
 
 public/
