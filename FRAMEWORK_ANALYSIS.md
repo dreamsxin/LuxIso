@@ -2,6 +2,9 @@
 
 > 更新日期：2026-09-12
 > 基线：Canvas 2D 默认 + WebGL2 预览，1150 个 Vitest 测试 / 85 个测试文件（含 v8 覆盖率阈值），11 个 Playwright WebGL 测试
+>
+> 本文是审计与修复日志；从这些修复提炼出的框架设计基准（分层、契约、原则、差距分析）见
+> [docs/DESIGN.md](docs/DESIGN.md)，外部资料汇编见 [docs/REFERENCES.md](docs/REFERENCES.md)。
 
 
 
