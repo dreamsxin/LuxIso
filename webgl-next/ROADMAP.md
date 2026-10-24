@@ -141,6 +141,19 @@ assume no such ordering and cannot be copied wholesale.
 Known parity gaps to close or accept before the preview, each verified in the
 source on 2026-09-21:
 
+- ~~`MAX_OMNI_LIGHTS` is 8 while the acceptance budget names 16.~~ Closed on
+  2026-10-17: the shader arrays, JS upload buffers and `MAX_OMNI_LIGHTS` are now
+  16 (64 packed fragment vectors, inside the WebGL2 guaranteed minimum of 224).
+  The renderer reports `omniLightsDropped` separately, so clamping no longer
+  masquerades as "this many lights exist"; `WebGLRendererLightLimit.test.ts`
+  drives a real 20-light snapshot through a fake GL and asserts the upload.
+  Existing fixtures use 3–4 lights, so no pixel baseline moves.
+- ~~`EditorWebGLPreview` sizes its GL canvas from the 2-D backing store with
+  `dpr = 1`, so GPU picking is offset above DPR 1.~~ Closed on 2026-10-17:
+  `resolveFrame(clientWidth, clientHeight, devicePixelRatio)` derives the frame
+  from the CSS box and a [1, 2]-clamped DPR (the same contract `Engine.resize`
+  promises), skips an unlaid-out canvas, and `WebGLRendererPickDpr.test.ts`
+  pins the CSS→device mapping.
 - ~~Particles are ordered differently per backend.~~ Closed on 2026-09-21: the
   extractor makes one pass over the sorted list, so particles and clouds are
   submitted where they stand instead of being deferred past every object. Both

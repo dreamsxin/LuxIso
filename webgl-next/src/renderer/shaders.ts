@@ -58,9 +58,9 @@ in float vTextured;
 uniform vec3 uAmbientColor;
 uniform float uAmbientIntensity;
 uniform int uOmniCount;
-uniform vec2 uOmniPosition[8];
-uniform vec3 uOmniColor[8];
-uniform vec4 uOmniParams[8];
+uniform vec2 uOmniPosition[16];
+uniform vec3 uOmniColor[16];
+uniform vec4 uOmniParams[16];
 uniform int uDirectionalCount;
 uniform vec2 uDirectionalDirection[4];
 uniform vec3 uDirectionalColor[4];
@@ -80,7 +80,7 @@ void main() {
     light += uDirectionalColor[i] * uDirectionalIntensity[i] * facing;
   }
 
-  for (int i = 0; i < 8; i++) {
+  for (int i = 0; i < 16; i++) {
     if (i >= uOmniCount) break;
     float globalLight = uOmniParams[i].y;
     float attenuation = 1.0;

@@ -100,6 +100,7 @@ export class WebGLRenderer implements RenderBackend {
     vertices: 0,
     bufferBytes: 0,
     omniLights: 0,
+    omniLightsDropped: 0,
     segments: 0,
     textures: 0,
     textOverlays: 0,
@@ -228,6 +229,7 @@ export class WebGLRenderer implements RenderBackend {
     this._statsValue.vertices = geometry.vertexCount;
     this._statsValue.bufferBytes = byteLength;
     this._statsValue.omniLights = Math.min(MAX_OMNI_LIGHTS, snapshot.omniLights.length);
+    this._statsValue.omniLightsDropped = Math.max(0, snapshot.omniLights.length - MAX_OMNI_LIGHTS);
     this._statsValue.segments = snapshot.geometry.segments.length;
     this._statsValue.textures = this._textures.size;
     this._statsValue.textOverlays = snapshot.textOverlays.length;

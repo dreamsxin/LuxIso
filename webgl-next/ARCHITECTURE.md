@@ -88,15 +88,16 @@ handles.
 ## Coordinate Convention
 
 - X and Y: world tile units.
-- Z: world vertical units, where one Z unit equals `tileH / 2` projected pixels
-  at zoom 1 and default elevation.
+- Z is screen pixels everywhere — `position.z`, AABB `baseZ`/`maxZ` and
+  `projectIso` all share one unit, so extraction needs no conversion step. The
+  old dual-Z contract (world Z units plus a hard-coded `Z_UNITS_PER_PX` that
+  only held at `tileH = 32`) was removed; see ADR-003 in `docs/DESIGN.md`.
 - Projection scale belongs to the camera/view, not individual objects.
 - GPU uses camera-relative coordinates to reduce precision loss on large maps.
-- Z is screen pixels everywhere — `position.z`, AABB `baseZ`/`maxZ` and
-  `projectIso` all share one unit, so extraction needs no conversion step.
 
-This is the migration point for removing the dual-Z public contract without
-changing serialized legacy scenes immediately.
+Scene JSON carries `z` in that same screen-pixel unit; no runtime conversion
+runs. Custom `aabb` getters written against the old world-Z contract need the
+`* Z_UNITS_PER_PX` factor removed (migration note in `src/math/IsoProjection.ts`).
 
 ## Render Graph
 

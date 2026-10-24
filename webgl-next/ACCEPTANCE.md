@@ -25,7 +25,10 @@
   10,362 pixels — measured to be too loose to mean much (see below).
 
 - No blank frame, stale shadow, missing batch, halo misalignment, or editor
-  picking offset at desktop and mobile DPR values.
+  picking offset at desktop and mobile DPR values. The editor preview's
+  CSS-pixel frame sizing and the renderer's CSS→device pick mapping are now
+  pinned headlessly (`EditorWebGLPreview.test.ts`, `WebGLRendererPickDpr.test.ts`);
+  the browser-level check across DPRs stays a release-gate item.
 
 The preview exposes the current deterministic matrix through the `fixture` URL
 parameter and the inspector selector:

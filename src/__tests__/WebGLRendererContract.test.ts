@@ -18,7 +18,7 @@ describe('WebGL Next renderer contract', () => {
   it('keeps visual and picking passes on the same vertex transform', () => {
     expect(vertexShader).toContain('uCameraIso');
     expect(vertexShader).toContain('uRotation');
-    expect(visualFragmentShader).toContain('uOmniPosition[8]');
+    expect(visualFragmentShader).toContain('uOmniPosition[16]');
     expect(visualFragmentShader).toContain('uDirectionalDirection[4]');
     expect(shadowMaskFragmentShader).toContain('vColor.rgb + vec3(1.0 - vColor.a)');
     expect(shadowCompositeFragmentShader).toContain('uShadowMask');

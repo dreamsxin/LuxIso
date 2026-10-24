@@ -26,7 +26,10 @@ export interface RenderStats {
   /** Vertices in the geometry arena, including ranges not drawn this frame. */
   vertices: number;
   bufferBytes: number;
+  /** Omni lights actually uploaded to the shader this frame (≤ MAX_OMNI_LIGHTS). */
   omniLights: number;
+  /** Lights in the snapshot beyond MAX_OMNI_LIGHTS that contributed nothing. */
+  omniLightsDropped: number;
   segments: number;
   textures: number;
   textOverlays: number;

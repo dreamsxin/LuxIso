@@ -1,5 +1,12 @@
 export const RENDER_VERTEX_FLOATS = 17;
-export const MAX_OMNI_LIGHTS = 8;
+/**
+ * Maximum omni lights packed into shader uniforms per frame. Lights beyond
+ * this are dropped by the renderer (and counted in `RenderStats.omniLightsDropped`).
+ * 16 matches the reference workload's light count in ACCEPTANCE.md; the packed
+ * uniforms cost 64 fragment uniform vectors, well inside the WebGL2 guaranteed
+ * minimum of 224.
+ */
+export const MAX_OMNI_LIGHTS = 16;
 
 export interface RenderRange {
   first: number;

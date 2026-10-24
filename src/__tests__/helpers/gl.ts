@@ -45,6 +45,12 @@ export interface FakeGL {
   deletedPrograms: FakeHandle[];
   /** Names of every call, in order. */
   calls: string[];
+  /** `uniform1i` calls, with the uniform name tagged by `getUniformLocation`. */
+  uniform1iCalls: Array<{name: string; value: number}>;
+  /** `uniform2fv` calls; value is a copy of the uploaded array. */
+  uniform2fvCalls: Array<{name: string; value: number[]}>;
+  /** Arguments of the last `readPixels(x, y, w, h, ...)` call. */
+  lastReadPixels: {x: number; y: number; w: number; h: number} | null;
   /** Textures created but not yet deleted. */
   live(): FakeHandle[];
   /** Shaders created but not yet deleted — a leak shows up here. */
@@ -67,6 +73,24 @@ const ENUMS: Record<string, number> = {
   FRAGMENT_SHADER: 0x8b30,
   LINK_STATUS: 0x8b82,
   COMPILE_STATUS: 0x8b81,
+  // The rest only need stable values: they are arguments to no-op calls.
+  RGBA8: 0x8058,
+  DYNAMIC_DRAW: 0x88e8,
+  TEXTURE0: 0x84c0,
+  BLEND: 0x0be2,
+  DITHER: 0x0bd0,
+  DEPTH_TEST: 0x0b71,
+  SRC_ALPHA: 0x0302,
+  ONE_MINUS_SRC_ALPHA: 0x0303,
+  ONE: 1,
+  ZERO: 0,
+  DST_COLOR: 0x0306,
+  COLOR_BUFFER_BIT: 0x4000,
+  FRAMEBUFFER: 0x8d40,
+  COLOR_ATTACHMENT0: 0x8ce0,
+  FRAMEBUFFER_COMPLETE: 0x8cdd,
+  TRIANGLES: 0x0004,
+  FLOAT: 0x1406,
 };
 
 export function createFakeGL(options: FakeGLOptions = {}): FakeGL {
@@ -77,7 +101,12 @@ export function createFakeGL(options: FakeGLOptions = {}): FakeGL {
   const programs: FakeHandle[] = [];
   const deletedPrograms: FakeHandle[] = [];
   const calls: string[] = [];
+  const uniform1iCalls: Array<{name: string; value: number}> = [];
+  const uniform2fvCalls: Array<{name: string; value: number[]}> = [];
   let nextId = 1;
+  const state: {lastReadPixels: {x: number; y: number; w: number; h: number} | null} = {
+    lastReadPixels: null,
+  };
 
   const fails = new Set(options.failCreate ?? []);
   const infoLog = options.infoLog ?? 'fake GL failure';
@@ -116,6 +145,20 @@ export function createFakeGL(options: FakeGLOptions = {}): FakeGL {
     deleteProgram: (program: FakeHandle) => { deletedPrograms.push(program); },
     getProgramParameter: () => !options.failLink,
     getProgramInfoLog: () => infoLog,
+    // Tag locations with their uniform name so a test can assert what value was
+    // uploaded to which uniform without parsing a shader.
+    getUniformLocation: (_program: unknown, name: string) => ({id: nextId++, uniform: name}),
+    checkFramebufferStatus: () => ENUMS.FRAMEBUFFER_COMPLETE,
+    getParameter: () => 0,
+    uniform1i: (location: {uniform?: string}, value: number) => {
+      uniform1iCalls.push({name: location?.uniform ?? '', value});
+    },
+    uniform2fv: (location: {uniform?: string}, value: ArrayLike<number>) => {
+      uniform2fvCalls.push({name: location?.uniform ?? '', value: Array.from(value)});
+    },
+    readPixels: (x: number, y: number, w: number, h: number) => {
+      state.lastReadPixels = {x, y, w, h};
+    },
   };
 
   const gl = new Proxy(api, {
@@ -142,6 +185,9 @@ export function createFakeGL(options: FakeGLOptions = {}): FakeGL {
     programs,
     deletedPrograms,
     calls,
+    uniform1iCalls,
+    uniform2fvCalls,
+    get lastReadPixels() {return state.lastReadPixels;},
     live: () => created.filter(texture => !deleted.includes(texture)),
     liveShaders: () => shaders.filter(shader => !deletedShaders.includes(shader)),
   };
